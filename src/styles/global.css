@@ -585,7 +585,7 @@ body.is-locked {
   /* El titular arranca SIEMPRE por debajo de la barra y con aire: el maximo
      garantiza el hueco minimo aunque la pantalla sea muy baja, y en pantallas
      altas manda el 19vh, que lo baja mas. */
-  padding-top: max(calc(var(--nav-h) + var(--nav-gap)), 19vh);
+  padding-top: max(calc(var(--nav-h) + var(--nav-gap)), 23vh);
   padding-bottom: clamp(28px, 5vh, 64px);
   /* El puntero atraviesa el texto hasta el agujero: es lo que permite moverlo
      por toda la pantalla. Lo que sí se pulsa vuelve a capturarlo (regla de

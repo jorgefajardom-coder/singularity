@@ -1,27 +1,20 @@
-import { useEffect, useRef, useState } from "react";
 import { nav, site, ui } from "../data/content";
 import { useLang, LangToggle } from "../lib/i18n";
 import MusicPlayer from "./MusicPlayer";
 import { RollText } from "./ui";
 
-/** Barra fija que se esconde al bajar y reaparece al subir. */
+/**
+ * Barra fija, visible en todo momento.
+ *
+ * Antes se escondía al bajar y reaparecía al subir. Se quitó a propósito: los
+ * controles de música e idioma y el botón de contacto tienen que estar
+ * siempre a mano, no solo cuando el visitante cambia de dirección.
+ */
 export default function Nav() {
   const { tr } = useLang();
-  const [hidden, setHidden] = useState(false);
-  const last = useRef(0);
-
-  useEffect(() => {
-    const onScroll = () => {
-      const y = window.scrollY;
-      setHidden(y > 160 && y > last.current);
-      last.current = y;
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   return (
-    <header className="nav" data-hidden={hidden ? "true" : "false"}>
+    <header className="nav">
       {/* El nombre completo donde cabe; el monograma cuando la barra se
           estrecha. Las dos formas van en el DOM y las alterna el CSS, para no
           depender de un listener de resize. `aria-hidden` en la que no se ve

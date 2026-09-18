@@ -702,11 +702,6 @@ body.is-locked {
   align-items: center;
   gap: clamp(16px, 3vw, 40px);
   padding: 18px var(--gutter);
-  transition: transform 0.5s var(--ease);
-}
-
-.nav[data-hidden="true"] {
-  transform: translateY(-120%);
 }
 
 /* El nombre completo manda; el monograma solo aparece cuando la barra no da
@@ -2133,7 +2128,8 @@ a.cert:hover {
   margin-top: 14px;
   color: #f4f4f6;
   font-size: clamp(9px, 0.85vw, 12px);
-  font-weight: 700;
+  /* A este tamaño y sobre el disco encendido, 700 se leía fino. */
+  font-weight: 800;
   line-height: 1.35;
   letter-spacing: 0.035em;
   text-align: center;

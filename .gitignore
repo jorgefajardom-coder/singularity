@@ -11,3 +11,9 @@ dist-ssr
 
 # Archivos fuente de Blender (opcional: quítalo si quieres versionarlos)
 *.blend1
+
+__pycache__/
+*.pyc
+
+# Notas de trabajo, no van al repositorio publico
+README.md

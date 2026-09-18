@@ -21,13 +21,17 @@ El resultado va a tools/logos-src, que es la entrada de normalize-logos.py:
 esa segunda pasada es la que iguala el tamano visible de todas las marcas y
 las deja en public/images/clients. Ejecuta las dos, en orden.
 
-Uso:  python tools/prepare-logos.py
+Uso:  python tools/prepare-logos.py [carpeta-con-los-originales]
+
+Sin argumento usa la carpeta de descargas del usuario actual.
 """
 import os
+import sys
 
 from PIL import Image
 
-DL = r"C:\Users\J.A.F.M\Downloads"
+# Carpeta donde estan los logos originales, los que lista LOGOS mas abajo.
+SRC_DIR = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.expanduser("~"), "Downloads")
 OUT = os.path.join("tools", "logos-src")
 SIZE = 512
 
@@ -68,7 +72,7 @@ def background_color(im):
 
 
 for src_name, out_name in LOGOS:
-    src = os.path.join(DL, src_name)
+    src = os.path.join(SRC_DIR, src_name)
     if not os.path.exists(src):
         print("FALTA:", src_name)
         continue

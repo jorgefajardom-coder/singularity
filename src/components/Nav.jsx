@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { nav, site, ui } from "../data/content";
+import { site, ui } from "../data/content";
 import { useLang, LangToggle } from "../lib/i18n";
 import MusicPlayer from "./MusicPlayer";
-import { RollText } from "./ui";
 
 /**
  * Barra fija, visible en todo momento.
@@ -65,14 +64,10 @@ export default function Nav() {
         <LangToggle />
       </div>
 
+      {/* Sin enlaces de seccion: la barra se queda con la marca, los controles
+          y el contacto. El recorrido del sitio es el scroll, y el pie sigue
+          teniendo la navegacion completa para quien la quiera. */}
       <div className="nav__right">
-        <nav className="nav__links" aria-label={tr(ui.navigation)}>
-          {nav.map((item) => (
-            <a key={item.href} href={item.href}>
-              <RollText>{tr(item.label)}</RollText>
-            </a>
-          ))}
-        </nav>
         <a className="btn" href="#contact">
           {tr(ui.contactCta)}
         </a>

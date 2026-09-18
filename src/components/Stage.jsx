@@ -36,6 +36,10 @@ const EXIT = [0.86, 1.0];
 // arriba, que es el convenio del shader: -0.38 lo baja un 19 % del alto.
 const HERO_CY = -0.38;
 
+// En reposo el agujero se ve mas pequeno de lo que se veia. `uScale` multiplica
+// las coordenadas en el shader, asi que un valor MAYOR lo aleja y lo achica.
+const HERO_SCALE = 1.34;
+
 const span = ([a, b], p) => Math.min(1, Math.max(0, (p - a) / (b - a)));
 // Suaviza los extremos: sin esto cada fase arranca y frena de golpe.
 const ease = (x) => x * x * (3 - 2 * x);
@@ -48,7 +52,7 @@ export default function Stage({ entered, warm }) {
 
   // Estado compartido shader <-> DOM. `cx`/`cy` van en fracción de media
   // pantalla con la Y hacia arriba, que es como los quiere el shader.
-  const journey = useRef({ cx: 0, cy: HERO_CY, scale: 1, topDown: 0, fall: 0, lens: 1, p: 0 });
+  const journey = useRef({ cx: 0, cy: HERO_CY, scale: HERO_SCALE, topDown: 0, fall: 0, lens: 1, p: 0 });
 
   // En desarrollo, para poder leer la fase desde la consola:
   // window.journey  ->  { p, cy, scale, topDown, fall }
@@ -108,7 +112,9 @@ export default function Stage({ entered, warm }) {
           j.cx = 0;
           // En la vista cenital el agujero se queda del tamano de un sol en un
           // esquema del sistema solar: el protagonista pasan a ser las marcas.
-          j.scale = 1 + 0.52 * dive + 2.0 * turn + 1.1 * exit;
+          // Sale del tamano del hero y llega al de siempre (1.52) al acabar
+          // el primer tramo, para que el viaje no de un salto de escala.
+          j.scale = HERO_SCALE * (1 - dive) + 1.52 * dive + 2.0 * turn + 1.1 * exit;
           j.topDown = turn;
           j.fall = span(FALL, p);
         },

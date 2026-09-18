@@ -293,7 +293,11 @@ void main() {
       vec2 pull = lensed - screen;
       float reach = length(pull);
       pull *= (reach / (1.0 + reach / 0.80)) / max(reach, 1e-4);
-      vec2 base = screen * (1.0 - uBass * 0.010);
+      // El texto NO late con la musica. Los graves siguen hinchando el disco
+      // y el horizonte (ver uv y pulse mas arriba), pero escalar tambien
+      // estas coordenadas empujaba el titular fuera del encuadre en cada
+      // golpe. Ojo: nada de acentos graves aqui dentro, esto es una plantilla.
+      vec2 base = screen;
       vec2 frame = 2.0 * vec2(uAspect, 1.0) * zoom;
       // El texto pequeño va en su propia capa con mucha menos lente: el mismo
       // desplazamiento que en un titular de 130 px se lee como curvatura, y en

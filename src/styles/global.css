@@ -2,6 +2,13 @@
    Tokens
    ============================================================ */
 :root {
+  /* Alto de la barra fija: 18 px de aire arriba + 42 del control + 18 abajo.
+     Se declara aqui para que el hero pueda dejar su hueco sin repetir el
+     numero; si cambia el relleno de la barra, se cambia en un solo sitio. */
+  --nav-h: 78px;
+  /* Aire entre la barra y el titular. */
+  --nav-gap: clamp(28px, 5vh, 56px);
+
   /* La paleta sale del propio disco: el negro del horizonte, la rampa de
      brasa del shader y un papel cálido para los paneles claros. */
   --ink: #08070a;
@@ -575,7 +582,10 @@ body.is-locked {
   /* El titular sube al tercio superior, con el agujero apoyado abajo (ver
      HERO_CY en Stage.jsx). El minimo son 92 px a proposito: la barra mide 78
      y es fija, asi que con menos le cortaba la primera linea. */
-  padding-top: clamp(92px, 12vh, 150px);
+  /* El titular arranca SIEMPRE por debajo de la barra y con aire: el maximo
+     garantiza el hueco minimo aunque la pantalla sea muy baja, y en pantallas
+     altas manda el 19vh, que lo baja mas. */
+  padding-top: max(calc(var(--nav-h) + var(--nav-gap)), 19vh);
   padding-bottom: clamp(28px, 5vh, 64px);
   /* El puntero atraviesa el texto hasta el agujero: es lo que permite moverlo
      por toda la pantalla. Lo que sí se pulsa vuelve a capturarlo (regla de

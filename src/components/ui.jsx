@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { gsap, prefersReducedMotion } from "../lib/anim";
+import { asset } from "../lib/asset";
 
 /**
  * Título "fantasma" como el de la referencia: el contorno se rellena
@@ -56,7 +57,7 @@ export function GhostHeading({ children, className = "display display--lg", as: 
  * en /public/images.
  */
 export function Placeholder({ palette = ["#ff8224", "#db3208"], seed = 0, src, alt = "" }) {
-  if (src) return <img src={src} alt={alt} loading="lazy" />;
+  if (src) return <img src={asset(src)} alt={alt} loading="lazy" />;
 
   const [a, b] = palette;
   const x = 20 + ((seed * 37) % 60);

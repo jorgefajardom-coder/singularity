@@ -2,9 +2,12 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  // GitHub Pages en usuario.github.io/portfolio-3d  -> base: "/portfolio-3d/"
-  // Vercel, Netlify o dominio propio                -> base: "/"
-  base: "/",
+  // El sitio se publica en GitHub Pages, en el repo `singularity`, asi que
+  // cuelga de un subdirectorio y los assets tienen que apuntar ahi.
+  //   repo `singularity`                 -> base: "/singularity/"
+  //   repo `usuario.github.io`           -> base: "/"
+  //   Vercel, Netlify o dominio propio   -> base: "/"
+  base: "/singularity/",
 
   plugins: [react()],
 

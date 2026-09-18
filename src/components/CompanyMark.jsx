@@ -1,4 +1,5 @@
 import { forwardRef } from "react";
+import { asset } from "../lib/asset";
 
 /**
  * Una marca de cliente: el logo recortado y, si lleva, su nombre debajo.
@@ -31,7 +32,7 @@ const CompanyMark = forwardRef(function CompanyMark(
       <img
         className="company__logo"
         style={{ scale: company.logoScale ?? 1 }}
-        src={company.logo}
+        src={asset(company.logo)}
         // Solo la primera pasada cuenta para lectores de pantalla.
         alt={duplicate ? "" : company.name}
         loading="lazy"

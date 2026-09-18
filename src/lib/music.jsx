@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { music } from "../data/content";
 import { audioBands } from "./audioAnalysis";
+import { asset } from "./asset";
 
 const MusicContext = createContext(null);
 const SILENCE = { bass: 0, mid: 0, treble: 0 };
@@ -9,7 +10,7 @@ export function MusicProvider({ children, active }) {
   const audio = useRef(null);
   const graph = useRef(null);
   const objectUrl = useRef(null);
-  const [src, setSrc] = useState(music.src);
+  const [src, setSrc] = useState(asset(music.src));
   const [title, setTitle] = useState(music.title);
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState(false);

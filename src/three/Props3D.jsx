@@ -9,6 +9,7 @@ import {
   RoundedBox,
   useGLTF,
 } from "@react-three/drei";
+import { asset } from "../lib/asset";
 
 /* ------------------------------------------------------------------
    Iluminación compartida.
@@ -151,7 +152,10 @@ export function Prop({
   spin = 0.15,
 }) {
   const group = useRef();
-  const status = useFileExists(model);
+  // La ruta del .glb también cuelga del `base` cuando el sitio va en un
+  // subdirectorio, tanto para comprobar que existe como para cargarlo.
+  const url = asset(model);
+  const status = useFileExists(url);
   const viewport = useThree((s) => s.viewport);
 
   const [nx = 0, ny = 0, z = 0] = position;
@@ -179,7 +183,7 @@ export function Prop({
       <group ref={group} position={[x, y, z]} scale={size}>
         {status === "present" ? (
           <Suspense fallback={<Procedural shape={fallback} color={color} />}>
-            <Gltf url={model} scale={1} />
+            <Gltf url={url} scale={1} />
           </Suspense>
         ) : (
           <Procedural shape={fallback} color={color} />

@@ -115,16 +115,21 @@ button {
   margin: 0;
 }
 
+/* Los tamaños grandes miran el ancho Y el alto. Solo con `vw`, en una
+   pantalla ancha y baja (1536x639 es de lo más común en portátiles) el
+   titular salía enorme y se comía la pantalla. Los valores en `svh` están
+   puestos para que en 16:9 no recorten nada —ahí sigue mandando el `vw`— y
+   solo entren en juego cuando falta altura. */
 .display--xl {
-  font-size: clamp(56px, 13vw, 210px);
+  font-size: clamp(56px, min(13vw, 24svh), 210px);
 }
 
 .display--lg {
-  font-size: clamp(44px, 9vw, 132px);
+  font-size: clamp(44px, min(9vw, 17svh), 132px);
 }
 
 .display--md {
-  font-size: clamp(32px, 5vw, 72px);
+  font-size: clamp(32px, min(5vw, 10svh), 72px);
 }
 
 /* Titulo "fantasma": contorno que se rellena al hacer scroll */
@@ -577,7 +582,7 @@ body.is-locked {
 
 .hero--singularity .hero__title {
   text-align: center;
-  font-size: clamp(48px, 8.2vw, 132px);
+  font-size: clamp(48px, min(8.2vw, 15svh), 132px);
   /* Halo cálido: el texto se funde con el disco en vez de taparlo. */
   text-shadow:
     0 0 26px rgba(8, 7, 10, 0.92),
@@ -630,7 +635,7 @@ body.is-locked {
 }
 
 @media (max-width: 720px) {
-  .hero--singularity .hero__title { font-size: clamp(48px, 13vw, 92px); }
+  .hero--singularity .hero__title { font-size: clamp(48px, min(13vw, 16svh), 92px); }
 }
 
 .music-player {
@@ -963,7 +968,15 @@ body.is-locked {
   justify-self: start;
   margin-left: calc(var(--gutter) * -0.5);
 }
-.about__float { position: relative; animation: about-float 7s ease-in-out infinite; }
+.about__float {
+  position: relative;
+  /* La figura nunca se sale de la pantalla: la imagen es 1122x1402, así que
+     topar el ancho en 58svh deja la altura en torno al 72 % del viewport.
+     Sin esto, en una ventana baja el astronauta se cortaba arriba y abajo. */
+  width: min(100%, 58svh);
+  margin-inline: auto;
+  animation: about-float 7s ease-in-out infinite;
+}
 .about__astronaut { display: block; width: 100%; height: auto; }
 .about__singularity {
   position: absolute;
@@ -1038,7 +1051,7 @@ body.is-locked {
 
 .about__stat b {
   display: block;
-  font-size: clamp(34px, 4.5vw, 64px);
+  font-size: clamp(34px, min(4.5vw, 8.5svh), 64px);
   font-weight: 800;
   font-stretch: 112%;
   line-height: 1;

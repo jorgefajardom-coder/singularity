@@ -64,7 +64,7 @@ export default function Loader({ onWarm, onEnter, onDone, onReady }) {
     const counter = { v: 0 };
     const tween = gsap.to(counter, {
       v: 100,
-      duration: 2.2,
+      duration: 1.5,
       ease: "power1.inOut",
       onUpdate() {
         const p = counter.v / 100;
@@ -134,7 +134,7 @@ export default function Loader({ onWarm, onEnter, onDone, onReady }) {
       //   morph   recien ahora el ∞ se cierra sobre si mismo.
       const IGNITE = 0.62;
       const SETTLE = 0.26;
-      const transformDuration = 1.65;
+      const transformDuration = 1.35;
       const morphAt = IGNITE + SETTLE;
 
       const timeline = gsap.timeline();

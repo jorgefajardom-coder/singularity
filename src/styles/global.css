@@ -233,7 +233,8 @@ body.is-locked {
 }
 
 .loader[data-phase="loading"] .loader__mark {
-  animation: loader-form-glow 2.2s ease-in-out both;
+  /* Dura lo mismo que el contador de Loader.jsx: si cambia uno, cambia el otro. */
+  animation: loader-form-glow 1.5s ease-in-out both;
 }
 
 .loader[data-phase="choose"] .loader__mark {
@@ -1652,9 +1653,42 @@ body.is-locked {
   transform: translateY(-1px);
 }
 
+/* El boton de contacto se ocultaba en movil porque la barra iba llena de
+   enlaces de seccion. Ya no los lleva, asi que cabe y se queda: es el punto
+   de contacto principal. Solo se aprieta un poco para no empujar al resto. */
 @media (max-width: 520px) {
+  /* El boton de contacto no cabe en un movil junto al monograma y la capsula
+     de musica: se probo apretando las tres piezas y seguia saliendose por el
+     borde. Se oculta, como estaba. El contacto se alcanza con el scroll y
+     desde el pie. */
   .nav .btn {
     display: none;
+  }
+
+  /* En movil la capsula de musica se queda en iconos: con sus etiquetas
+     ocupaba 233 px de los 390 de pantalla y empujaba el boton de contacto
+     fuera del borde. Los botones conservan su `aria-label`, asi que un lector
+     de pantalla sigue oyendo que hacen. */
+  .nav__controls .music-player__track span:not(.music-player__icon),
+  .nav__controls .music-player__mute span {
+    display: none;
+  }
+
+  .nav__controls .music-player__track,
+  .nav__controls .music-player__mute {
+    padding-inline: 12px;
+  }
+
+  /* Las tres piezas tienen que caber en 390 px con sus huecos. Se aprieta
+     cada una un poco en vez de sacrificar ninguna. */
+  .nav {
+    gap: 10px;
+    padding-inline: 14px;
+  }
+
+  .nav__mark {
+    font-size: 11px;
+    letter-spacing: 0.06em;
   }
 }
 

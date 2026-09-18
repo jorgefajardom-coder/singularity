@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { gsap } from "../lib/anim";
 import { useLang } from "../lib/i18n";
-import { createOrbitSpheres } from "../three/OrbitSpheres";
 import CompanyMark from "./CompanyMark";
 
 /**
@@ -52,9 +51,14 @@ export default function Orbit({ journey, items, note }) {
     const layer = hud.current;
     if (!layer || !items.length) return;
     const n = items.length;
-    const spheres = createOrbitSpheres(sphereLayer.current, n);
+    // Las esferas son lo unico de esta seccion que necesita three.js, y la
+    // seccion esta fuera de la primera pantalla. Cargarlo aparte evita que
+    // 688 kB bloqueen el pintado del cargador.
+    let spheres = null;
+    let cancelled = false;
 
     const tick = (time) => {
+      if (!spheres) return;
       const j = journey.current;
       const t = time; // El ticker de GSAP entrega segundos.
       // La capa es `fixed`: su caja ES el viewport, igual que la del lienzo.
@@ -168,8 +172,17 @@ export default function Orbit({ journey, items, note }) {
       spheres.render();
     };
 
-    gsap.ticker.add(tick);
-    return () => { gsap.ticker.remove(tick); spheres.dispose(); };
+    import("../three/OrbitSpheres").then(({ createOrbitSpheres }) => {
+      if (cancelled) return;
+      spheres = createOrbitSpheres(sphereLayer.current, n);
+      gsap.ticker.add(tick);
+    });
+
+    return () => {
+      cancelled = true;
+      gsap.ticker.remove(tick);
+      spheres?.dispose();
+    };
   }, [journey, items.length]);
 
   if (!items.length) return null;

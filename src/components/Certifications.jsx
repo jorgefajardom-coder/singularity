@@ -1,5 +1,9 @@
+import { Suspense, lazy } from "react";
 import { certifications, props3d, sections } from "../data/content";
-import { PropsView } from "../three/Props3D";
+
+const PropsView = lazy(() =>
+  import("../three/Props3D").then((m) => ({ default: m.PropsView }))
+);
 import { useLang } from "../lib/i18n";
 import { GhostHeading } from "./ui";
 import SplitText from "./SplitText";
@@ -17,7 +21,9 @@ export default function Certifications() {
 
   return (
     <section id="certifications" className="section certs">
-      <PropsView className="certs__view" items={props3d.certs} parallax={-0.4} />
+      <Suspense fallback={null}>
+        <PropsView className="certs__view" items={props3d.certs} parallax={-0.4} />
+      </Suspense>
 
       <div className="shell" style={{ textAlign: "center" }}>
         <GhostHeading className="display display--md">{tr(sections.certifications.heading)}</GhostHeading>

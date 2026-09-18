@@ -1,5 +1,9 @@
+import { Suspense, lazy } from "react";
 import { site, props3d, sections, ui } from "../data/content";
-import { PropsView } from "../three/Props3D";
+
+const PropsView = lazy(() =>
+  import("../three/Props3D").then((m) => ({ default: m.PropsView }))
+);
 import { useLang } from "../lib/i18n";
 import { GhostHeading } from "./ui";
 import SplitText from "./SplitText";
@@ -26,7 +30,9 @@ export default function Contact() {
     <section id="contact" className="section">
       <div className="shell">
         <div className="panel panel--paper contact">
-          <PropsView className="contact__view" items={props3d.contact} parallax={0.3} />
+          <Suspense fallback={null}>
+            <PropsView className="contact__view" items={props3d.contact} parallax={0.3} />
+          </Suspense>
 
           <div className="contact__left">
             <GhostHeading className="display display--md">

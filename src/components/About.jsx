@@ -1,5 +1,9 @@
+import { Suspense, lazy } from "react";
 import { about, props3d, sections, ui } from "../data/content";
-import { PropsView } from "../three/Props3D";
+
+const PropsView = lazy(() =>
+  import("../three/Props3D").then((m) => ({ default: m.PropsView }))
+);
 import { useLang } from "../lib/i18n";
 import { GhostHeading } from "./ui";
 import SplitText from "./SplitText";
@@ -10,7 +14,9 @@ export default function About() {
   return (
     <section id="about" className="section about">
       {/* Objetos 3D flotando alrededor del texto */}
-      <PropsView className="about__view" items={props3d.about} parallax={0.6} />
+      <Suspense fallback={null}>
+        <PropsView className="about__view" items={props3d.about} parallax={0.6} />
+      </Suspense>
 
       <div className="shell">
         <GhostHeading className="display display--lg">{tr(sections.about.heading)}</GhostHeading>

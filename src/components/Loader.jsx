@@ -1,8 +1,11 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLang } from "../lib/i18n";
 import { gsap, prefersReducedMotion } from "../lib/anim";
-import BlackHole from "./BlackHole";
 import { useMusic } from "../lib/music";
+
+// El infinito es SVG y se dibuja sin tocar WebGL. El agujero negro llega
+// despues, mientras el contador sube, para no bloquear el primer pintado.
+const BlackHole = lazy(() => import("./BlackHole"));
 
 // Dos cintas con extremos coincidentes: la junta se ilumina, nunca se abre.
 // Las capas desplazadas hacia abajo dan espesor sin cargar otra escena WebGL.
@@ -203,7 +206,9 @@ export default function Loader({ onWarm, onEnter, onDone, onReady }) {
           fragment shader cuesta varios fotogramas, y si el canvas arranca al
           pulsar, el SVG se apaga antes de que haya nada dibujado debajo. */}
       {(phase === "choose" || phase === "transforming") && <div className="loader__singularity">
-        <BlackHole formation={formation} />
+        <Suspense fallback={null}>
+          <BlackHole formation={formation} />
+        </Suspense>
       </div>}
       <svg className="loader__mark" viewBox="0 0 205 105" role="group" aria-label={lang === "en" ? "Choose your language" : "Elige tu idioma"}>
         <defs>

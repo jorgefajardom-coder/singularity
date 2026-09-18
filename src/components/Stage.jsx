@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import BlackHole from "./BlackHole";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
+
+const BlackHole = lazy(() => import("./BlackHole"));
 import Hero from "./Hero";
 import Orbit from "./Orbit";
 import Companies from "./Companies";
@@ -113,7 +114,9 @@ export default function Stage({ entered, warm }) {
     <div className="stage" ref={stage}>
       {warm && (
         <div className="stage__void">
-          <BlackHole bare lensSource={copy} journey={journey} onLensReady={setLensed} />
+          <Suspense fallback={null}>
+            <BlackHole bare lensSource={copy} journey={journey} onLensReady={setLensed} />
+          </Suspense>
         </div>
       )}
 

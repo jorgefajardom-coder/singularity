@@ -1,5 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import ViewCanvas from "./three/ViewCanvas";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
+
+// El stack 3D (three + r3f, 1,16 MB) se carga aparte. Si se importa de forma
+// estatica, el navegador tiene que parsearlo entero ANTES de poder pintar el
+// infinito del cargador, que es SVG y no necesita nada de eso: eran ~4 s de
+// pantalla en negro. Asi el cargador aparece enseguida y el 3D llega mientras
+// el contador sube.
+const ViewCanvas = lazy(() => import("./three/ViewCanvas"));
 import Nav from "./components/Nav";
 import Stage from "./components/Stage";
 import Gallery from "./components/Gallery";
@@ -74,7 +80,7 @@ export default function App() {
 
       {/* Canvas único para todas las vistas 3D. Va al final para que
           `root.current` ya exista cuando se monte. */}
-      {warm && <ViewCanvas eventSource={root} />}
+      {warm && <Suspense fallback={null}><ViewCanvas eventSource={root} /></Suspense>}
       </MusicProvider>
     </LangProvider>
   );

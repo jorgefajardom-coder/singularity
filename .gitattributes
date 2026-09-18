@@ -1,0 +1,21 @@
+# Finales de línea: LF en el repositorio y en disco, sea cual sea el sistema.
+#
+# Sin esto, en Windows git escribe CRLF al hacer checkout (core.autocrlf=true),
+# y en cuanto alguien edita desde otro sistema o desde la web de GitHub sale un
+# diff de archivo entero aunque solo haya cambiado una línea.
+* text=auto eol=lf
+
+# Binarios: git no debe intentar normalizarlos nunca.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.avif  binary
+*.ico   binary
+*.glb   binary
+*.gltf  binary
+*.blend binary
+*.mp3   binary
+*.ogg   binary
+*.wav   binary
+*.m4a   binary

@@ -191,7 +191,7 @@ button {
    1-2  contenido y paneles
    3    canvas 3D (se posiciona desde src/three/ViewCanvas.jsx,
         con estilos inline: R3F pisa las clases CSS)
-   4    titular del hero y marquee, que deben quedar legibles
+   4    titular del hero, que debe quedar legible
    50   nav
    100  preloader
    ============================================================ */
@@ -781,8 +781,8 @@ body.is-locked {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  /* Sin aire por debajo: la barra de disciplinas cierra el hero a ras y la
-     tira de logos arranca pegada. El respiro va sobre el marquee. */
+  /* Sin aire por debajo: el hero cierra a ras y la orbita arranca pegada.
+     El respiro lo pone el propio `.hero__inner`. */
   padding-bottom: 0;
   overflow: hidden;
 }
@@ -843,63 +843,6 @@ body.is-locked {
   width: 1px;
   height: 36px;
   background: linear-gradient(rgba(255, 240, 228, 0.6), transparent);
-}
-
-/* ============================================================
-   Marquee de clientes
-   ============================================================ */
-.marquee {
-  position: relative;
-  z-index: 4;
-  margin-top: clamp(24px, 4vh, 56px);
-  padding-block: 28px;
-  border-block: 1px solid var(--line);
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
-}
-
-.marquee__track {
-  display: flex;
-  width: max-content;
-  gap: clamp(40px, 6vw, 96px);
-  padding-right: clamp(40px, 6vw, 96px);
-  animation: marquee 34s linear infinite;
-}
-
-.marquee__item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: clamp(14px, 1.6vw, 22px);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  white-space: nowrap;
-  transition: color 0.4s var(--ease);
-}
-
-.marquee__item:hover {
-  color: var(--text);
-}
-
-.marquee__item svg {
-  width: 1.15em;
-  height: 1.15em;
-  flex: none;
-}
-
-@keyframes marquee {
-  to {
-    transform: translateX(-50%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .marquee__track {
-    animation: none;
-  }
 }
 
 /* ============================================================

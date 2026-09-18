@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
-import { site, disciplines, ui } from "../data/content";
-import { ShapeIcon } from "./ui";
+import { site, ui } from "../data/content";
 import SplitText from "./SplitText";
 import { useLang } from "../lib/i18n";
 import { gsap, prefersReducedMotion } from "../lib/anim";
@@ -75,28 +74,6 @@ export default function Hero({ entered, copyRef, lensed }) {
           </div>
         </div>
       </div>
-
-      <Marquee />
     </section>
-  );
-}
-
-/** Tira infinita con las disciplinas. Las herramientas van en la sección Stack. */
-function Marquee() {
-  const { tr } = useLang();
-  // Duplicamos la lista para que el bucle sea continuo
-  const items = [...disciplines, ...disciplines];
-
-  return (
-    <div className="marquee">
-      <div className="marquee__track">
-        {items.map((d, i) => (
-          <span className="marquee__item" key={i} aria-hidden={i >= disciplines.length}>
-            <ShapeIcon shape={d.shape} />
-            {tr(d.name)}
-          </span>
-        ))}
-      </div>
-    </div>
   );
 }

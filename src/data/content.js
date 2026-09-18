@@ -158,23 +158,6 @@ export const ui = {
   },
 };
 
-/* ============================================================
-   Marquee: las herramientas con las que más trabajo
-   ============================================================ */
-export const disciplines = [
-  { name: t("Automatización industrial", "Industrial automation"), shape: "square" },
-  { name: t("Robótica", "Robotics"), shape: "circle" },
-  { name: t("IA y visión artificial", "AI & computer vision"), shape: "arc" },
-  { name: t("3D y animación", "3D & animation"), shape: "triangle" },
-  { name: t("Videojuegos", "Games"), shape: "cross" },
-  { name: t("Diseño de PCB", "PCB design"), shape: "square" },
-  { name: "Packaging", shape: "drop" },
-  { name: t("Diseño web", "Web design"), shape: "square" },
-  { name: t("Creación de marca", "Brand creation"), shape: "circle" },
-  { name: t("Marketing y contenido", "Marketing & content"), shape: "arc" },
-  { name: t("Locución y radio", "Voice & radio"), shape: "drop" },
-];
-
 export const gallery = [
   {
     id: "g1",

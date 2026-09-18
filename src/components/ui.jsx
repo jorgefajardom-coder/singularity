@@ -81,30 +81,6 @@ export function Placeholder({ palette = ["#ff8224", "#db3208"], seed = 0, src, a
   );
 }
 
-/** Iconos geométricos simples para el marquee y el footer. */
-export function ShapeIcon({ shape = "circle", fill = "currentColor" }) {
-  const paths = {
-    circle: <circle cx="12" cy="12" r="9" />,
-    square: <rect x="4" y="4" width="16" height="16" rx="3" />,
-    triangle: <path d="M12 3 21 20H3z" />,
-    arc: <path d="M3 21a9 9 0 0 1 18 0z" />,
-    cross: <path d="M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z" />,
-    drop: <path d="M12 2c4 6 7 8.5 7 12a7 7 0 1 1-14 0c0-3.5 3-6 7-12z" />,
-  };
-
-  return (
-    <svg viewBox="0 0 24 24" fill={fill} aria-hidden="true">
-      {paths[shape] ?? paths.circle}
-    </svg>
-  );
-}
-
-/**
- * Texto que rueda sobre si mismo al pasar el puntero: cada letra sube y la
- * copia de abajo ocupa su sitio, con un retardo creciente que hace la ola.
- * Es CSS puro (ver `.roll` en global.css); el hover puede venir del propio
- * span o del enlace/boton que lo envuelve.
- */
 export function RollText({ children, className = "" }) {
   const text = String(children ?? "");
 

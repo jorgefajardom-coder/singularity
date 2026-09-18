@@ -41,6 +41,20 @@ const HERO_CY = -0.17;
 // las coordenadas en el shader, asi que un valor MAYOR lo aleja y lo achica.
 const HERO_SCALE = 1.34;
 
+/**
+ * Posicion y tamano del agujero en reposo, segun la forma de la pantalla.
+ *
+ * Los dos valores de arriba estan pensados para una ventana apaisada. En un
+ * movil —alto y estrecho— el disco se encoge (el shader lo escala con el
+ * aspecto) y el titular se va muy arriba, asi que entre ambos se abria un
+ * hueco enorme. En vertical el disco se agranda y sube.
+ */
+const heroBase = () => {
+  const aspect = window.innerWidth / Math.max(window.innerHeight, 1);
+  if (aspect < 0.85) return { cy: -0.04, scale: 1.0 };
+  return { cy: HERO_CY, scale: HERO_SCALE };
+};
+
 const span = ([a, b], p) => Math.min(1, Math.max(0, (p - a) / (b - a)));
 // Suaviza los extremos: sin esto cada fase arranca y frena de golpe.
 const ease = (x) => x * x * (3 - 2 * x);
@@ -53,7 +67,22 @@ export default function Stage({ entered, warm }) {
 
   // Estado compartido shader <-> DOM. `cx`/`cy` van en fracción de media
   // pantalla con la Y hacia arriba, que es como los quiere el shader.
-  const journey = useRef({ cx: 0, cy: HERO_CY, scale: HERO_SCALE, topDown: 0, fall: 0, lens: 1, p: 0 });
+  const base = heroBase();
+  const journey = useRef({ cx: 0, cy: base.cy, scale: base.scale, topDown: 0, fall: 0, lens: 1, p: 0 });
+
+  // Al girar el telefono o cambiar el tamano de la ventana, el reposo se
+  // recalcula. Solo mientras el agujero sigue quieto: en pleno viaje manda
+  // el scroll y pisarlo daria un salto.
+  useEffect(() => {
+    const onResize = () => {
+      if (journey.current.p > 0.001) return;
+      const next = heroBase();
+      journey.current.cy = next.cy;
+      journey.current.scale = next.scale;
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   // En desarrollo, para poder leer la fase desde la consola:
   // window.journey  ->  { p, cy, scale, topDown, fall }
@@ -109,13 +138,14 @@ export default function Stage({ entered, warm }) {
           // arriba: de otro modo media órbita quedaría fuera de pantalla.
           // El apoyo del hero se desvanece con el primer tramo, para que el
           // viaje siga saliendo del mismo sitio en el que estaba parado.
-          j.cy = HERO_CY * (1 - dive) - 0.46 * dive + 0.40 * turn;
+          const rest = heroBase();
+          j.cy = rest.cy * (1 - dive) - 0.46 * dive + 0.40 * turn;
           j.cx = 0;
           // En la vista cenital el agujero se queda del tamano de un sol en un
           // esquema del sistema solar: el protagonista pasan a ser las marcas.
           // Sale del tamano del hero y llega al de siempre (1.52) al acabar
           // el primer tramo, para que el viaje no de un salto de escala.
-          j.scale = HERO_SCALE * (1 - dive) + 1.52 * dive + 2.0 * turn + 1.1 * exit;
+          j.scale = rest.scale * (1 - dive) + 1.52 * dive + 2.0 * turn + 1.1 * exit;
           j.topDown = turn;
           j.fall = span(FALL, p);
         },

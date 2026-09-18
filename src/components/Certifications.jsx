@@ -1,4 +1,4 @@
-import { certifications, props3d } from "../data/content";
+import { certifications, props3d, sections } from "../data/content";
 import { PropsView } from "../three/Props3D";
 import { useLang } from "../lib/i18n";
 import { GhostHeading } from "./ui";
@@ -20,9 +20,9 @@ export default function Certifications() {
       <PropsView className="certs__view" items={props3d.certs} parallax={-0.4} />
 
       <div className="shell" style={{ textAlign: "center" }}>
-        <GhostHeading className="display display--md">{tr(certifications.heading)}</GhostHeading>
+        <GhostHeading className="display display--md">{tr(sections.certifications.heading)}</GhostHeading>
         <SplitText className="certs__note" variant="blur">
-          {tr(certifications.note)}
+          {tr(sections.certifications.note)}
         </SplitText>
       </div>
 

@@ -1,12 +1,12 @@
 import { companies } from "../data/content";
+import CompanyMark from "./CompanyMark";
 
 /**
  * Tira de logos en movimiento continuo.
  *
- * Los logos vienen ya recortados y en gris claro (ver tools/prepare-logos.py),
- * así que la tira se lee como un conjunto aunque cada marca original tuviera
- * un fondo distinto. No llevan texto: el nombre queda en el `alt` para
- * lectores de pantalla y como tooltip al pasar el ratón.
+ * Es la versión de la órbita para `prefers-reduced-motion`: la misma lista de
+ * marcas, sin el viaje alrededor del agujero negro. La tarjeta en sí la pinta
+ * `CompanyMark`, compartida con `Orbit`.
  */
 export default function Companies() {
   const items = companies.items ?? [];
@@ -23,33 +23,11 @@ export default function Companies() {
     <section id="companies" className="section companies">
       <div className="logorail">
         <ul className="logorail__track">
-          {loop.map((c, i) => {
-            // Solo la primera pasada cuenta para lectores de pantalla
-            const dup = i >= items.length;
-            const Tag = c.href ? "a" : "div";
-
-            return (
-              <li key={`${c.name}-${i}`} aria-hidden={dup || undefined}>
-                <Tag
-                  className="company"
-                  style={{ "--brand-scale": c.logoScale ?? 1 }}
-                  title={c.name}
-                  {...(c.href
-                    ? { href: c.href, target: "_blank", rel: "noreferrer noopener" }
-                    : {})}
-                >
-                  <img
-                    className="company__logo"
-                    style={{ scale: c.logoScale ?? 1 }}
-                    src={c.logo}
-                    alt={dup ? "" : c.name}
-                    loading="lazy"
-                  />
-                  {!c.hideLabel && <span className="company__label" aria-hidden="true">{c.name}</span>}
-                </Tag>
-              </li>
-            );
-          })}
+          {loop.map((c, i) => (
+            <li key={`${c.name}-${i}`} aria-hidden={i >= items.length || undefined}>
+              <CompanyMark company={c} className="company" duplicate={i >= items.length} />
+            </li>
+          ))}
         </ul>
       </div>
     </section>

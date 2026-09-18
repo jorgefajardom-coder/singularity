@@ -1,6 +1,7 @@
 import { Component, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { CanvasTexture, LinearFilter, Vector2 } from "three";
+import { ui } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { useMusic } from "../lib/music";
 
@@ -579,7 +580,7 @@ export default function BlackHole({ bare = false, className = "", formation, jou
   const reset = () => { interaction.current.down = false; interaction.current.point.set(0,0); };
   return <div ref={root} className={`blackhole ${bare ? "blackhole--bare" : ""} ${className}`}>
     <div className="blackhole__surface" role="button" tabIndex={0}
-      aria-label={tr({es:"Agujero negro interactivo. Mueve el puntero para inclinarlo y mantén pulsado o presiona espacio para acelerar.",en:"Interactive black hole. Move the pointer to tilt and hold down or press space to accelerate."})}
+      aria-label={tr(ui.a11y.blackHole)}
       onPointerMove={(e) => {
         const r=e.currentTarget.getBoundingClientRect();
         interaction.current.point.set((e.clientX-r.left)/r.width*2-1,1-(e.clientY-r.top)/r.height*2);

@@ -1,5 +1,8 @@
-"""Normaliza los logos en lienzos cuadrados con la misma dimensión visible.
+"""Etapa 2 de 2: normaliza los logos en lienzos cuadrados con la misma
+dimensión visible.
 
+Lee lo que deja prepare-logos.py en tools/logos-src (marcas ya recortadas y en
+gris) y escribe en public/images/clients, que es lo que consume el sitio.
 Conserva la proporción de cada marca y su alfa original. Ejecutar desde la raíz:
     python tools/normalize-logos.py --preview
 """

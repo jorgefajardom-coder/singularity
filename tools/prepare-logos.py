@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Prepara los logos de clientes para la tira de "Empresas".
+Etapa 1 de 2: recorta el fondo de los logos originales.
+
+    python tools/prepare-logos.py      ->  tools/logos-src/
+    python tools/normalize-logos.py    ->  public/images/clients/
+
+Prepara los logos de clientes para la tira de "Empresas" y la orbita.
 
 El problema: cada logo viene con un fondo distinto (blanco, negro, azul).
 Sobre un sitio oscuro, poner un simple grayscale deja unos cuadrados
@@ -12,6 +17,10 @@ de fondo, que detectamos mirando las esquinas. Asi funciona igual con un
 logo oscuro sobre blanco que con uno claro sobre negro, y los tonos
 intermedios (el dorado de Uniagustiniana) no salen medio transparentes.
 
+El resultado va a tools/logos-src, que es la entrada de normalize-logos.py:
+esa segunda pasada es la que iguala el tamano visible de todas las marcas y
+las deja en public/images/clients. Ejecuta las dos, en orden.
+
 Uso:  python tools/prepare-logos.py
 """
 import os
@@ -19,7 +28,7 @@ import os
 from PIL import Image
 
 DL = r"C:\Users\J.A.F.M\Downloads"
-OUT = os.path.join("public", "images", "clients")
+OUT = os.path.join("tools", "logos-src")
 SIZE = 512
 
 # Gris claro comun para todas las marcas

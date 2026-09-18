@@ -15,7 +15,6 @@ import { gsap, prefersReducedMotion } from "../lib/anim";
  *   rise   palabras que suben desde una máscara      (titulares, ledes)
  *   chars  letra a letra desde la máscara            (frases cortas)
  *   blur   palabras que entran desenfocadas          (notas, apoyos)
- *   flip   letras que giran sobre su base            (acentos, números)
  *   scrub  palabras que se encienden con el scroll   (párrafos largos)
  */
 
@@ -40,13 +39,6 @@ const VARIANTS = {
     from: { opacity: 0, y: 16, filter: "blur(10px)" },
     to: { opacity: 1, y: 0, filter: "blur(0px)", duration: 1, ease: "power2.out" },
     stagger: 0.05,
-  },
-  flip: {
-    unit: "char",
-    mask: false,
-    from: { opacity: 0, rotateX: -92, y: 10 },
-    to: { opacity: 1, rotateX: 0, y: 0, duration: 0.7, ease: "back.out(1.6)" },
-    stagger: 0.02,
   },
   scrub: {
     unit: "word",

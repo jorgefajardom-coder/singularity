@@ -1,4 +1,4 @@
-import { stack } from "../data/content";
+import { sections, stack } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { GhostHeading } from "./ui";
 
@@ -22,7 +22,7 @@ export default function Stack() {
   return (
     <section id="stack" className="section stack">
       <div className="shell">
-        <GhostHeading className="display display--lg">Stack</GhostHeading>
+        <GhostHeading className="display display--lg">{tr(sections.stack.heading)}</GhostHeading>
       </div>
 
       <div className="rails">

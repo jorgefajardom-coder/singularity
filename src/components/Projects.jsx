@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { projects, projectCategories, ui } from "../data/content";
+import { projects, projectCategories, sections, ui } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { GhostHeading, Placeholder, RollText } from "./ui";
 import { gsap, prefersReducedMotion } from "../lib/anim";
@@ -38,11 +38,11 @@ export default function Projects() {
       <div className="shell">
         <div className="projects__head">
           <GhostHeading className="display display--lg">
-            {tr({ es: "Proyectos", en: "Projects" })}
+            {tr(sections.projects.heading)}
           </GhostHeading>
         </div>
 
-        <div className="filters" role="tablist" aria-label={tr({ es: "Categorías", en: "Categories" })}>
+        <div className="filters" role="tablist" aria-label={tr(ui.categories)}>
           <button
             role="tab"
             className="filters__btn"
@@ -52,7 +52,7 @@ export default function Projects() {
               setOpen(0);
             }}
           >
-            {tr({ es: "Todos", en: "All" })}
+            {tr(ui.allProjects)}
             <sup>{projects.length}</sup>
           </button>
 

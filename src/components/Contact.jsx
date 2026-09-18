@@ -1,4 +1,4 @@
-import { site, props3d, ui } from "../data/content";
+import { site, props3d, sections, ui } from "../data/content";
 import { PropsView } from "../three/Props3D";
 import { useLang } from "../lib/i18n";
 import { GhostHeading } from "./ui";
@@ -30,7 +30,7 @@ export default function Contact() {
 
           <div className="contact__left">
             <GhostHeading className="display display--md">
-              {tr({ es: "Hablemos", en: "Let's talk" })}
+              {tr(sections.contact.heading)}
             </GhostHeading>
 
             <a className="contact__mail" href={`mailto:${site.email}`}>
@@ -38,10 +38,7 @@ export default function Contact() {
             </a>
 
             <SplitText className="contact__note" variant="scrub">
-              {tr({
-                es: "Abierto a colaborar en robótica, automatización industrial e IA aplicada. LinkedIn o correo es la vía más rápida.",
-                en: "Open to collaboration on robotics, industrial automation, and applied AI projects. LinkedIn or email is the fastest way to reach me.",
-              })}
+              {tr(sections.contact.note)}
             </SplitText>
           </div>
 

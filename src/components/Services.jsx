@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { services } from "../data/content";
+import { sections, services } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { GhostHeading } from "./ui";
 import SplitText from "./SplitText";
@@ -15,13 +15,10 @@ export default function Services() {
         <div className="panel panel--paper services">
           <div className="services__head">
             <GhostHeading className="display display--lg">
-              {tr({ es: "Qué hago", en: "What I do" })}
+              {tr(sections.services.heading)}
             </GhostHeading>
             <SplitText className="services__note" variant="blur">
-              {tr({
-                es: "Del PLC en planta al agente que integra las herramientas del negocio.",
-                en: "From the PLC on the floor to the agent that wires your business tools together.",
-              })}
+              {tr(sections.services.note)}
             </SplitText>
           </div>
 

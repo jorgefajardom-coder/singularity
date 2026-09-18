@@ -8,6 +8,10 @@
  * Los componentes lo resuelven con `tr()` según el idioma activo.
  * Los nombres propios (Unity, MATLAB, HubSpot...) y los títulos de proyecto
  * se dejan en inglés en ambos idiomas, para que coincidan con tu GitHub.
+ *
+ * Los títulos y las notas de cada sección están todos en `sections`, y `nav`
+ * se construye a partir de ahí: renombrar una sección la renombra también en
+ * la barra superior y en el pie.
  */
 
 /** Crea un texto bilingüe. */
@@ -21,7 +25,6 @@ export const site = {
   name: "Jorge Andrés Fajardo Mora",
   // Version corta para la barra superior, donde el nombre completo ocupa demasiado
   short: t("Ing. J.A.F.M", "Eng. J.A.F.M"),
-  fullName: "Jorge Andrés Fajardo Mora",
   role: t(
     "Technical Product Manager · Ingeniero mecatrónico",
     "Technical Product Manager · Mechatronics Engineer"
@@ -40,13 +43,71 @@ export const site = {
   },
 };
 
-export const nav = [
-  { label: t("Sobre mí", "About"), href: "#about" },
-  { label: t("Stack", "Stack"), href: "#stack" },
-  { label: t("Qué hago", "What I do"), href: "#services" },
-  { label: t("Proyectos", "Projects"), href: "#projects" },
-  { label: t("Contacto", "Contact"), href: "#contact" },
-];
+/* ============================================================
+   Secciones
+   El título y la nota de cada sección se escriben AQUÍ una sola vez.
+   `nav` se construye con estos mismos textos, así que renombrar una
+   sección la renombra también en la barra y en el pie.
+   - `heading`: el titular grande que se ve dentro de la sección.
+   - `nav`: solo si la barra necesita una etiqueta más corta.
+   - `note`: el texto de apoyo bajo el titular, si la sección lo lleva.
+   ============================================================ */
+export const sections = {
+  about: {
+    id: "about",
+    nav: t("Sobre mí", "About"),
+    heading: t("Sobre mí", "About me"),
+  },
+  stack: {
+    id: "stack",
+    heading: t("Stack", "Stack"),
+  },
+  services: {
+    id: "services",
+    heading: t("Qué hago", "What I do"),
+    note: t(
+      "Del PLC en planta al agente que integra las herramientas del negocio.",
+      "From the PLC on the floor to the agent that wires your business tools together."
+    ),
+  },
+  projects: {
+    id: "projects",
+    heading: t("Proyectos", "Projects"),
+  },
+  certifications: {
+    id: "certifications",
+    heading: t("Certificaciones", "Certifications"),
+    note: t(
+      "Formación y credenciales verificables.",
+      "Training and verifiable credentials."
+    ),
+  },
+  companies: {
+    // Sin `heading`: la órbita de marcas se presenta sola, con la nota.
+    id: "companies",
+    note: t(
+      "Marcas y organizaciones con las que he trabajado.",
+      "Brands and organizations I have worked with."
+    ),
+  },
+  contact: {
+    id: "contact",
+    nav: t("Contacto", "Contact"),
+    heading: t("Hablemos", "Let's talk"),
+    note: t(
+      "Abierto a colaborar en robótica, automatización industrial e IA aplicada. LinkedIn o correo es la vía más rápida.",
+      "Open to collaboration on robotics, industrial automation, and applied AI projects. LinkedIn or email is the fastest way to reach me."
+    ),
+  },
+};
+
+/** Orden de la barra superior y del pie. */
+const NAV_ORDER = ["about", "stack", "services", "projects", "contact"];
+
+export const nav = NAV_ORDER.map((key) => ({
+  label: sections[key].nav ?? sections[key].heading,
+  href: `#${sections[key].id}`,
+}));
 
 export const ui = {
   contactCta: t("Contáctame", "Get in touch"),
@@ -64,6 +125,37 @@ export const ui = {
     "Hecho con React Three Fiber · Modelos en Blender",
     "Built with React Three Fiber · Models in Blender"
   ),
+
+  // Filtro de proyectos
+  categories: t("Categorías", "Categories"),
+  allProjects: t("Todos", "All"),
+
+  // Reproductor de música
+  player: {
+    label: t("Música", "Music"),
+    file: t("Archivo de música", "Music file"),
+    add: t("Añadir música", "Add music"),
+    change: t("Cambiar música", "Change music"),
+    play: t("Reproducir música", "Play music"),
+    pause: t("Pausar música", "Pause music"),
+    mute: t("Silenciar música", "Mute music"),
+    unmute: t("Activar sonido", "Unmute"),
+    muteShort: t("Silenciar", "Mute"),
+    mutedShort: t("Sin sonido", "Muted"),
+    level: t("Nivel de música", "Music level"),
+    error: t(
+      "No se pudo reproducir. Prueba otro archivo de audio.",
+      "Could not play. Try another audio file."
+    ),
+  },
+
+  // Descripciones para lectores de pantalla de lo que solo se ve en 3D
+  a11y: {
+    blackHole: t(
+      "Agujero negro interactivo. Mueve el puntero para inclinarlo y mantén pulsado o presiona espacio para acelerar.",
+      "Interactive black hole. Move the pointer to tilt and hold down or press space to accelerate."
+    ),
+  },
 };
 
 /* ============================================================
@@ -103,16 +195,18 @@ export const gallery = [
 ];
 
 export const about = {
-  heading: t("Sobre mí", "About me"),
+  // El titular está en `sections.about.heading`.
   // Un elemento por párrafo. Añade o quita los que quieras.
   body: [
     t(
       "Ingeniero mecatrónico convertido en Technical Product Manager, trabajando en la intersección entre robótica, automatización industrial e IA. Diseño y llevo a producción sistemas que combinan hardware embebido, software de control y machine learning: desde celdas de manufactura gobernadas por PLC hasta pipelines de visión con IA.",
       "Mechatronics Engineer turned Technical Product Manager, working at the intersection of robotics, industrial automation, and AI. I design and ship systems that combine embedded hardware, control software, and machine learning, from PLC-driven manufacturing cells to AI-powered vision pipelines."
     ),
+    // La lista completa de disciplinas ya sale dos veces en la página (la tira
+    // del hero y el acordeón de "Qué hago"): aquí va la idea, no el inventario.
     t(
-      "Y no me quedo en lo técnico: también trabajo el lado visual del producto, incluyendo modelado y animación 3D, videojuegos, diseño de PCB, packaging, diseño web, creación de marca, marketing y locución. Un producto se explica tanto por cómo funciona como por cómo se ve y se cuenta.",
-      "And I don't stop at the engineering: I also work on the visual side of the product, including 3D modeling and animation, games, PCB design, packaging, web design, brand creation, marketing, and voice work. A product is explained as much by how it looks and is told as by how it works."
+      "Y no me quedo en lo técnico: el mismo producto lo acompaño hasta su lado visible, del render y el prototipo a la marca con la que sale al mercado. Un producto se explica tanto por cómo funciona como por cómo se ve y se cuenta.",
+      "And I don't stop at the engineering: I follow the same product through to its visible side, from the render and the prototype to the brand it goes to market with. A product is explained as much by how it looks and is told as by how it works."
     ),
   ],
   // TODO: estas cifras las puse yo de relleno. Ajústalas o bórralas.
@@ -506,11 +600,7 @@ export const projects = [
    muestra el nombre como marca tipográfica.
    ============================================================ */
 export const companies = {
-  heading: t("Empresas", "Companies"),
-  note: t(
-    "Marcas y organizaciones con las que he trabajado.",
-    "Brands and organizations I have worked with."
-  ),
+  // El texto de apoyo está en `sections.companies.note`.
   items: [
     { name: "Team Icon Official", logo: "/images/clients/be-an-icon.png", href: "https://www.instagram.com/team_icon_official/" },
     { name: "MiuTab", logo: "/images/clients/miutab.png", logoScale: 1.4, hideLabel: true, href: "https://www.linkedin.com/company/miutab/posts/?feedView=all" },
@@ -526,11 +616,7 @@ export const companies = {
    entidad, año y enlace del certificado) y la relleno.
    ============================================================ */
 export const certifications = {
-  heading: t("Certificaciones", "Certifications"),
-  note: t(
-    "Formación y credenciales verificables.",
-    "Training and verifiable credentials."
-  ),
+  // El titular y la nota están en `sections.certifications`.
   items: [
     {
       title: t("Ingeniería mecatrónica", "Mechatronics Engineering"),
@@ -562,16 +648,7 @@ export const socials = [
    - `scale`, `speed` (flotación) y `spin` (giro) son opcionales.
    ============================================================ */
 export const props3d = {
-  hero: [
-    {
-      fallback: "blob",
-      color: "#ff8a1f",
-      position: [0, 0.18, 0],
-      scale: 1.15,
-      spin: 0.1,
-      model: "/models/hero.glb",
-    },
-  ],
+  // El hero no lleva objetos: ahí manda el agujero negro (ver Stage.jsx).
   about: [
     { fallback: "torus", color: "#ef4b23", position: [-0.82, 0.3, 0], scale: 0.55, speed: 1.2 },
     { fallback: "knot", color: "#ffb52e", position: [0.84, -0.15, -0.5], scale: 0.5, speed: 0.9 },

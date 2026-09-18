@@ -55,7 +55,7 @@ export default function Footer() {
 
         <div className="footer__legal">
           <span>
-            © {new Date().getFullYear()} {site.fullName}
+            © {new Date().getFullYear()} {site.name}
           </span>
           <span>{tr(ui.builtWith)}</span>
         </div>

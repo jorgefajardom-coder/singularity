@@ -3,7 +3,7 @@ import BlackHole from "./BlackHole";
 import Hero from "./Hero";
 import Orbit from "./Orbit";
 import Companies from "./Companies";
-import { companies } from "../data/content";
+import { companies, sections } from "../data/content";
 import { gsap, ScrollTrigger, prefersReducedMotion } from "../lib/anim";
 
 /**
@@ -111,7 +111,7 @@ export default function Stage({ entered }) {
       {reduced ? (
         <Companies />
       ) : (
-        <Orbit journey={journey} items={companies.items ?? []} note={companies.note} />
+        <Orbit journey={journey} items={companies.items ?? []} note={sections.companies.note} />
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import { about, props3d, ui } from "../data/content";
+import { about, props3d, sections, ui } from "../data/content";
 import { PropsView } from "../three/Props3D";
 import { useLang } from "../lib/i18n";
 import { GhostHeading } from "./ui";
@@ -13,7 +13,7 @@ export default function About() {
       <PropsView className="about__view" items={props3d.about} parallax={0.6} />
 
       <div className="shell">
-        <GhostHeading className="display display--lg">{tr(about.heading)}</GhostHeading>
+        <GhostHeading className="display display--lg">{tr(sections.about.heading)}</GhostHeading>
 
         {/* El cuerpo se enciende palabra a palabra al ritmo del scroll en
             lugar de aparecer de golpe: guia la lectura. */}

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { gsap } from "../lib/anim";
 import { useLang } from "../lib/i18n";
 import { createOrbitSpheres } from "../three/OrbitSpheres";
+import CompanyMark from "./CompanyMark";
 
 /**
  * Las marcas en órbita alrededor del agujero negro, cada una en su anillo.
@@ -185,24 +186,16 @@ export default function Orbit({ journey, items, note }) {
 
         <p className="orbit__note">{tr(note)}</p>
 
-        {items.map((c, i) => {
-          const Tag = c.href ? "a" : "div";
-          return (
-            <Tag
-              key={c.name}
-              className="orbiter"
-              style={{ "--brand-scale": c.logoScale ?? 1, "--label-edge": c.labelEdge, "--label-gap": c.labelGap }}
-              ref={(el) => { nodes.current[i] = el; }}
-              title={c.name}
-              {...(c.href
-                ? { href: c.href, target: "_blank", rel: "noreferrer noopener" }
-                : {})}
-            >
-              <img className="company__logo" style={{ scale: c.logoScale ?? 1 }} src={c.logo} alt={c.name} loading="lazy" />
-              {!c.hideLabel && <span className="company__label" aria-hidden="true">{c.name}</span>}
-            </Tag>
-          );
-        })}
+        {items.map((c, i) => (
+          <CompanyMark
+            key={c.name}
+            company={c}
+            className="orbiter"
+            // El rótulo se separa del logo en proporción a lo que este crece.
+            style={{ "--brand-scale": c.logoScale ?? 1 }}
+            ref={(el) => { nodes.current[i] = el; }}
+          />
+        ))}
       </div>
     </section>
   );

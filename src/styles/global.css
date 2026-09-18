@@ -595,7 +595,7 @@ body.is-locked {
 
 .hero--singularity .hero__title {
   text-align: center;
-  font-size: clamp(48px, min(8.2vw, 15svh), 132px);
+  font-size: clamp(42px, min(7vw, 12.8svh), 112px);
   /* Halo cálido: el texto se funde con el disco en vez de taparlo. */
   text-shadow:
     0 0 26px rgba(8, 7, 10, 0.92),
@@ -648,7 +648,7 @@ body.is-locked {
 }
 
 @media (max-width: 720px) {
-  .hero--singularity .hero__title { font-size: clamp(48px, min(13vw, 16svh), 92px); }
+  .hero--singularity .hero__title { font-size: clamp(42px, min(11.2vw, 13.6svh), 80px); }
 }
 
 .music-player {

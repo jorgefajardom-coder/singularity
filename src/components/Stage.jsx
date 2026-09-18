@@ -33,8 +33,8 @@ const EXIT = [0.86, 1.0];
 // En reposo el agujero NO va centrado en la pantalla: se apoya en la mitad
 // inferior para que el titular quepa entero encima sin que la lente se coma
 // ninguna letra. El valor esta en fraccion de media pantalla y con la Y hacia
-// arriba, que es el convenio del shader: -0.38 lo baja un 19 % del alto.
-const HERO_CY = -0.38;
+// arriba, que es el convenio del shader: -0.30 lo baja un 15 % del alto.
+const HERO_CY = -0.30;
 
 // En reposo el agujero se ve mas pequeno de lo que se veia. `uScale` multiplica
 // las coordenadas en el shader, asi que un valor MAYOR lo aleja y lo achica.

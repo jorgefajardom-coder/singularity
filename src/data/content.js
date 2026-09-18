@@ -182,14 +182,14 @@ export const about = {
   // Un elemento por párrafo. Añade o quita los que quieras.
   body: [
     t(
-      "Ingeniero mecatrónico convertido en Technical Product Manager, trabajando en la intersección entre robótica, automatización industrial e IA. Diseño y llevo a producción sistemas que combinan hardware embebido, software de control y machine learning: desde celdas de manufactura gobernadas por PLC hasta pipelines de visión con IA.",
-      "Mechatronics Engineer turned Technical Product Manager, working at the intersection of robotics, industrial automation, and AI. I design and ship systems that combine embedded hardware, control software, and machine learning, from PLC-driven manufacturing cells to AI-powered vision pipelines."
+      "Ingeniero mecatrónico convertido en Technical Product Manager. Diseño y llevo a producción sistemas donde se cruzan la robótica, la automatización industrial y la IA: del PLC que gobierna una celda al pipeline de visión que la inspecciona.",
+      "Mechatronics engineer turned Technical Product Manager. I design and ship systems where robotics, industrial automation and AI meet: from the PLC that runs a cell to the vision pipeline that inspects it."
     ),
-    // La lista completa de disciplinas ya sale dos veces en la página (la tira
-    // del hero y el acordeón de "Qué hago"): aquí va la idea, no el inventario.
+    // Antes esto empezaba disculpandose ("no me quedo en lo tecnico"). Es la
+    // ventaja, no una nota al pie: va afirmada.
     t(
-      "Y no me quedo en lo técnico: el mismo producto lo acompaño hasta su lado visible, del render y el prototipo a la marca con la que sale al mercado. Un producto se explica tanto por cómo funciona como por cómo se ve y se cuenta.",
-      "And I don't stop at the engineering: I follow the same product through to its visible side, from the render and the prototype to the brand it goes to market with. A product is explained as much by how it looks and is told as by how it works."
+      "Y sigo con el producto hasta su cara visible: el render, el prototipo, la marca con la que sale al mercado. Cómo funciona y cómo se entiende son la misma pieza de diseño.",
+      "And I stay with the product through to its visible side: the render, the prototype, the brand it goes to market with. How it works and how it reads are one design problem."
     ),
   ],
   // TODO: estas cifras las puse yo de relleno. Ajústalas o bórralas.
@@ -632,17 +632,20 @@ export const socials = [
    ============================================================ */
 export const props3d = {
   // El hero no lleva objetos: ahí manda el agujero negro (ver Stage.jsx).
+  // Todo lo que flota es de temática espacial: planetas con anillo, lunas
+  // facetadas y sondas. Van pegados a los bordes y con profundidad negativa
+  // para no cruzarse con el texto, que ademas va por encima del lienzo.
   about: [
-    { fallback: "torus", color: "#ef4b23", position: [-0.82, 0.3, 0], scale: 0.55, speed: 1.2 },
-    { fallback: "knot", color: "#ffb52e", position: [0.84, -0.15, -0.5], scale: 0.5, speed: 0.9 },
-    { fallback: "ico", color: "#f2f2f0", position: [0.62, 0.62, -1.2], scale: 0.32, speed: 1.4 },
+    { fallback: "planet", color: "#ef4b23", position: [-0.94, 0.42, -0.6], scale: 0.42, speed: 1.2 },
+    { fallback: "moon", color: "#d8d4cc", position: [0.96, -0.32, -1.1], scale: 0.26, speed: 0.9 },
+    { fallback: "satellite", color: "#ffb52e", position: [0.9, 0.62, -1.6], scale: 0.24, speed: 1.4 },
   ],
   certs: [
-    { fallback: "capsule", color: "#ff6a00", position: [-0.86, 0.45, 0], scale: 0.45, speed: 1.1 },
-    { fallback: "blob", color: "#ffb52e", position: [0.86, -0.35, -0.4], scale: 0.5, speed: 0.8 },
+    { fallback: "moon", color: "#e6e2da", position: [-0.95, 0.5, -0.8], scale: 0.3, speed: 1.1 },
+    { fallback: "planet", color: "#ffb52e", position: [0.95, -0.4, -1.0], scale: 0.38, speed: 0.8 },
   ],
   contact: [
-    { fallback: "knot", color: "#ef4b23", position: [-0.82, -0.42, 0], scale: 0.5, speed: 1.0 },
-    { fallback: "box", color: "#ff6a00", position: [0.84, 0.5, -0.6], scale: 0.42, speed: 1.3 },
+    { fallback: "satellite", color: "#ef4b23", position: [-0.93, -0.48, -0.7], scale: 0.26, speed: 1.0 },
+    { fallback: "planet", color: "#ff6a00", position: [0.94, 0.55, -1.2], scale: 0.34, speed: 1.3 },
   ],
 };

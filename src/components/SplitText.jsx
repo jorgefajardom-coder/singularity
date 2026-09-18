@@ -61,6 +61,7 @@ export default function SplitText({
   trigger = "scroll",
   delay = 0,
   stagger,
+  dimOpacity = 0.16,
   start = "top 85%",
   end = "bottom 60%",
   ...rest
@@ -83,20 +84,28 @@ export default function SplitText({
 
     const ctx = gsap.context(() => {
       const scrubbed = variant === "scrub";
-      gsap.fromTo(pieces, spec.from, {
+      gsap.fromTo(pieces, scrubbed ? { ...spec.from, opacity: dimOpacity } : spec.from, {
         ...spec.to,
         delay: scrubbed ? 0 : delay,
         stagger: stagger ?? spec.stagger,
         scrollTrigger:
           trigger === "mount"
             ? undefined
-            : { trigger: el, start, end: scrubbed ? end : undefined, scrub: scrubbed ? 0.5 : false, once: !scrubbed },
+            : {
+                trigger: el,
+                start,
+                end: scrubbed ? end : undefined,
+                scrub: scrubbed ? 0.5 : false,
+                // Sin `once`: al volver a subir el texto se repliega y puede
+                // entrar de nuevo, en cualquiera de los dos idiomas.
+                toggleActions: scrubbed ? undefined : "play none none reverse",
+              },
       });
     }, el);
 
     return () => ctx.revert();
     // `text` en las dependencias: al cambiar de idioma hay piezas nuevas.
-  }, [text, variant, trigger, delay, stagger, start, end]);
+  }, [text, variant, trigger, delay, stagger, start, end, dimOpacity]);
 
   const pieces = toWords(text).map((word, i) => {
     // Los espacios viajan sueltos, sin animar: son el aire entre palabras.

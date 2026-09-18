@@ -919,14 +919,78 @@ body.is-locked {
   z-index: 0;
 }
 
+.about__layout {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  align-items: center;
+  gap: clamp(24px, 3vw, 44px);
+  margin-top: clamp(32px, 5vw, 64px);
+}
+.about__layout::before {
+  content: "";
+  position: absolute;
+  inset: 5% 0;
+  background: radial-gradient(ellipse at 42% 42%, rgb(255 108 24 / 0.08), transparent 62%);
+  pointer-events: none;
+}
+.about__figure {
+  position: relative;
+  min-width: 0;
+  width: 110%;
+  justify-self: start;
+  margin-left: calc(var(--gutter) * -0.5);
+}
+.about__motion {
+  position: relative;
+  transform: translate3d(var(--astronaut-x, 0px), var(--astronaut-y, 0px), 0);
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  border-radius: 32px;
+}
+.about__motion[data-dragging] { cursor: grabbing; }
+.about__motion:focus-visible { outline: 2px solid var(--accent-b); outline-offset: 6px; }
+.about__float { position: relative; animation: about-float 7s ease-in-out infinite; }
+.about__astronaut { display: block; width: 100%; height: auto; }
+.about__singularity {
+  position: absolute;
+  width: 38%;
+  aspect-ratio: 1.8;
+  left: 66%;
+  top: 28.8%;
+  pointer-events: none;
+  mask-image: radial-gradient(ellipse at 50% 46%, #000 30%, transparent 68%);
+}
+.about__singularity .blackhole,
+.about__singularity .blackhole__surface,
+.about__singularity .blackhole__fallback { height: 100%; min-height: 0; }
+/* Por encima del lienzo 3D (z-index 3): los objetos pasan por detras del
+   texto, nunca por delante. */
+.about__copy { position: relative; z-index: 4; text-align: left; }
+.about__copy .about__body { margin: 0; }
+@keyframes about-float {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-12px) rotate(1deg); }
+}
+@media (max-width: 600px) {
+  .about__layout { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .about__figure { width: min(93.5%, 440px); margin-inline: 0; }
+  .about__copy { text-align: left; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .about__float { animation: none; }
+}
+
 .about__body {
   position: relative;
-  z-index: 2;
+  z-index: 4;
   max-width: 52ch;
   margin: clamp(28px, 5vh, 56px) auto 0;
   font-size: clamp(15px, 1.4vw, 19px);
   line-height: 1.65;
-  color: rgba(255, 240, 228, 0.78);
+  color: #ffe3c7;
+  font-weight: 500;
 }
 
 .about__body p {
@@ -943,9 +1007,14 @@ body.is-locked {
   margin-top: clamp(28px, 4vh, 48px);
 }
 
+.about__cta--center {
+  display: flex;
+  justify-content: center;
+}
+
 .about__stats {
   position: relative;
-  z-index: 2;
+  z-index: 4;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -1227,7 +1296,8 @@ body.is-locked {
 .contact__left,
 .contact__form {
   position: relative;
-  z-index: 2;
+  /* Por encima del lienzo 3D, igual que en Sobre mi. */
+  z-index: 4;
 }
 
 .contact__mail {
@@ -1836,7 +1906,7 @@ body.is-locked {
 
 .certs__note {
   position: relative;
-  z-index: 2;
+  z-index: 4;
   margin: 20px auto 0;
   max-width: 44ch;
   font-size: 15px;
@@ -1845,7 +1915,7 @@ body.is-locked {
 
 .certs__grid {
   position: relative;
-  z-index: 2;
+  z-index: 4;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: clamp(12px, 1.4vw, 20px);
@@ -2112,4 +2182,3 @@ a.cert:hover {
     mask-image: none;
   }
 }
-

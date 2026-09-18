@@ -82,6 +82,66 @@ function Procedural({ shape = "blob", color = "#ff8224" }) {
           {material}
         </RoundedBox>
       );
+    // ---- Tematica espacial ----
+    case "planet":
+      // Planeta con anillo. El anillo va inclinado y algo mas mate que el
+      // cuerpo, que es lo que lo separa visualmente en vez de fundirse.
+      return (
+        <group rotation={[0.42, 0, 0.28]}>
+          <mesh>
+            <sphereGeometry args={[0.72, 64, 48]} />
+            {material}
+          </mesh>
+          <mesh rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[1.18, 0.045, 16, 128]} />
+            <meshPhysicalMaterial
+              color={color}
+              roughness={0.55}
+              metalness={0.1}
+              clearcoat={0.4}
+              envMapIntensity={0.9}
+              transparent
+              opacity={0.85}
+            />
+          </mesh>
+        </group>
+      );
+    case "moon":
+      // Luna: icosaedro de un nivel, mate y palido. El facetado hace de
+      // crateres sin necesidad de textura.
+      return (
+        <mesh>
+          <icosahedronGeometry args={[0.85, 1]} />
+          <meshPhysicalMaterial
+            color={color}
+            roughness={0.85}
+            metalness={0}
+            flatShading
+            envMapIntensity={0.7}
+          />
+        </mesh>
+      );
+    case "satellite":
+      // Sonda: cuerpo compacto y dos paneles. Deliberadamente simple, porque
+      // a este tamano solo se lee la silueta.
+      return (
+        <group rotation={[0.3, 0.6, 0.12]}>
+          <RoundedBox args={[0.62, 0.62, 0.9]} radius={0.12} smoothness={6}>
+            {material}
+          </RoundedBox>
+          {[-1, 1].map((side) => (
+            <mesh key={side} position={[side * 0.95, 0, 0]}>
+              <boxGeometry args={[1.1, 0.03, 0.62]} />
+              <meshPhysicalMaterial
+                color="#9fb4d6"
+                roughness={0.35}
+                metalness={0.5}
+                envMapIntensity={1}
+              />
+            </mesh>
+          ))}
+        </group>
+      );
     case "blob":
     default:
       return (

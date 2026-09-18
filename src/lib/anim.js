@@ -86,7 +86,10 @@ export function useReveal(scope) {
           scrollTrigger: {
             trigger: el,
             start: "top 88%",
-            once: true,
+            // Reversible: al subir, el bloque se retira y vuelve a entrar si se
+            // baja otra vez. Con `once: true` la entrada se gastaba para
+            // siempre y el scroll dejaba de poder deshacerse.
+            toggleActions: "play none none reverse",
           },
         });
       });

@@ -27,9 +27,12 @@ export function createOrbitSpheres(host, count) {
   const geometry = new SphereGeometry(1, 40, 28);
   const balls = Array.from({ length: count }, () => {
     const group = new Group();
+    // Blanco que emite por si mismo: sobre el negro del espacio y contra el
+    // naranja del disco, una esfera que solo refleja se apaga. El `emissive`
+    // la mantiene encendida aunque la luz clave no le de.
     const material = new MeshStandardMaterial({
-      color: 0xffffff, roughness: 0.24, metalness: 0.08,
-      emissive: 0xffffff, emissiveIntensity: 0.06,
+      color: 0xffffff, roughness: 0.18, metalness: 0.04,
+      emissive: 0xffffff, emissiveIntensity: 0.55,
       transparent: true, opacity: 0,
     });
     const body = new Mesh(geometry, material);
@@ -49,13 +52,15 @@ export function createOrbitSpheres(host, count) {
         varying vec3 vNormal;
         uniform float opacity;
         void main() {
-          float falloff = pow(max(normalize(vNormal).z, 0.0), 4.0);
-          gl_FragColor = vec4(0.9, 0.95, 1.0, falloff * opacity * 0.24);
+          // Caida mas suave y blanco puro: el halo se lee como luz propia,
+          // no como un reflejo azulado.
+          float falloff = pow(max(normalize(vNormal).z, 0.0), 2.6);
+          gl_FragColor = vec4(1.0, 1.0, 1.0, falloff * opacity * 0.5);
         }
       `,
     });
     const glow = new Mesh(geometry, glowMaterial);
-    glow.scale.setScalar(2.5);
+    glow.scale.setScalar(3.1);
     group.add(glow);
     scene.add(group);
     return { group, material, glowMaterial };

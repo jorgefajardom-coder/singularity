@@ -15,5 +15,10 @@ dist-ssr
 __pycache__/
 *.pyc
 
+# Originales pesados del astronauta (5,7 MB entre los cinco). El sitio usa el
+# .webp derivado, que pesa 128 kB. Se quedan en disco para poder regenerarlo
+# o probar otra pose, pero no viajan al repositorio.
+public/images/about-astronaut*.png
+
 # Notas de trabajo, no van al repositorio publico
 README.md

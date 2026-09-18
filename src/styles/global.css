@@ -1657,12 +1657,15 @@ body.is-locked {
    enlaces de seccion. Ya no los lleva, asi que cabe y se queda: es el punto
    de contacto principal. Solo se aprieta un poco para no empujar al resto. */
 @media (max-width: 520px) {
-  /* El boton de contacto no cabe en un movil junto al monograma y la capsula
-     de musica: se probo apretando las tres piezas y seguia saliendose por el
-     borde. Se oculta, como estaba. El contacto se alcanza con el scroll y
-     desde el pie. */
+  /* El movil es una copia del escritorio: las mismas piezas, encogidas hasta
+     caber. En 360 px hay 332 utiles tras el relleno, menos 20 de huecos: 312
+     para marca + controles + boton. Cada regla de aqui abajo recorta una
+     parte de ese presupuesto. */
   .nav .btn {
-    display: none;
+    padding-inline: 10px;
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    gap: 0;
   }
 
   /* En movil la capsula de musica se queda en iconos: con sus etiquetas
@@ -1687,8 +1690,64 @@ body.is-locked {
   }
 
   .nav__mark {
-    font-size: 11px;
-    letter-spacing: 0.06em;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+
+  /* Los controles bajan de 42 a 34 px de alto y se aprietan por los lados. */
+  .nav {
+    --control: 34px;
+  }
+
+  .nav__controls .music-player__track,
+  .nav__controls .music-player__mute {
+    padding-inline: 9px;
+  }
+
+  .nav__controls .music-player__icon {
+    font-size: 13px;
+  }
+
+  .nav__controls .langtoggle {
+    padding: 2px;
+  }
+
+  .langtoggle__btn {
+    padding-inline: 8px;
+    font-size: 10px;
+  }
+}
+
+/* Moviles muy estrechos (iPhone SE y parecidos). Un escalon mas de apriete
+   para que las mismas piezas sigan cabiendo en 320 px: 320 - 20 de relleno
+   - 16 de huecos = 284 utiles, y el contenido queda en torno a 276.
+   AVISO: esto esta calculado, no medido. El panel de pruebas no baja de
+   356 px, asi que conviene comprobarlo en un telefono real. */
+@media (max-width: 380px) {
+  .nav {
+    --control: 30px;
+    gap: 8px;
+    padding-inline: 10px;
+  }
+
+  .nav__mark {
+    font-size: 9px;
+    letter-spacing: 0.02em;
+  }
+
+  .nav .btn {
+    padding-inline: 8px;
+    font-size: 8px;
+  }
+
+  .nav__controls .music-player__track,
+  .nav__controls .music-player__mute {
+    padding-inline: 7px;
+  }
+
+  .langtoggle__btn {
+    padding-inline: 6px;
+    font-size: 9px;
   }
 }
 

@@ -1,5 +1,6 @@
 import {
   createContext,
+  startTransition,
   useCallback,
   useContext,
   useEffect,
@@ -39,9 +40,26 @@ export function LangProvider({ children }) {
     }
   }, [lang]);
 
+  /**
+   * Cambia el idioma.
+   *
+   * `animate: false` para cuando el sitio no se está viendo —el selector del
+   * cargador lo tapa por completo—: ahí la entrada escalonada y su
+   * `ScrollTrigger.refresh()` son trabajo invisible, y encima caen en el
+   * mismo fotograma en el que arranca el morph del agujero negro.
+   */
   const setLang = useCallback(
-    (next) => {
+    (next, { animate = true } = {}) => {
       if (next === lang || !LANGS.includes(next)) return;
+
+      if (!animate) {
+        // Nadie está viendo el sitio: el re-render completo (cada SplitText
+        // vuelve a partir su texto) puede ir troceado y sin bloquear el hilo,
+        // que es justo lo que necesita el morph del cargador para ir fluido.
+        startTransition(() => setLangState(next));
+        return;
+      }
+
       setLangState(next);
 
       if (prefersReducedMotion()) return;

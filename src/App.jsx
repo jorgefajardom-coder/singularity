@@ -20,6 +20,10 @@ export default function App() {
   const root = useRef(null);
   // El sitio no se recorre hasta que el cargador entrega el idioma elegido
   const [entered, setEntered] = useState(false);
+  // Los lienzos WebGL se montan ANTES de que el usuario elija idioma, detras
+  // del cargador, que es opaco y los tapa. Montarlos al empezar el morph
+  // costaba ~97 ms de parón justo en el fotograma mas visible.
+  const [warm, setWarm] = useState(false);
   // El cargador no se desmonta al entrar: se queda encima mientras se funde,
   // con el sitio ya montado debajo. Sin eso quedaría un negro entre los dos.
   const [introGone, setIntroGone] = useState(false);
@@ -28,20 +32,26 @@ export default function App() {
   useSmoothScroll();
   useReveal(root);
 
+  // Bloqueamos el scroll mientras el cargador esta delante
   useEffect(() => {
-    // Bloqueamos el scroll mientras el selector esta delante
     document.body.classList.toggle("is-locked", !introGone);
-    if (entered) {
-      window.scrollTo({ top: 0, behavior: "instant" });
-      ScrollTrigger.refresh();
-    }
-  }, [entered, introGone]);
+  }, [introGone]);
+
+  // El recalculo va SOLO aqui, cuando la pagina ya puede desplazarse. Hacerlo
+  // tambien al arrancar el morph medía posiciones contra un body con
+  // `overflow: hidden`, asi que salian mal y habia que repetirlo igualmente:
+  // eran ~90 ms de parón en el fotograma mas visible de toda la intro.
+  useEffect(() => {
+    if (!introGone) return;
+    window.scrollTo({ top: 0, behavior: "instant" });
+    ScrollTrigger.refresh();
+  }, [introGone]);
 
   return (
     <LangProvider>
       <MusicProvider active={holeReady}>
       {holeReady && !introGone && <MusicPlayer intro />}
-      {!introGone ? <Loader onEnter={() => setEntered(true)} onDone={() => setIntroGone(true)} onReady={setHoleReady} /> : null}
+      {!introGone ? <Loader onWarm={() => setWarm(true)} onEnter={() => setEntered(true)} onDone={() => setIntroGone(true)} onReady={setHoleReady} /> : null}
 
       <div ref={root} inert={!entered}>
         <Nav />
@@ -49,7 +59,7 @@ export default function App() {
         <main>
           {/* Hero y orbita comparten un solo agujero negro, que viaja de uno
               a otra con el scroll. */}
-          <Stage entered={entered} />
+          <Stage entered={entered} warm={warm} />
           <Gallery />
           <About />
           <Stack />
@@ -64,7 +74,7 @@ export default function App() {
 
       {/* Canvas único para todas las vistas 3D. Va al final para que
           `root.current` ya exista cuando se monte. */}
-      {entered && <ViewCanvas eventSource={root} />}
+      {warm && <ViewCanvas eventSource={root} />}
       </MusicProvider>
     </LangProvider>
   );

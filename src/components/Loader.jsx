@@ -20,7 +20,7 @@ const LAYERS = [
   { name: "light", offset: -0.8 },
 ];
 
-export default function Loader({ onEnter, onDone, onReady }) {
+export default function Loader({ onWarm, onEnter, onDone, onReady }) {
   const { lang, setLang } = useLang();
   const { prepare } = useMusic();
   const root = useRef(null);
@@ -34,6 +34,8 @@ export default function Loader({ onEnter, onDone, onReady }) {
   enter.current = onEnter;
   const done = useRef(onDone);
   done.current = onDone;
+  const warm = useRef(onWarm);
+  warm.current = onWarm;
 
   // Todas las capas comparten el mismo progreso de trazado.
   const strokes = useMemo(() => ({ es: [], en: [] }), []);
@@ -139,10 +141,27 @@ export default function Loader({ onEnter, onDone, onReady }) {
     if (phase === "transforming") onReady(true);
   },[phase,onReady]);
 
+  // Mientras el visitante lee el selector no se anima nada, asi que es el
+  // momento de pagar el coste de montar los lienzos del portafolio: quedan
+  // detras del cargador, que los tapa por completo. `requestIdleCallback`
+  // espera a que el hilo este libre para no estorbar a la entrada de las
+  // etiquetas; el timeout garantiza que ocurra aunque nunca haya un hueco.
+  useEffect(() => {
+    if (phase !== "choose") return;
+    const run = () => warm.current?.();
+    if (typeof requestIdleCallback !== "function") {
+      const t = setTimeout(run, 180);
+      return () => clearTimeout(t);
+    }
+    const id = requestIdleCallback(run, { timeout: 600 });
+    return () => cancelIdleCallback(id);
+  }, [phase]);
+
   const choose = (code) => {
     if (phase !== "choose" || leaving.current) return;
     leaving.current = true;
-    setLang(code);
+    // Sin animación de cambio de idioma: el cargador tapa el sitio entero.
+    setLang(code, { animate: false });
     void prepare();
 
     if (prefersReducedMotion()) {

@@ -33,7 +33,7 @@ const span = ([a, b], p) => Math.min(1, Math.max(0, (p - a) / (b - a)));
 // Suaviza los extremos: sin esto cada fase arranca y frena de golpe.
 const ease = (x) => x * x * (3 - 2 * x);
 
-export default function Stage({ entered }) {
+export default function Stage({ entered, warm }) {
   const stage = useRef(null);
   const copy = useRef(null);
   const [lensed, setLensed] = useState(false);
@@ -64,9 +64,16 @@ export default function Stage({ entered }) {
         end: "+=40%",
         scrub: true,
         onUpdate: (self) => {
-          journey.current.lens = 1 - self.progress;
-          stage.current.style.setProperty("--lens-fade", self.progress.toFixed(3));
-          stage.current.style.setProperty("--void-veil", (1 - self.progress).toFixed(3));
+          const p = self.progress;
+          // Los dos titulares NO ocupan el mismo sitio: el del shader va
+          // desplazado y ampliado por la lente. Fundiéndolos a la vez se leían
+          // como un titular duplicado y descuadrado, así que se relevan en
+          // serie: el del shader se apaga en la primera mitad del recorrido y
+          // el del DOM entra en la segunda. Se cruzan en el punto medio, los
+          // dos a cero: ni solape ni hueco.
+          journey.current.lens = 1 - Math.min(1, p / 0.5);
+          stage.current.style.setProperty("--lens-fade", Math.max(0, (p - 0.5) / 0.5).toFixed(3));
+          stage.current.style.setProperty("--void-veil", (1 - p).toFixed(3));
         },
       });
 
@@ -100,7 +107,7 @@ export default function Stage({ entered }) {
 
   return (
     <div className="stage" ref={stage}>
-      {entered && (
+      {warm && (
         <div className="stage__void">
           <BlackHole bare lensSource={copy} journey={journey} onLensReady={setLensed} />
         </div>

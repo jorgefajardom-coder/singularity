@@ -30,6 +30,12 @@ const FALL = [0.6, 1.0];
 // ocupando la pantalla hasta que la galeria lo empuja fuera.
 const EXIT = [0.86, 1.0];
 
+// En reposo el agujero NO va centrado en la pantalla: se apoya en la mitad
+// inferior para que el titular quepa entero encima sin que la lente se coma
+// ninguna letra. El valor esta en fraccion de media pantalla y con la Y hacia
+// arriba, que es el convenio del shader: -0.30 lo baja un 15 % del alto.
+const HERO_CY = -0.3;
+
 const span = ([a, b], p) => Math.min(1, Math.max(0, (p - a) / (b - a)));
 // Suaviza los extremos: sin esto cada fase arranca y frena de golpe.
 const ease = (x) => x * x * (3 - 2 * x);
@@ -42,7 +48,7 @@ export default function Stage({ entered, warm }) {
 
   // Estado compartido shader <-> DOM. `cx`/`cy` van en fracción de media
   // pantalla con la Y hacia arriba, que es como los quiere el shader.
-  const journey = useRef({ cx: 0, cy: 0, scale: 1, topDown: 0, fall: 0, lens: 1, p: 0 });
+  const journey = useRef({ cx: 0, cy: HERO_CY, scale: 1, topDown: 0, fall: 0, lens: 1, p: 0 });
 
   // En desarrollo, para poder leer la fase desde la consola:
   // window.journey  ->  { p, cy, scale, topDown, fall }
@@ -96,7 +102,9 @@ export default function Stage({ entered, warm }) {
           j.p = p;
           // Baja a la zona inferior y luego vuelve al centro ya vista desde
           // arriba: de otro modo media órbita quedaría fuera de pantalla.
-          j.cy = -0.46 * dive + 0.40 * turn;
+          // El apoyo del hero se desvanece con el primer tramo, para que el
+          // viaje siga saliendo del mismo sitio en el que estaba parado.
+          j.cy = HERO_CY * (1 - dive) - 0.46 * dive + 0.40 * turn;
           j.cx = 0;
           // En la vista cenital el agujero se queda del tamano de un sol en un
           // esquema del sistema solar: el protagonista pasan a ser las marcas.

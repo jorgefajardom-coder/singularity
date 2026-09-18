@@ -572,7 +572,9 @@ body.is-locked {
   justify-items: center;
   /* El titular baja hasta rozar el disco: el nombre y el horizonte son una
      sola pieza, no dos elementos separados por un hueco. */
-  padding-top: clamp(114px, 22.5vh, 260px);
+  /* El titular sube: con el agujero apoyado abajo (ver HERO_CY en Stage.jsx)
+     el texto tiene que ocupar el tercio superior, no la franja central. */
+  padding-top: clamp(56px, 9vh, 130px);
   padding-bottom: clamp(28px, 5vh, 64px);
   /* El puntero atraviesa el texto hasta el agujero: es lo que permite moverlo
      por toda la pantalla. Lo que sí se pulsa vuelve a capturarlo (regla de

@@ -71,8 +71,12 @@ export default function Stage({ entered, warm }) {
           // serie: el del shader se apaga en la primera mitad del recorrido y
           // el del DOM entra en la segunda. Se cruzan en el punto medio, los
           // dos a cero: ni solape ni hueco.
-          journey.current.lens = 1 - Math.min(1, p / 0.5);
-          stage.current.style.setProperty("--lens-fade", Math.max(0, (p - 0.5) / 0.5).toFixed(3));
+          // El titular lenseado se va en cuanto se toca la rueda: ocupa media
+          // pantalla y montado sobre el disco no se lee. A 0.15 del recorrido
+          // ya no esta. El <h1> del DOM no lo releva —se quedaria un titular
+          // suelto flotando mientras el hero sale—, solo sigue ahi, invisible,
+          // para buscadores y lectores de pantalla.
+          journey.current.lens = 1 - Math.min(1, p / 0.15);
           stage.current.style.setProperty("--void-veil", (1 - p).toFixed(3));
         },
       });

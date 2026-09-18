@@ -141,20 +141,37 @@ export default function Loader({ onWarm, onEnter, onDone, onReady }) {
     if (phase === "transforming") onReady(true);
   },[phase,onReady]);
 
-  // Mientras el visitante lee el selector no se anima nada, asi que es el
-  // momento de pagar el coste de montar los lienzos del portafolio: quedan
-  // detras del cargador, que los tapa por completo. `requestIdleCallback`
-  // espera a que el hilo este libre para no estorbar a la entrada de las
-  // etiquetas; el timeout garantiza que ocurra aunque nunca haya un hueco.
+  // Montar los lienzos del portafolio cuesta ~90 ms de hilo principal: son dos
+  // contextos WebGL con sus shaders. Se pagan detras del cargador, que es
+  // opaco y los tapa, y lo mas lejos posible de cualquier animacion:
+  //
+  //   - en `choose`, un poco despues de que hayan entrado las etiquetas. Sin
+  //     ese retardo el tiron caia justo al terminar de dibujarse el infinito,
+  //     que es lo que se estaba viendo.
+  //   - si el visitante pulsa antes de que llegue ese momento, se montan ya en
+  //     `transforming`. Esta rama NO es opcional: cancelar el aviso sin montar
+  //     nada dejaba el hero sin agujero negro para quien eligiera rapido.
   useEffect(() => {
-    if (phase !== "choose") return;
-    const run = () => warm.current?.();
-    if (typeof requestIdleCallback !== "function") {
-      const t = setTimeout(run, 180);
-      return () => clearTimeout(t);
+    if (phase === "transforming") {
+      warm.current?.();
+      return;
     }
-    const id = requestIdleCallback(run, { timeout: 600 });
-    return () => cancelIdleCallback(id);
+    if (phase !== "choose") return;
+
+    let idle = null;
+    const run = () => warm.current?.();
+    const timer = setTimeout(() => {
+      if (typeof requestIdleCallback === "function") {
+        idle = requestIdleCallback(run, { timeout: 500 });
+      } else {
+        run();
+      }
+    }, 900);
+
+    return () => {
+      clearTimeout(timer);
+      if (idle !== null) cancelIdleCallback(idle);
+    };
   }, [phase]);
 
   const choose = (code) => {

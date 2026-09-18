@@ -588,8 +588,10 @@ body.is-locked {
 /* Cuando el shader ya dibuja el titular, el del DOM se apaga: sigue ahí para
    lectores de pantalla y buscadores, pero lo que se ve es el texto lenseado. */
 .hero--lensed .hero__title {
-  /* Mientras el shader lo dibuja, el <h1> esta vacio; cuando el agujero se
-     despega para bajar, `--lens-fade` lo devuelve (ver Stage.jsx). */
+  /* Lo dibuja el shader, no el DOM. El <h1> se queda transparente pero
+     presente, que es lo que leen los buscadores y los lectores de pantalla.
+     `--lens-fade` queda como palanca por si algun dia vuelve a hacer falta
+     mostrarlo; hoy Stage.jsx no la toca (ver el relevo del titular ahi). */
   color: rgb(255 255 255 / var(--lens-fade, 0));
   text-shadow: none;
   /* El puntero tiene que llegar al agujero que hay debajo para poder moverlo. */

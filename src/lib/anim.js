@@ -7,6 +7,10 @@ gsap.registerPlugin(ScrollTrigger);
 
 export { gsap, ScrollTrigger };
 
+// En desarrollo, para poder congelar una animacion desde la consola:
+//   gsap.globalTimeline.pause()
+if (import.meta.env.DEV && typeof window !== "undefined") window.gsap = gsap;
+
 export const prefersReducedMotion = () =>
   typeof window !== "undefined" &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;

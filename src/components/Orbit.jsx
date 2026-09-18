@@ -85,7 +85,9 @@ export default function Orbit({ journey, items, note }) {
       // El limite en X deja sitio para la mitad de la marca mas grande, que va
       // en el anillo exterior: si no, se sale por el borde de la pantalla.
       const squash = 0.11 + 0.89 * j.topDown;
-      const logoSize = Math.min(152, Math.max(68, W * 0.105));
+      // Misma formula que `--mark-size` en el CSS de `.orbiter`. Si cambia una,
+      // cambia la otra: de aqui salen el margen del borde y el radio de las esferas.
+      const logoSize = Math.min(112, Math.max(68, W * 0.08));
       const margin = logoSize / 2 + 20;
       const rMax = Math.max(1, Math.min(W / 2 - margin, (Math.min(cy, H - cy) - margin) / squash));
       // Perspectiva: solo existe mientras se mira de canto. Desde arriba todas

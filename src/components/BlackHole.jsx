@@ -11,8 +11,9 @@ const vertexShader = `
 `;
 
 // Agujero negro trazado por geodésicas: cada píxel lanza un fotón hacia atrás y
-// se integra su curvatura. El anillo de fotones, la imagen superior del disco y
-// la inferior aparecen solas; ninguna se dibuja a mano.
+// se integra su curvatura. La imagen superior del disco y la inferior aparecen
+// solas; ninguna se dibuja a mano. El anillo de fotones también salía solo, y
+// se apaga a propósito: ver `wound` más abajo.
 const fragmentShader = `
 precision highp float;
 varying vec2 vUv;
@@ -83,38 +84,75 @@ vec3 starField(vec3 d) {
 // es una lemniscata de Bernoulli (el ∞) sobre un plano que mira a la cámara, y
 // al final es el anillo del disco sobre el plano ecuatorial. No hay dos objetos
 // ni dos motores: hay un conjunto de nivel que se transforma.
-vec3 diskSample(vec3 hit, vec3 dir, vec3 e1, vec3 e2, vec3 nrm, float morph, out float opacity) {
+vec3 diskSample(vec3 hit, vec3 dir, vec3 e1, vec3 e2, vec3 nrm, float open, float morph, out float opacity) {
   float u = dot(hit, e1), v = dot(hit, e2);
   float r = sqrt(u * u + v * v);
   float t = (r - DISK_IN) / (DISK_OUT - DISK_IN);
   float edge = smoothstep(0.0, 0.016, t) * smoothstep(1.0, 0.45, t);
-  // Mientras es un ∞ el perfil radial del disco todavía no manda.
+  // Mientras es una cinta el perfil radial del disco todavía no manda.
   edge = mix(1.0, edge, morph);
 
-  // Lemniscata de Bernoulli  Q² = U²−V²   →   anillo  R = RMID.
-  // Se interpolan las DISTANCIAS a una y a otra, no sus funciones implícitas:
-  // |F| < w no es una banda de anchura uniforme y se hinchaba en el cruce del
-  // ∞. Dividir por el gradiente la convierte en distancia de primer orden, y
-  // mezclar dos campos de distancia transforma un contorno en el otro sin que
-  // nada aparezca ni desaparezca por el camino.
+  // El contorno es UNA familia de curvas que se abre, los óvalos de Cassini:
+  //
+  //     (U²+V²)² − 2b²(U²−V²) + b⁴ − a⁴ = 0
+  //
+  // Con a = b es exactamente la lemniscata de Bernoulli —el ∞ del cargador—.
+  // Bajando b la cintura se despega del centro, los dos bucles se funden en un
+  // óvalo y, con b = 0, queda la circunferencia del disco. Una sola figura que
+  // se abre, no dos mezcladas: por el camino no aparece ni desaparece nada, y
+  // en cada fotograma lo que se ve es una curva cerrada de verdad.
   float U = u / LEM_A, V = v / LEM_A;
-  float Q = U * U + V * V;
-  float lem = Q * Q - (U * U - V * V);
-  vec2  grad = vec2(2.0 * U * (2.0 * Q - 1.0), 2.0 * V * (2.0 * Q + 1.0));
-  float toEight = abs(lem) / max(length(grad), 0.08);
+  float Q  = U * U + V * V;
+  float rn = sqrt(Q);
+  // cos 2θ y sin 2θ sin llamar a atan: en el centro la dirección da igual
+  // porque allí la banda ya está apagada.
+  float c2 = Q > 1e-7 ? (U * U - V * V) / Q : 1.0;
+  float s2 = Q > 1e-7 ? (2.0 * U * V) / Q : 0.0;
 
   const float R_IN  = DISK_IN / LEM_A;
   const float R_OUT = DISK_OUT / LEM_A;
   const float RMID  = (R_IN + R_OUT) * 0.5;
-  float toRing = abs(sqrt(Q) - RMID);
+  // La ecuación es bicuadrada en r, así que el radio del contorno tiene forma
+  // cerrada para cada ángulo:  rc² = b²·cos2θ + √(a⁴ − b⁴·sin²2θ).
+  // De ahí salen sus dos medidas visibles —el radio de la punta y la mitad de
+  // la cintura— y, despejando, los parámetros de la curva:
+  //
+  //     rpunta² = a² + b²      (θ = 0)        rcintura² = a² − b²   (θ = 90°)
+  //
+  // La transformación se escribe con ESAS dos, no con a y b. Es la diferencia
+  // entre que la cintura se abra a ojo y que se abra parejo: con b lineal, el
+  // hueco del centro pega un salto en los dos primeros fotogramas y el resto
+  // de la apertura no se ve.
+  float waist = RMID * open;                  // 0 = ∞ cerrado, RMID = anillo
+  float tip   = mix(1.0, RMID, open);         // la punta se recoge hasta el anillo
+  float a2 = (tip * tip + waist * waist) * 0.5;
+  float b2 = (tip * tip - waist * waist) * 0.5;
 
-  float dist  = mix(toEight, toRing, morph);
+  float root = sqrt(max(a2 * a2 - b2 * b2 * s2 * s2, 0.0));
+  float P    = b2 * c2 + root;
+  float rc   = sqrt(max(P, 0.0));
+  // Derivada del mismo radio respecto al ángulo: dice cuánto se inclina el
+  // contorno sobre el radio, para proyectar la distancia radial sobre su
+  // normal. Sin esa proyección la cinta se hincha justo en el cruce del ∞,
+  // que es donde la curva va casi a 45°.
+  float dP = -2.0 * b2 * s2 - (root > 1e-4 ? 2.0 * b2 * b2 * s2 * c2 / root : 0.0);
+  float slope = P > 1e-4 ? dP / (2.0 * P) : 0.0;
+  float radial = abs(rn - rc);
+  // La proyección solo vale cerca del contorno: más lejos, el punto más próximo
+  // ya no está en el mismo ángulo. Junto al cruce del ∞ la pendiente no tiene
+  // cota —ahí la curva pasa por el origen— y aplicarla sin más dibujaba dos
+  // rayas rectas a 45° que salían del ∞ y cruzaban la pantalla entera. Van dos
+  // frenos, y hacen falta los dos: la corrección se apaga con la distancia, y
+  // por mucha pendiente que haya, la distancia proyectada nunca baja de una
+  // fracción de la radial.
+  float bend = clamp(slope * exp(-radial * 9.0), -60.0, 60.0);
+  float dist = max(radial * inversesqrt(1.0 + bend * bend), radial * 0.12);
+
   // La meseta de la banda (el 80 % interior) tiene que cubrir exactamente el
   // anillo DISK_IN..DISK_OUT; si no, se come la parte interna, que es la más
   // caliente y brillante del disco.
-  // 0.088 ≈ el mismo grosor de trazo que el ∞ del SVG del cargador. Con la
-  // cinta más fina, a mitad del fundido quedaba muy poca materia encendida y
-  // se colaba un fotograma oscuro entre las dos figuras.
+  // 0.088 ≈ el mismo grosor de trazo que el ∞ del SVG del cargador: la cinta
+  // del shader releva a la del SVG sin cambiar de grosor.
   float width = mix(0.088, (R_OUT - R_IN) / 1.6, morph);
   edge *= smoothstep(width, width * 0.80, dist);
 
@@ -182,19 +220,36 @@ void main() {
   vec2 uv = (screen * (1.0 - uBass * 0.021) - shift - center) * uScale;
 
   float grow     = smoothstep(0.0, 1.0, uFormation);
-  // El ∞ empieza plano y sin gravedad; la curvatura entra después, cuando la
-  // figura ya se está cerrando en anillo, y es ella la que lo termina de doblar.
-  float lens     = smoothstep(0.38, 0.96, uFormation);
-  float morph    = smoothstep(0.26, 0.88, uFormation);
+  // La formación va en tres tiempos, y el orden es lo que la hace leerse como
+  // una transformación y no como un cambiazo. Nunca hay dos cosas ocurriendo
+  // a la vez: cada fase termina de contarse antes de que empiece la siguiente.
+  //
+  //   RELEVO   0.00–0.06  la cinta del shader aparece plana, sin gravedad y
+  //                       del grosor y el tamaño exactos del ∞ del SVG, que
+  //                       todavía se está apagando encima. Solo cambia el
+  //                       material: la figura es la misma.
+  //   APERTURA 0.18–0.58  la cintura del ∞ se despega del centro y los dos
+  //                       bucles se funden en un anillo. Sigue plano y sin
+  //                       gravedad: lo único que pasa en pantalla es que la
+  //                       figura se abre.
+  //   COLAPSO  0.50–1.00  ya hay anillo, así que ahora sí: se tumba hasta el
+  //                       ecuador, entra la curvatura —que es la que dobla la
+  //                       imagen de atrás por encima— y el horizonte crece en
+  //                       el centro, con el anillo ya alrededor. El horizonte
+  //                       entra el último a propósito: antes de que hubiera
+  //                       anillo era un punto negro saliendo de la nada.
+  float open     = smoothstep(0.18, 0.58, uFormation);
+  float morph    = smoothstep(0.50, 0.94, uFormation);
+  float lens     = smoothstep(0.54, 1.00, uFormation);
   // Repartir el cambio de perspectiva y suavizar también su aceleración.
-  float tiltProgress = clamp((uFormation - 0.12) / 0.84, 0.0, 1.0);
+  float tiltProgress = clamp((uFormation - 0.50) / 0.50, 0.0, 1.0);
   float tiltAmt = tiltProgress * tiltProgress * tiltProgress
                 * (tiltProgress * (tiltProgress * 6.0 - 15.0) + 10.0);
   // El horizonte de sucesos se mueve con la música: los graves lo hinchan y
   // los agudos rizan su silueta, así que la sombra late en vez de estar quieta.
   float pulse    = 0.065 * uBass + 0.07 * uTreble * sin(atan(uv.y, uv.x) * 5.0 - uTime * 6.0);
-  float horizon  = mix(0.04, 1.0, smoothstep(0.02, 0.70, uFormation)) * (1.0 + pulse);
-  float diskFade = smoothstep(0.0, 0.08, uFormation);
+  float horizon  = mix(0.04, 1.0, smoothstep(0.58, 0.96, uFormation)) * (1.0 + pulse);
+  float diskFade = smoothstep(0.0, 0.06, uFormation);
 
   // Elevacion de la camara sobre el plano ecuatorial. De canto (5 grados) es
   // como se ve el disco toda la vida; uTopDown la sube a 80, que es donde se
@@ -237,7 +292,12 @@ void main() {
     vec3 pos = camPos;
     float side = dot(pos, nrm);
     vec3 mom = cross(pos, vel);
-    // La curvatura también bombea: el anillo de fotones se abre con el golpe.
+    // Angulo que lleva recorrido el rayo alrededor del agujero. El momento
+    // angular se conserva salvo por el arrastre, asi que dφ = |L|/r²·dt sale
+    // de una division por paso.
+    float swept = 0.0;
+    float angMom = length(mom);
+    // La curvatura también bombea: con el golpe la sombra se abre.
     float h2 = dot(mom, mom) * lens * (1.0 + uBass * 0.28);
     float drag = SPIN * lens * (1.0 + uBass * 1.15 + uPower * 0.8);
     for (int i = 0; i < STEPS; i++) {
@@ -256,6 +316,7 @@ void main() {
       // solo retuerce el fondo pegado al horizonte.
       vel += cross(vec3(0.0, drag / (r2 * r), 0.0), vel) * dt;
       pos += vel * dt;
+      swept += angMom / max(r2, 1e-4) * dt;
       float next = dot(pos, nrm);
       if (side * next < 0.0) {
         float f = side / (side - next);
@@ -264,8 +325,22 @@ void main() {
         // Cubre tanto el ∞ como el borde exterior del disco, el mayor de los dos.
         if (rr < max(DISK_OUT, LEM_A) + 1.0) {
           float op;
-          vec3 e = diskSample(hit, normalize(vel), e1, e2, nrm, morph, op);
-          col += trans * e * diskFade;
+          vec3 e = diskSample(hit, normalize(vel), e1, e2, nrm, open, morph, op);
+          // Los rayos que pasan rozando la esfera de fotones dan vueltas
+          // enteras alrededor del agujero y vuelven a cruzar el disco una y
+          // otra vez. Todos esos cruces caen en la misma franja de pantalla
+          // —la del borde de la sombra— y se apilan ahi en una raya fina y
+          // dura: el anillo de fotones, que ademas sale moteado porque a esa
+          // altura el paso de integracion ya no resuelve el giro. Se lee como
+          // un aro dibujado encima, no como materia.
+          //
+          // Se apaga por angulo recorrido, que es lo unico que separa de
+          // verdad un caso del otro: el disco directo llega girando menos de
+          // media vuelta y su imagen doblada por debajo, poco mas de una; el
+          // anillo necesita vueltas enteras. Por radio no se pueden separar,
+          // porque el borde interno del disco esta justo donde pasan.
+          float wound = 1.0 - smoothstep(2.9, 4.5, swept);
+          col += trans * e * diskFade * wound;
           trans *= 1.0 - op;
           if (trans < 0.02) break;
         }

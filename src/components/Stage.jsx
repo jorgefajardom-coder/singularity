@@ -6,6 +6,7 @@ import Orbit from "./Orbit";
 import Companies from "./Companies";
 import { companies, sections } from "../data/content";
 import { gsap, ScrollTrigger, prefersReducedMotion } from "../lib/anim";
+import { heroBase } from "../lib/stagePose";
 
 /**
  * Primera pantalla y órbita comparten un solo agujero negro.
@@ -29,31 +30,6 @@ const FALL = [0.6, 1.0];
 // Una vez se las ha tragado todas, el agujero se aleja en lugar de quedarse
 // ocupando la pantalla hasta que la galeria lo empuja fuera.
 const EXIT = [0.86, 1.0];
-
-// En reposo el agujero NO va centrado en la pantalla: se apoya en la mitad
-// inferior para que el titular quepa entero encima sin que la lente se coma
-// ninguna letra. El valor esta en fraccion de media pantalla y con la Y hacia
-// arriba, que es el convenio del shader: -0.17 lo baja un 8.5 % del alto.
-// Se queda justo debajo del titular: el hueco entre texto y disco es minimo.
-const HERO_CY = -0.17;
-
-// En reposo el agujero se ve mas pequeno de lo que se veia. `uScale` multiplica
-// las coordenadas en el shader, asi que un valor MAYOR lo aleja y lo achica.
-const HERO_SCALE = 1.34;
-
-/**
- * Posicion y tamano del agujero en reposo, segun la forma de la pantalla.
- *
- * Los dos valores de arriba estan pensados para una ventana apaisada. En un
- * movil —alto y estrecho— el disco se encoge (el shader lo escala con el
- * aspecto) y el titular se va muy arriba, asi que entre ambos se abria un
- * hueco enorme. En vertical el disco se agranda y sube.
- */
-const heroBase = () => {
-  const aspect = window.innerWidth / Math.max(window.innerHeight, 1);
-  if (aspect < 0.85) return { cy: -0.04, scale: 1.0 };
-  return { cy: HERO_CY, scale: HERO_SCALE };
-};
 
 const span = ([a, b], p) => Math.min(1, Math.max(0, (p - a) / (b - a)));
 // Suaviza los extremos: sin esto cada fase arranca y frena de golpe.

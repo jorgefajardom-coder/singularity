@@ -2162,14 +2162,25 @@ a.cert:hover {
   margin: 0;
   max-width: 22ch;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--text-dim);
+  /* Misma tinta que el "Hola, soy Jorge" del hero: el rotulo va sobre el
+     mismo negro y con `--text-dim` se leia lavado al lado del disco. El halo
+     es el del titular, reducido al tamano de este texto. */
+  color: var(--text);
+  text-shadow:
+    0 0 10px rgba(8, 7, 10, 0.92),
+    0 0 28px rgba(8, 7, 10, 0.75);
 }
 
 .orbiter {
-  --mark-size: clamp(68px, 10.5vw, 152px);
+  /* En escritorio las marcas bajaron de 152 a 112 px: a tamano completo
+     pesaban mas que el agujero, que es el centro del sistema. El minimo de
+     68 se queda como estaba, que es el que manda en movil. Ojo: Orbit.jsx
+     calcula `logoSize` con esta misma formula para el margen y el radio de
+     las esferas; si cambia aqui, cambia alli. */
+  --mark-size: clamp(68px, 8vw, 112px);
   position: absolute;
   top: 0;
   left: 0;
@@ -2299,6 +2310,25 @@ a.cert:hover {
 .company:hover .company__logo {
   opacity: 1;
   transform: translateY(-4px);
+}
+
+/* En el movil el rotulo se quedaba en 9 px y peso 800: sobre el disco
+   encendido y a ese tamano se leia gris y fino. Aqui sube a 11 px y al peso
+   maximo de Archivo, con el halo mas cerrado para que el trazo no se funda
+   con el naranja. El ancho minimo evita que un nombre largo se parta en
+   cuatro renglones dentro de una marca de 68 px. */
+@media (max-width: 720px) {
+  .company__label {
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    text-shadow: 0 1px 4px #000, 0 0 10px #000, 0 0 20px rgba(8, 7, 10, 0.9);
+  }
+
+  .orbiter .company__label {
+    max-width: 190%;
+    min-width: 11ch;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLang } from "../lib/i18n";
 import { gsap, prefersReducedMotion } from "../lib/anim";
+import { heroBase } from "../lib/stagePose";
 import { useMusic } from "../lib/music";
 
 // El infinito es SVG y se dibuja sin tocar WebGL. El agujero negro llega
@@ -29,7 +30,15 @@ export default function Loader({ onWarm, onEnter, onDone, onReady }) {
   const root = useRef(null);
   const numRef = useRef(null);
   const formation = useRef(0);
+  // Misma forma que el `journey` de Stage: el agujero del cargador termina de
+  // formarse ya colocado donde esta el del hero, para que el fundido entre los
+  // dos lienzos cruce dos imagenes identicas.
+  const travel = useRef({ cx: 0, cy: 0, scale: 1, topDown: 0, fall: 0, lens: 1, p: 0 });
   const [phase, setPhase] = useState("loading");
+
+  // En desarrollo, para poder congelar el morfo y mirarlo fotograma a
+  // fotograma:  gsap.globalTimeline.pause(); window.formation.current = 0.4
+  if (import.meta.env.DEV && typeof window !== "undefined") window.formation = formation;
 
   const leaving = useRef(false);
   // La línea de tiempo se crea una vez; el ref mantiene fresco el callback.
@@ -116,48 +125,61 @@ export default function Loader({ onWarm, onEnter, onDone, onReady }) {
     const mark = root.current.querySelector(".loader__mark");
     const hole = root.current.querySelector(".loader__singularity");
     formation.current=0;
+    travel.current.cy = 0;
+    travel.current.scale = 1;
     const ctx = gsap.context(() => {
       gsap.set(hole,{opacity:1});
       gsap.set(".loader__label, .loader__seams",{opacity:0});
       const motion = {p:0};
 
-      // La transformacion va en tres tiempos, y el orden es lo que la hace
-      // leerse como una transformacion y no como un cambiazo:
-      //
-      //   IGNITE  el ∞ del SVG se pone al rojo y se apaga. Debajo, en el mismo
-      //           sitio y al mismo tamano, ya esta el ∞ del shader: la figura
-      //           parece cambiar de material, no ser sustituida.
-      //   SETTLE  un respiro con el material nuevo, todavia como ∞. Sin esto
-      //           la figura empezaba a colapsar mientras aun se estaban
-      //           intercambiando las dos capas, y no se veia ninguna de las
-      //           dos cosas con claridad.
-      //   morph   recien ahora el ∞ se cierra sobre si mismo.
-      const IGNITE = 0.62;
-      const SETTLE = 0.26;
-      const transformDuration = 1.35;
-      const morphAt = IGNITE + SETTLE;
+      // La cinta del shader ENTRA MIENTRAS la del SVG se apaga, no despues.
+      // Antes habia un hueco de un cuarto de segundo entre las dos en el que
+      // no se veia nada: el ∞ se quemaba, la pantalla se quedaba en negro y
+      // aparecia otro ∞ de la nada. Aqui las dos figuras se solapan medio
+      // segundo, con el mismo tamano y el mismo grosor de trazo, asi que lo
+      // que se ve es una sola cinta cambiando de material.
+      const MORPH_AT = 0.26;
+      const MORPH_DUR = 1.72;
+      // El cargador se retira con la figura ya practicamente formada y ya
+      // colocada en la pose del hero (ver `travel`): lo de debajo es la misma
+      // imagen, asi que el fundido no se nota.
+      const LEAVE_AT = MORPH_AT + MORPH_DUR * 0.93;
 
       const timeline = gsap.timeline();
 
       // El SVG se va ardiendo, no desvaneciendose sin mas.
       timeline.fromTo(mark,
         { filter: "brightness(1) drop-shadow(0 0 0 rgba(255, 106, 18, 0))" },
-        { filter: "brightness(2.4) drop-shadow(0 0 46px rgba(255, 120, 30, 0.95))",
-          duration: IGNITE * 0.72, ease: "power2.in" },
+        { filter: "brightness(2.6) drop-shadow(0 0 46px rgba(255, 120, 30, 0.95))",
+          duration: 0.46, ease: "power2.in" },
         0);
-      timeline.to(mark, { opacity: 0, duration: IGNITE * 0.5, ease: "power2.inOut" }, IGNITE * 0.5);
+      timeline.to(mark, { opacity: 0, duration: 0.34, ease: "power2.inOut" }, 0.30);
 
+      const rest = heroBase();
       timeline.to(motion,{
-        p:1, duration:transformDuration, ease:"none",
-        onUpdate() { formation.current=motion.p; },
-        onComplete() { formation.current=1; },
-      }, morphAt);
+        p:1, duration:MORPH_DUR, ease:"none",
+        onUpdate() {
+          formation.current = motion.p;
+          // El viaje al sitio del hero empieza cuando la figura ya es un
+          // anillo y termina antes que el fundido: si se movieran a la vez,
+          // lo que se cruzaria son dos agujeros en distinto sitio.
+          const settle = Math.min(1, Math.max(0, (motion.p - 0.44) / 0.41));
+          const k = settle * settle * (3 - 2 * settle);
+          travel.current.cy = rest.cy * k;
+          travel.current.scale = 1 + (rest.scale - 1) * k;
+        },
+        onComplete() {
+          formation.current = 1;
+          travel.current.cy = rest.cy;
+          travel.current.scale = rest.scale;
+        },
+      }, MORPH_AT);
 
       // Preparar el portafolio desde el inicio y revelarlo durante el giro:
       // el fondo ya debe verse cuando el agujero termine de formarse.
       timeline.call(() => enter.current(), null, 0);
-      timeline.to(root.current,{opacity:0,duration:transformDuration * 0.4,ease:"power2.inOut",
-        onComplete:() => done.current()}, morphAt + transformDuration * 0.6);
+      timeline.to(root.current,{opacity:0,duration:0.34,ease:"power2.inOut",
+        onComplete:() => done.current()}, LEAVE_AT);
     },root);
     return () => { ctx.kill(); formation.current=1; };
   },[phase]);
@@ -229,7 +251,7 @@ export default function Loader({ onWarm, onEnter, onDone, onReady }) {
           pulsar, el SVG se apaga antes de que haya nada dibujado debajo. */}
       {(phase === "choose" || phase === "transforming") && <div className="loader__singularity">
         <Suspense fallback={null}>
-          <BlackHole formation={formation} />
+          <BlackHole formation={formation} journey={travel} />
         </Suspense>
       </div>}
       <svg className="loader__mark" viewBox="0 0 205 105" role="group" aria-label={lang === "en" ? "Choose your language" : "Elige tu idioma"}>

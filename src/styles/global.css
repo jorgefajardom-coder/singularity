@@ -617,8 +617,9 @@ body.is-locked {
   color: #fff;
 }
 
-.hero--singularity .hero__inner a,
-.hero--singularity .hero__inner button {
+.hero a,
+.hero button,
+.hero [role="button"] {
   pointer-events: auto;
 }
 
@@ -704,6 +705,26 @@ body.is-locked {
   padding: 18px var(--gutter);
 }
 
+/* Franja para cuando por debajo pasa un panel claro: sin ella, la marca y los
+   enlaces —que son de color claro— desaparecian sobre el papel. Aparece y se
+   retira con una transicion para que el cambio no sea un corte seco. */
+.nav::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgba(8, 7, 10, 0.82);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255, 154, 60, 0.16);
+  opacity: 0;
+  transition: opacity 0.35s var(--ease);
+  pointer-events: none;
+}
+
+.nav[data-on-paper="true"]::before {
+  opacity: 1;
+}
+
 /* El nombre completo manda; el monograma solo aparece cuando la barra no da
    de si (ver Nav.jsx). El punto de corte es el mismo en el que se ocultan los
    enlaces de navegacion. */
@@ -771,6 +792,12 @@ body.is-locked {
    Hero
    ============================================================ */
 .hero {
+  /* El puntero tiene que llegar al agujero negro, que vive DETRAS de esta
+     seccion (.stage__void). Sin esto la seccion se comia el evento y el
+     agujero no se podia agarrar ni mover: solo `.hero__inner` estaba
+     desactivado, pero el <section> seguia capturando. Lo que si se pulsa
+     (enlaces y botones) recupera el puntero mas abajo. */
+  pointer-events: none;
   position: relative;
   min-height: 100svh;
   display: flex;
@@ -936,16 +963,6 @@ body.is-locked {
   justify-self: start;
   margin-left: calc(var(--gutter) * -0.5);
 }
-.about__motion {
-  position: relative;
-  transform: translate3d(var(--astronaut-x, 0px), var(--astronaut-y, 0px), 0);
-  cursor: grab;
-  touch-action: pan-y;
-  user-select: none;
-  border-radius: 32px;
-}
-.about__motion[data-dragging] { cursor: grabbing; }
-.about__motion:focus-visible { outline: 2px solid var(--accent-b); outline-offset: 6px; }
 .about__float { position: relative; animation: about-float 7s ease-in-out infinite; }
 .about__astronaut { display: block; width: 100%; height: auto; }
 .about__singularity {

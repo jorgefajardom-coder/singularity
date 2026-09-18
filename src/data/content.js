@@ -638,14 +638,14 @@ export const props3d = {
   about: [
     { fallback: "planet", color: "#ef4b23", position: [-0.94, 0.42, -0.6], scale: 0.42, speed: 1.2 },
     { fallback: "moon", color: "#d8d4cc", position: [0.96, -0.32, -1.1], scale: 0.26, speed: 0.9 },
-    { fallback: "satellite", color: "#ffb52e", position: [0.9, 0.62, -1.6], scale: 0.24, speed: 1.4 },
+    { fallback: "satellite", color: "#ffb52e", position: [0.9, 0.6, -1.3], scale: 0.46, speed: 1.4 },
   ],
   certs: [
     { fallback: "moon", color: "#e6e2da", position: [-0.95, 0.5, -0.8], scale: 0.3, speed: 1.1 },
     { fallback: "planet", color: "#ffb52e", position: [0.95, -0.4, -1.0], scale: 0.38, speed: 0.8 },
   ],
   contact: [
-    { fallback: "satellite", color: "#ef4b23", position: [-0.93, -0.48, -0.7], scale: 0.26, speed: 1.0 },
+    { fallback: "satellite", color: "#ef4b23", position: [-0.93, -0.48, -0.7], scale: 0.48, speed: 1.0 },
     { fallback: "planet", color: "#ff6a00", position: [0.94, 0.55, -1.2], scale: 0.34, speed: 1.3 },
   ],
 };

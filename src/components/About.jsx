@@ -12,31 +12,8 @@ import SplitText from "./SplitText";
 
 export default function About() {
   const { tr } = useLang();
-  const figure = useRef(null);
-  const drag = useRef(null);
-  const offset = useRef({ x: 0, y: 0 });
-
-  const moveFigure = (x, y) => {
-    const el = figure.current;
-    if (!el) return;
-    const box = el.getBoundingClientRect();
-    const limit = Math.min(80, box.width * 0.18);
-    offset.current = {
-      x: Math.max(Math.max(-limit, -box.left + 8), Math.min(Math.min(limit, window.innerWidth - box.right - 8), x)),
-      y: Math.max(-60, Math.min(60, y)),
-    };
-    el.style.setProperty("--astronaut-x", `${offset.current.x}px`);
-    el.style.setProperty("--astronaut-y", `${offset.current.y}px`);
-  };
-  const stopDrag = (e) => {
-    drag.current = null;
-    e.currentTarget.removeAttribute("data-dragging");
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
-  };
-
-  // El agujero NO lleva animacion propia de scroll: iba con su `scale` y su
-  // `yPercent` en scrub, asi que se despegaba de la mano del astronauta y se
-  // pasaba el rato cambiando de sitio. Ahora solo flota con la figura entera.
+  // El astronauta va anclado: no se arrastra. Solo flota, y el agujero negro
+  // viaja con el en la mano, sin animacion propia de scroll que lo despegue.
 
   return (
     <section id="about" className="section about">
@@ -47,33 +24,23 @@ export default function About() {
         <GhostHeading className="display display--lg">{tr(sections.about.heading)}</GhostHeading>
 
         <div className="about__layout">
-          <div className="about__figure" ref={figure}>
-            <div className="about__motion" role="button" tabIndex={0}
-              aria-label={tr({ es: "Mover astronauta: arrastra o usa las flechas. Inicio restablece la posición.", en: "Move astronaut: drag or use arrow keys. Home resets the position." })}
-              onPointerDown={(e) => {
-                if (e.button !== 0 || !e.isPrimary) return;
-                drag.current = { x: e.clientX, y: e.clientY, ...{ startX: offset.current.x, startY: offset.current.y } };
-                e.currentTarget.setPointerCapture(e.pointerId);
-                e.currentTarget.setAttribute("data-dragging", "true");
-              }}
-              onPointerMove={(e) => {
-                if (!drag.current) return;
-                moveFigure(drag.current.startX + e.clientX - drag.current.x, drag.current.startY + e.clientY - drag.current.y);
-              }}
-              onPointerUp={stopDrag} onPointerCancel={stopDrag} onLostPointerCapture={stopDrag}
-              onKeyDown={(e) => {
-                const steps = { ArrowLeft: [-12, 0], ArrowRight: [12, 0], ArrowUp: [0, -12], ArrowDown: [0, 12] };
-                if (e.key === "Home" || e.key === "Escape") { e.preventDefault(); moveFigure(0, 0); }
-                else if (steps[e.key]) { e.preventDefault(); moveFigure(offset.current.x + steps[e.key][0], offset.current.y + steps[e.key][1]); }
-              }}>
+          <div className="about__figure" aria-hidden="true">
             <div className="about__float">
-              <img className="about__astronaut" src={`${import.meta.env.BASE_URL}images/about-astronaut-gaze.webp`} width="1122" height="1402" alt="" draggable={false} loading="lazy" decoding="async" />
-              <div className="about__singularity" aria-hidden="true" inert>
+              <img
+                className="about__astronaut"
+                src={`${import.meta.env.BASE_URL}images/about-astronaut-gaze.webp`}
+                width="1122"
+                height="1402"
+                alt=""
+                draggable={false}
+                loading="lazy"
+                decoding="async"
+              />
+              <div className="about__singularity" inert>
                 <Suspense fallback={<div className="blackhole__fallback" />}>
                   <BlackHole bare />
                 </Suspense>
               </div>
-            </div>
             </div>
           </div>
           <div className="about__copy">

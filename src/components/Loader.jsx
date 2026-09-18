@@ -117,25 +117,47 @@ export default function Loader({ onWarm, onEnter, onDone, onReady }) {
     const hole = root.current.querySelector(".loader__singularity");
     formation.current=0;
     const ctx = gsap.context(() => {
-      gsap.set(mark,{filter:"none"});
       gsap.set(hole,{opacity:1});
       gsap.set(".loader__label, .loader__seams",{opacity:0});
       const motion = {p:0};
+
+      // La transformacion va en tres tiempos, y el orden es lo que la hace
+      // leerse como una transformacion y no como un cambiazo:
+      //
+      //   IGNITE  el ∞ del SVG se pone al rojo y se apaga. Debajo, en el mismo
+      //           sitio y al mismo tamano, ya esta el ∞ del shader: la figura
+      //           parece cambiar de material, no ser sustituida.
+      //   SETTLE  un respiro con el material nuevo, todavia como ∞. Sin esto
+      //           la figura empezaba a colapsar mientras aun se estaban
+      //           intercambiando las dos capas, y no se veia ninguna de las
+      //           dos cosas con claridad.
+      //   morph   recien ahora el ∞ se cierra sobre si mismo.
+      const IGNITE = 0.62;
+      const SETTLE = 0.26;
       const transformDuration = 1.65;
+      const morphAt = IGNITE + SETTLE;
+
       const timeline = gsap.timeline();
+
+      // El SVG se va ardiendo, no desvaneciendose sin mas.
+      timeline.fromTo(mark,
+        { filter: "brightness(1) drop-shadow(0 0 0 rgba(255, 106, 18, 0))" },
+        { filter: "brightness(2.4) drop-shadow(0 0 46px rgba(255, 120, 30, 0.95))",
+          duration: IGNITE * 0.72, ease: "power2.in" },
+        0);
+      timeline.to(mark, { opacity: 0, duration: IGNITE * 0.5, ease: "power2.inOut" }, IGNITE * 0.5);
+
       timeline.to(motion,{
         p:1, duration:transformDuration, ease:"none",
         onUpdate() { formation.current=motion.p; },
         onComplete() { formation.current=1; },
-      },0);
-      // El ∞ del shader ya está debajo, en el mismo sitio y al mismo tamaño: al
-      // apagar el del SVG no se ve un relevo, se ve cómo la figura se enciende.
-      timeline.to(mark,{opacity:0,duration:0.18,ease:"power2.inOut"},0.10);
+      }, morphAt);
+
       // Preparar el portafolio desde el inicio y revelarlo durante el giro:
       // el fondo ya debe verse cuando el agujero termine de formarse.
       timeline.call(() => enter.current(), null, 0);
       timeline.to(root.current,{opacity:0,duration:transformDuration * 0.4,ease:"power2.inOut",
-        onComplete:() => done.current()},transformDuration * 0.6);
+        onComplete:() => done.current()}, morphAt + transformDuration * 0.6);
     },root);
     return () => { ctx.kill(); formation.current=1; };
   },[phase]);

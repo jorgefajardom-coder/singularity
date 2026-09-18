@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { nav, site, ui } from "../data/content";
 import { useLang, LangToggle } from "../lib/i18n";
 import MusicPlayer from "./MusicPlayer";
@@ -12,9 +13,41 @@ import { RollText } from "./ui";
  */
 export default function Nav() {
   const { tr } = useLang();
+  // Los paneles claros ("Qué hago" y "Contacto") pasan por debajo de la barra
+  // y su texto claro se volvia ilegible sobre el papel. Cuando uno de ellos
+  // esta detras, la barra se pone una franja oscura.
+  const [onPaper, setOnPaper] = useState(false);
+
+  useEffect(() => {
+    const panels = document.querySelectorAll(".panel--paper");
+    const bar = document.querySelector(".nav");
+    if (!panels.length || !bar) return;
+
+    // La raiz se recorta a la franja que ocupa la barra: intersecar ahi
+    // significa literalmente "esto esta ahora mismo debajo de la barra". La
+    // altura se mide, no se estima: con un porcentaje fijo la franja quedaba
+    // mas corta que la barra y los paneles pasaban por debajo sin detectarse.
+    const height = Math.ceil(bar.getBoundingClientRect().height) || 80;
+    const rest = Math.max(0, window.innerHeight - height);
+
+    const visible = new Set();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) visible.add(entry.target);
+          else visible.delete(entry.target);
+        }
+        setOnPaper(visible.size > 0);
+      },
+      { rootMargin: `0px 0px -${rest}px 0px`, threshold: 0 }
+    );
+
+    panels.forEach((panel) => observer.observe(panel));
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <header className="nav">
+    <header className="nav" data-on-paper={onPaper ? "true" : "false"}>
       {/* El nombre completo donde cabe; el monograma cuando la barra se
           estrecha. Las dos formas van en el DOM y las alterna el CSS, para no
           depender de un listener de resize. `aria-hidden` en la que no se ve

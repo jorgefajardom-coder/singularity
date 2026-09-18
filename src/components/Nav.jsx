@@ -22,8 +22,13 @@ export default function Nav() {
 
   return (
     <header className="nav" data-hidden={hidden ? "true" : "false"}>
-      <a className="nav__mark" href="#top">
-        {tr(site.short)}
+      {/* El nombre completo donde cabe; el monograma cuando la barra se
+          estrecha. Las dos formas van en el DOM y las alterna el CSS, para no
+          depender de un listener de resize. `aria-hidden` en la que no se ve
+          evita que un lector de pantalla lea el nombre dos veces. */}
+      <a className="nav__mark" href="#top" aria-label={site.name}>
+        <span className="nav__mark-full" aria-hidden="true">{site.name}</span>
+        <span className="nav__mark-short" aria-hidden="true">{tr(site.short)}</span>
       </a>
 
       {/* Música e idioma comparten cápsula, centrada en la barra. El

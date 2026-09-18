@@ -169,6 +169,10 @@ button {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+  /* La etiqueta nunca se parte: en inglés el texto es más largo ("Get in
+     touch", "Let's work together") y al envolverse rompía la píldora, que
+     tiene la altura fija de los controles de la barra. */
+  white-space: nowrap;
   transition: transform 0.4s var(--ease), filter 0.4s var(--ease);
 }
 
@@ -701,6 +705,16 @@ body.is-locked {
 
 .nav[data-hidden="true"] {
   transform: translateY(-120%);
+}
+
+/* El nombre completo manda; el monograma solo aparece cuando la barra no da
+   de si (ver Nav.jsx). El punto de corte es el mismo en el que se ocultan los
+   enlaces de navegacion. */
+.nav__mark-short { display: none; }
+
+@media (max-width: 1100px) {
+  .nav__mark-full { display: none; }
+  .nav__mark-short { display: inline; }
 }
 
 .nav__mark {

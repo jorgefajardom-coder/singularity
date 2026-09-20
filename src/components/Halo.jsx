@@ -29,15 +29,19 @@ import { prefersReducedMotion, scroller } from "../lib/anim";
  * Fracciones del ANCHO del halo, o sea diametros: el radio de cada anillo es
  * la mitad.
  *
- * El primero es la aureola —va relleno y cae justo detras del pelo, asi que se
- * queda pequeno aunque el sistema crezca— y los SEIS siguientes son uno por
- * area, sin compartir.
+ * El primero es la AUREOLA, el que va relleno. A la altura de las orejas la
+ * silueta ocupa el 50 % del ancho de la ilustracion, asi que la aureola tiene
+ * que pasar de eso para asomar: 0.34 del halo son un 78 % de ese ancho, o sea
+ * 14 puntos a cada lado. A 0.24 se quedaba en el 55 % y solo asomaban dos.
+ * Y no puede crecer mucho mas sin comerse el anillo 1, que esta a 0.41.
+ *
+ * Los SEIS siguientes son uno por area, sin compartir.
  *
  * Los extremos no son esteticos: por dentro, un cuerpo en un anillo mas
  * estrecho que 0.41 le monta encima a la aureola; por fuera, pasando de 0.95
  * el anillo se mete debajo de la barra del menu.
  */
-const RINGS = [0.24, 0.41, 0.52, 0.63, 0.74, 0.84, 0.95];
+const RINGS = [0.34, 0.41, 0.52, 0.63, 0.74, 0.84, 0.95];
 
 /**
  * Lo que se le pasa a cada agujero del halo en vez del viaje por la pagina.

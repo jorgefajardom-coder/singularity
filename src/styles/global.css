@@ -1108,12 +1108,16 @@ body.is-locked {
   --rings-ready: calc(var(--ring-duration) + (var(--ring-count, 7) - 1) * var(--ring-stagger));
   position: absolute;
   left: 48%;
-  /* Sube por encima del pelo. Centrado en la cabeza el sistema no podia pasar
-     de un radio de 270 px sin que el anillo de fuera se lo comiera el borde de
-     abajo del marco, que es lo que recorta (`overflow: clip` en
-     `.meditation__frame`). Subiendo el centro al 11 % del alto del retrato
-     caben casi 300 px de radio, y los anillos siguen cerrando enteros. */
-  top: 11%;
+  /* A la altura de las OREJAS: el 31 % del alto de la ilustracion, medido
+     sobre su canal alfa. Ahi la silueta mide el 50 % del ancho —entre el pelo,
+     que llega al 61 %, y los hombros, que se van al 83 %—, y es la unica franja
+     de la figura donde la aureola puede asomar por los dos lados.
+     Mas abajo no sirve: al 52 % la silueta mide el 75 % y se la traga entera.
+
+     El sistema entero baja con ella, porque comparten centro, pero solo se
+     TRASLADA: los seis cuerpos conservan su anillo y su angulo, asi que la
+     disposicion no cambia. */
+  top: 31%;
   /* Los tres limites hacen falta y ninguno sobra: el 92 svh es el que manda en
      una pantalla apaisada —que es el caso normal— y evita justo ese recorte;
      el 78 vw manda en una ventana estrecha y alta, y es mas duro que el resto

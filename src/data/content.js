@@ -349,6 +349,23 @@ export const stack = [
  * Cada area tiene su PROPIO anillo y no lo comparte con nadie, que es lo que
  * hace que se lean como seis cuerpos en seis orbitas y no como un monton.
  *
+ * Ningun cuerpo puede ir arriba del todo en un anillo largo: la barra del
+ * menu ocupa los primeros 78 px y el cuerpo de un anillo de 0.95 cae siempre
+ * dentro de ellos, en CUALQUIER alto de pantalla (de 500 a 1080 px sale entre
+ * y=11 e y=23). Por eso Producto y diseno, que va centrado arriba, esta en el
+ * anillo 2: de 0.52 para abajo libra la barra en todas.
+ *
+ * Y por eso Programacion salio de la vertical. Dos cuerpos apilados en el
+ * mismo eje necesitan 94 px de diferencia de radio para no montarse —es lo que
+ * miden—, y ahi arriba la barra no deja tanto radio. Una de las dos cosas
+ * tenia que ceder.
+ *
+ * Programacion acabo a la derecha y no a la izquierda porque ahi si cabe: las
+ * cajas de los cuerpos son CUADRADAS, no redondas, asi que dos se tocan en
+ * cuanto su distancia en X y en Y son las dos menores que 94. A la izquierda
+ * quedaba a 81 de IA en los dos ejes y se montaban; medido, 13 px a 1536 y
+ * 22 px a 1920.
+ *
  * Los angulos NO estan repartidos a partes iguales. Se probo —48 grados
  * justos entre uno y el siguiente— y quedaba peor: lo que se lee bien es este
  * reparto, con dos cuerpos en la vertical de la cabeza, dos a media altura a
@@ -370,7 +387,7 @@ export const workAreas = [
     services: ["modelado-3d", "animacion-3d", "web3d-juegos"],
     color: "#2fe0cf",
     size: 16.0,
-    ring: 2,
+    ring: 6,
     start: 296,
   },
   {
@@ -385,7 +402,7 @@ export const workAreas = [
     // programa. En el anillo 5 el cuerpo se iba por encima del menu —medido:
     // y = 54, con la barra ocupando hasta 60—, asi que va en el 3.
     ring: 1,
-    start: 0,
+    start: 90,
   },
   {
     id: "producto",
@@ -398,7 +415,7 @@ export const workAreas = [
     // estrecha, donde los cinco se juntan; en el 2 baja lo justo para que las
     // dos filas de rotulos no se toquen, y de paso el sistema deja de ser un
     // arco perfecto.
-    ring: 6,
+    ring: 2,
     start: 0,
   },
   {
@@ -408,7 +425,7 @@ export const workAreas = [
     color: "#2fe04f",
     size: 16.0,
     ring: 3,
-    start: 68.79,
+    start: 48.66,
   },
   {
     id: "inteligencia",

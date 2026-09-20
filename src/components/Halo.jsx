@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { services, workAreas } from "../data/content";
 import BlackHole from "./BlackHole";
@@ -110,13 +110,17 @@ const AREAS = workAreas.map((area) => ({
   // Se resuelve al cargar el modulo, no en cada pintada: son seis listas fijas.
   items: area.services.map((key) => BY_ID.get(key)).filter(Boolean),
 }));
+const LAST_REVEAL = AREAS.reduce((last, area) => area.ring > last.ring ? area : last);
 
 export default function Halo() {
   const { tr } = useLang();
+  const labelId = useId();
   const root = useRef(null);
   const refs = useRef({});
   const [drawn, setDrawn] = useState(false);
+  const [deploying, setDeploying] = useState(false);
   const [focus, setFocus] = useState(null);
+  const anchored = deploying || Boolean(focus);
   // La escala del acercamiento, que tambien es la resolucion que necesita el
   // lienzo del cuerpo ampliado para no verse a escalones.
   const [zoom, setZoom] = useState(1);
@@ -136,19 +140,31 @@ export default function Halo() {
     let goingUp = false;
     let lastY = window.scrollY;
     const sync = () => {
+      if (document.body.classList.contains("is-anchored")) return;
       // Stage escribe la opacidad durante el viaje. La interseccion por si
       // sola tambien detecta el halo cuando el retrato sigue invisible.
       const opacity = portrait ? Number(getComputedStyle(portrait).opacity) : 1;
+      const bounds = portrait?.getBoundingClientRect();
+      // La cintura esta al 89 % de la ilustracion; el 11 % restante queda
+      // bajo el viewport por el translateY del retrato. Espera a esa pose,
+      // no al fundido, que termina antes de que llegue el cuerpo completo.
+      const waist = bounds ? bounds.top + bounds.height * 0.89 : Infinity;
+      const atWaist = waist <= window.innerHeight + 1 && waist >= window.innerHeight - 2;
       if (started && (goingUp || !inView || opacity <= 0.05)) {
         started = false;
         setDrawn(false);
-      } else if (!started && !goingUp && inView && opacity >= 0.85) {
+        setDeploying(false);
+      } else if (!started && !goingUp && inView && opacity >= 0.99 && atWaist) {
         started = true;
+        setDeploying(true);
         setDrawn(true);
       }
     };
     const onScroll = () => {
-      if (document.body.classList.contains("is-anchored")) return;
+      if (document.body.classList.contains("is-anchored")) {
+        lastY = window.scrollY;
+        return;
+      }
       const y = window.scrollY;
       // Acumula los movimientos pequenos para evitar cambios por redondeo.
       if (Math.abs(y - lastY) < 3) return;
@@ -173,6 +189,23 @@ export default function Halo() {
       window.removeEventListener("scroll", onScroll);
     };
   }, [reduced]);
+
+  // El fin real de la animacion libera el scroll. Este respaldo evita que
+  // una animacion cancelada deje la pagina bloqueada; usa los tiempos del CSS.
+  useEffect(() => {
+    if (!deploying) return undefined;
+    if (reduced) {
+      setDeploying(false);
+      return undefined;
+    }
+    const last = refs.current[LAST_REVEAL.id];
+    if (!last) { setDeploying(false); return undefined; }
+    const style = getComputedStyle(last);
+    const milliseconds = (value) => parseFloat(value) * (value.trim().endsWith("ms") ? 1 : 1000);
+    const duration = milliseconds(style.animationDelay) + milliseconds(style.animationDuration);
+    const timer = window.setTimeout(() => setDeploying(false), (Number.isFinite(duration) ? duration : 3000) + 200);
+    return () => window.clearTimeout(timer);
+  }, [deploying, reduced]);
 
   const salir = useCallback(() => {
     const node = root.current;
@@ -205,9 +238,9 @@ export default function Halo() {
    * Clase propia y no `is-locked`: esa la escribe App.jsx para el cargador y
    * dos duenos sobre la misma clase acaban pisandose.
    */
-  useEffect(() => {
-    document.body.classList.toggle("is-anchored", Boolean(focus));
-    if (!focus) {
+  useLayoutEffect(() => {
+    document.body.classList.toggle("is-anchored", anchored);
+    if (!anchored) {
       scroller.current?.start();
       return undefined;
     }
@@ -231,7 +264,7 @@ export default function Halo() {
       document.body.classList.remove("is-anchored");
       scroller.current?.start();
     };
-  }, [focus]);
+  }, [anchored]);
 
   /**
    * El acercamiento.
@@ -285,7 +318,7 @@ export default function Halo() {
         style={{ "--ring-count": RINGS.length }}
         // Mientras no se ha trazado, la seccion esta fuera de pantalla y sus
         // botones no deben poder recibir el foco del teclado.
-        inert={!drawn}
+        inert={!drawn || deploying}
       >
         <svg className="halo__rings" viewBox="0 0 100 100" aria-hidden="true">
           {RINGS.map((f, i) => (
@@ -329,6 +362,11 @@ export default function Halo() {
                 aria-label={tr(b.name)}
                 style={{ "--body-size": b.size, "--body-ink": b.color }}
                 onClick={() => (focus === b.id ? salir() : entrar(b.id))}
+                onAnimationEnd={(event) => {
+                  if (event.target === event.currentTarget && event.animationName === "halo-body-in" && b.id === LAST_REVEAL.id) {
+                    setDeploying(false);
+                  }
+                }}
               >
                 {/* El mismo agujero negro que sostiene el astronauta, clonado
                     y tenido con el color del area. No es un dibujo que se le
@@ -346,9 +384,16 @@ export default function Halo() {
                   />
                 </span>
 
-                {/* El nombre, solo en reposo: con la camara dentro lo dice la
-                    tarjeta de abajo, que no cuelga de esta caja. */}
-                <span className="halo__label">{tr(b.name)}</span>
+                {/* El nombre sigue el arco interior del disco. El boton ya
+                    aporta el nombre accesible; el SVG es solo visual. */}
+                <svg className="halo__inscription" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                  <defs>
+                    <path id={`${labelId}-${b.id}`} d="M 14 50 A 36 36 0 0 1 86 50" />
+                  </defs>
+                  <text textAnchor="middle" textLength="104" lengthAdjust="spacingAndGlyphs">
+                    <textPath href={`#${labelId}-${b.id}`} startOffset="50%">{tr(b.name)}</textPath>
+                  </text>
+                </svg>
               </button>
             </div>
           </div>

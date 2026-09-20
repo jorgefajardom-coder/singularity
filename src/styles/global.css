@@ -1271,19 +1271,26 @@ body.is-locked {
   border-radius: 0;
 }
 
-.halo__label {
+.halo__inscription {
   position: absolute;
-  top: calc(100% + 0.6cqw);
-  left: 50%;
-  translate: -50% 0;
-  white-space: nowrap;
-  font-size: clamp(8px, 2.1cqw, 12px);
-  letter-spacing: 0.08em;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.035em;
   text-transform: uppercase;
-  color: rgba(255, 238, 224, 0.62);
+  color: rgba(255, 245, 235, 0.9);
+  fill: currentColor;
+  stroke: rgba(5, 3, 12, 0.85);
+  stroke-width: 1.5px;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
   transition: color 0.3s var(--ease), opacity 0.4s var(--ease);
 }
-.halo__body:hover .halo__label { color: var(--text); }
+.halo__body:hover .halo__inscription,
+.halo__body:focus-visible .halo__inscription { color: #fff; }
 
 /* Con la camara dentro solo queda el cuerpo al que se ha entrado. El resto del
    sistema no se esconde: se apaga y se queda de fondo. El rotulo del cuerpo
@@ -1342,7 +1349,7 @@ body.is-anchored .about__float {
 .halo[data-focus="true"] .halo__rings circle { stroke: rgba(255, 238, 224, 0.1); }
 .halo[data-focus="true"] .halo__body { opacity: 0.22; }
 .halo[data-focus="true"] .halo__body[data-on="true"] { opacity: 1; cursor: zoom-out; }
-.halo[data-focus="true"] .halo__label { opacity: 0; }
+.halo[data-focus="true"] .halo__inscription { opacity: 0; }
 
 /* La ficha del area con la camara dentro: su nombre y los servicios que
    agrupa. Va `fixed` y colgada del body (ver el portal en Halo.jsx) porque el

@@ -18,6 +18,13 @@ const fragmentShader = `
 precision highp float;
 varying vec2 vUv;
 uniform float uTime, uRigid, uWind, uPower, uAspect, uFormation, uBass, uMid, uTreble, uReveal;
+uniform float uHue;
+// uDisk estira el borde EXTERIOR del disco y uWhite calienta su parte interna
+// hasta el blanco. Los dos valen la identidad (1 y 0) en el agujero grande;
+// solo los mueven los seis del halo. Ver los props de este componente.
+uniform float uDisk, uWhite;
+// DISK_OUT ya estirado. Es global y no constante porque depende del uniforme;
+// main() lo fija antes de que nadie lo lea.
 uniform float uScale, uTopDown, uIsolation;
 uniform vec2 uPointer, uCenter;
 uniform sampler2D uText, uCopy;
@@ -26,6 +33,7 @@ const float DISK_IN  = 2.05;   // borde interno, junto a la última órbita esta
 const float DISK_OUT = 15.0;
 const float CAM_DIST = 26.0;   // la cámara mira desde fuera del disco
 const float LENSE    = 3.00;   // distancia focal: encuadra la sombra en pantalla
+float gOut;
 const int   STEPS    = 180;
 const float SPIN     = 0.17;   // arrastre de marco: el agujero gira de verdad
 const float TILT0    = 0.092;  // el plano arranca mirando a la cámara
@@ -52,15 +60,36 @@ float fbm(vec3 p) {
   return s;
 }
 
+// Gira el TONO alrededor del eje de los grises, que es la diagonal (1,1,1)
+// normalizada. Es la rotacion de Rodrigues, y sirve aqui porque respeta la
+// luminancia: el disco cambia de color sin cambiar de brillo, asi que el
+// agujero de un area verde tiene exactamente la misma forma, el mismo
+// contraste y el mismo aro que el de un area roja. Recolorear multiplicando
+// por el color del area apagaria todo lo que no cae en ese canal.
+vec3 hueShift(vec3 c, float a) {
+  const vec3 k = vec3(0.5773502691896258);
+  float ca = cos(a), sa = sin(a);
+  return c * ca + cross(k, c) * sa + k * dot(k, c) * (1.0 - ca);
+}
+
 // Rampa de cuerpo negro recortada en ámbar: no llega nunca a blanco, así el
 // disco conserva el color del hierro fundido incluso en los picos.
+//
+// uHue la gira entera. En cero —el agujero grande, el del hero y el de las
+// manos— queda tal cual estaba; los seis pequenos del halo le pasan cada uno
+// el tono de su area. (Sin comillas invertidas: esto vive dentro de una
+// plantilla de JavaScript y una sola la partiria en dos.)
 vec3 ember(float h) {
   h = clamp(h, 0.0, 1.0);
   vec3 c = mix(vec3(0.25, 0.010, 0.002), vec3(0.92, 0.085, 0.004), smoothstep(0.00, 0.35, h));
   c = mix(c, vec3(1.00, 0.255, 0.022), smoothstep(0.33, 0.62, h));
   c = mix(c, vec3(1.00, 0.430, 0.095), smoothstep(0.60, 0.85, h));
   c = mix(c, vec3(1.00, 0.560, 0.185), smoothstep(0.84, 1.00, h));
-  return c;
+  c = uHue == 0.0 ? c : hueShift(c, uHue);
+  // El blanco entra solo en la parte CALIENTE, que es la de dentro: el nucleo
+  // se pone al rojo blanco y el disco conserva el color del area hacia fuera.
+  // Tenir tambien lo de fuera dejaria seis agujeros blancos iguales.
+  return mix(c, vec3(1.0), uWhite * smoothstep(0.5, 1.0, h));
 }
 
 // Campo de estrellas: una por celda, con magnitud y color propios. La curva
@@ -97,7 +126,7 @@ vec3 starField(vec3 d) {
 vec3 diskSample(vec3 hit, vec3 dir, vec3 e1, vec3 e2, vec3 nrm, float open, float morph, out float opacity) {
   float u = dot(hit, e1), v = dot(hit, e2);
   float r = sqrt(u * u + v * v);
-  float t = (r - DISK_IN) / (DISK_OUT - DISK_IN);
+  float t = (r - DISK_IN) / (gOut - DISK_IN);
   float edge = smoothstep(0.0, 0.016, t) * smoothstep(1.0, 0.45, t);
   // Mientras es una cinta el perfil radial del disco todavía no manda.
   edge = mix(1.0, edge, morph);
@@ -213,6 +242,9 @@ vec3 diskSample(vec3 hit, vec3 dir, vec3 e1, vec3 e2, vec3 nrm, float open, floa
 }
 
 void main() {
+  // Lo primero: el borde exterior del disco, del que cuelgan tanto el perfil
+  // radial como los dos cortes que deciden si un rayo se integra.
+  gOut = DISK_OUT * uDisk;
   float zoom = clamp(1.85 / max(uAspect, 0.35), 1.0, 2.2);
   // El disco mide ~1.85 de media altura: si el marco es más estrecho que eso,
   // la cámara se aleja hasta que la figura entra entera.
@@ -298,7 +330,7 @@ void main() {
   // Un rayo con parámetro de impacto grande no puede tocar ni el disco ni el
   // horizonte: se salta la integración entera y el fondo sale casi gratis.
   float impact = length(cross(camPos, dir));
-  if (impact < DISK_OUT + 1.6) {
+  if (impact < gOut + 1.6) {
     vec3 pos = camPos;
     float side = dot(pos, nrm);
     vec3 mom = cross(pos, vel);
@@ -333,7 +365,7 @@ void main() {
         vec3 hit = mix(prev, pos, f);
         float rr = length(vec2(dot(hit, e1), dot(hit, e2)));
         // Cubre tanto el ∞ como el borde exterior del disco, el mayor de los dos.
-        if (rr < max(DISK_OUT, LEM_A) + 1.0) {
+        if (rr < max(gOut, LEM_A) + 1.0) {
           float op;
           vec3 e = diskSample(hit, normalize(vel), e1, e2, nrm, open, morph, op);
           // Los rayos que pasan rozando la esfera de fotones dan vueltas
@@ -541,7 +573,7 @@ const TIME_WRAP = 200 * Math.PI;
 // partir de ahí la figura gira rígida, conservando su forma.
 const WIND_MAX = 22;
 
-function Scene({ interaction, reduced, formation, sample, visual, lens, journey }) {
+function Scene({ interaction, reduced, formation, sample, visual, lens, journey, hue = 0, disk = 1, white = 0 }) {
   const elapsed = useRef(0);
   const rigid = useRef(0);
   const wound = useRef(0);
@@ -557,7 +589,15 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey 
     // Viaje por la pagina: donde esta el agujero, cuanto se aleja y desde
     // que altura se mira. Lo escribe el scroll (ver Stage.jsx).
     uCenter: { value: new Vector2() }, uScale: { value: 1 }, uTopDown: { value: 0 }, uIsolation: { value: 0 },
+    uHue: { value: hue }, uDisk: { value: disk }, uWhite: { value: white },
   }), []);
+  // Pueden cambiar sin volver a montar el lienzo (el idioma, por ejemplo,
+  // re-renderiza el arbol entero).
+  useEffect(() => {
+    uniforms.uHue.value = hue;
+    uniforms.uDisk.value = disk;
+    uniforms.uWhite.value = white;
+  }, [hue, disk, white, uniforms]);
   useFrame((state, delta) => {
     if (!material.current) return;
     const live = material.current.uniforms;
@@ -622,7 +662,38 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey 
   /></mesh>;
 }
 
-export default function BlackHole({ bare = false, className = "", formation, journey, lensSource, onLensReady }) {
+/**
+ * Cuanto hay que girar el tono para que el ambar del disco se vuelva el color
+ * que se pide. El ambar de `ember()` esta en unos 25 grados, asi que la
+ * rotacion es la diferencia; en radianes, que es lo que toma la formula.
+ */
+const AMBAR = 25;
+function hueOf(hex) {
+  if (!hex) return 0;
+  const n = parseInt(hex.slice(1), 16);
+  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  if (!d) return 0;
+  let h;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  h *= 60;
+  if (h < 0) h += 360;
+  return (((h - AMBAR) % 360) + 360) % 360 * Math.PI / 180;
+}
+
+/**
+ * `dpr` es la resolucion del lienzo respecto a su caja CSS, y aqui no es un
+ * ajuste de calidad: es lo unico que permite AMPLIAR un lienzo WebGL.
+ *
+ * Los seis agujeros del halo miden 94 px de caja y el zoom los lleva a 735
+ * con una transformacion CSS, que escala el mapa de bits ya pintado y no
+ * vuelve a pintarlo: se veia el agujero convertido en escalones. Subiendo el
+ * dpr a la misma proporcion, el lienzo se repinta a tamano real y queda
+ * nitido. Ver `entrar()` en Halo.jsx.
+ */
+export default function BlackHole({ bare = false, className = "", formation, journey, lensSource, onLensReady, tint, dpr = [1, 1.25], disk = 1, white = 0 }) {
   const { lang, tr } = useLang();
   const { sample } = useMusic();
   const root = useRef(null);
@@ -695,11 +766,11 @@ export default function BlackHole({ bare = false, className = "", formation, jou
           hasta abajo, sin recuperarse al subir. El lienzo siempre cubre el
           viewport entero, asi que al desplazarse no hay nada que volver a
           medir; de los cambios de tamano ya se encarga el ResizeObserver. */}
-      <SceneBoundary><Canvas key="transparent-context" dpr={[1,1.25]} resize={{ offsetSize: true, scroll: false }} frameloop={active ? "always" : "never"}
+      <SceneBoundary><Canvas key="transparent-context" dpr={dpr} resize={{ offsetSize: true, scroll: false }} frameloop={active ? "always" : "never"}
         gl={{antialias:false,alpha:true,powerPreference:"high-performance"}}
         onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
         fallback={<div className="blackhole__fallback" />}>
-        <Scene interaction={interaction} reduced={reduced} formation={formation} journey={journey} sample={sample} visual={visual} lens={lens} />
+        <Scene interaction={interaction} reduced={reduced} formation={formation} journey={journey} sample={sample} visual={visual} lens={lens} hue={hueOf(tint)} disk={disk} white={white} />
       </Canvas></SceneBoundary>
     </div>
   </div>;

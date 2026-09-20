@@ -19,6 +19,16 @@ export const prefersReducedMotion = () =>
  * Scroll suave (Lenis) sincronizado con el ticker de GSAP, para que
  * ScrollTrigger y el scroll inercial no peleen entre ellos.
  */
+/**
+ * El scroll suave, para quien necesite PARARLO.
+ *
+ * Lenis no desplaza el documento: lleva el scroll por su cuenta y lo aplica en
+ * cada fotograma. Por eso un `overflow: hidden` en el body no lo detiene —lo
+ * intente— y hace falta poder llamarle `stop()`. Lo usa Halo.jsx para anclar
+ * la escena mientras la camara esta dentro de una galaxia.
+ */
+export const scroller = { current: null };
+
 export function useSmoothScroll() {
   useEffect(() => {
     if (prefersReducedMotion()) return;
@@ -30,6 +40,7 @@ export function useSmoothScroll() {
     });
 
     lenis.on("scroll", ScrollTrigger.update);
+    scroller.current = lenis;
 
     // En desarrollo, para poder saltar a una sección desde la consola:
     // window.lenis.scrollTo('#contact')
@@ -55,6 +66,7 @@ export function useSmoothScroll() {
     return () => {
       document.removeEventListener("click", onClick);
       gsap.ticker.remove(raf);
+      scroller.current = null;
       lenis.destroy();
     };
   }, []);

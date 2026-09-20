@@ -1,103 +1,115 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { areas, bodies } from "../data/content";
+import { createPortal } from "react-dom";
+import { services, workAreas } from "../data/content";
+import BlackHole from "./BlackHole";
 import { useLang } from "../lib/i18n";
-import { prefersReducedMotion } from "../lib/anim";
+import { prefersReducedMotion, scroller } from "../lib/anim";
 
 /**
  * El sistema que orbita al personaje que medita.
  *
- * Los anillos son los mismos que los de la zona de marcas: mismo trazo y los
- * mismos radios que reparte `radiusOf()` en Orbit.jsx. Lo que cambia es que
- * aqui llevan cuerpos encima, y cada cuerpo es un AREA del stack.
+ * Un cuerpo por AREA de trabajo, y cada area son varios de los catorce
+ * servicios. No se pierde ninguno: el area lleva la lista y al entrar a un
+ * cuerpo se lee entera. Agrupar no es quitar, es dejar de pedirle a quien mira
+ * que lea catorce rotulos girando a la vez.
  *
- * Las areas no duplican ni una herramienta: viven en `content.js` como una
- * lista de claves —`groups: ["dev", "datos"]`— que apunta a los grupos del
- * stack de siempre. Anadir una herramienta alla la hace aparecer aqui sola.
+ * Las areas no duplican ni un servicio: viven en `content.js` como una lista
+ * de claves —`services: ["web", "packaging"]`— que apunta a los servicios de
+ * siempre. Cambiar un titulo alla lo cambia aqui solo.
  *
- * El anillo 0 va vacio a proposito, igual que el interior de la orbita de
- * marcas: cae justo detras de la cabeza y es el que da el aire entre el pelo y
- * el primer cuerpo.
+ * Los anillos interiores van vacios a proposito: son los que caen detras de la
+ * cabeza y los que dan el aire entre el pelo y el primer cuerpo. Los cuerpos
+ * se reparten por los tres de fuera y por la mitad de ARRIBA del sistema, que
+ * es donde hay pantalla libre; abajo esta el busto.
  *
- * El giro es todo CSS: son transformaciones compuestas y no pasan por el
- * ticker de GSAP, que en esta seccion ya esta ocupado llevando el agujero
- * negro hasta las manos (ver Stage.jsx). Lo unico que toca JavaScript es el
- * zoom, y solo en el momento del clic.
+ * Lo unico que toca JavaScript es el zoom, y solo en el momento del clic.
  */
-
-// Mismos radios que `radiusOf(i, n)` en Orbit.jsx con n = 5, mas el interior.
-const RINGS = [0.34, 0.46, 0.58, 0.7, 0.82, 0.94];
-
-const SYSTEM = [...areas, ...bodies];
-
-/** Cuanto del lado corto del marco ocupa el cuerpo una vez ampliado. */
-const ZOOM_FILL = 0.34;
 
 /**
- * Un brazo de espiral logaritmica, r = a * e^(b*theta), que es la curva con la
- * que se describen los brazos de una galaxia de verdad.
+ * Fracciones del ANCHO del halo, o sea diametros: el radio de cada anillo es
+ * la mitad.
  *
- * Esto NO se puede hacer con un `conic-gradient`: un degradado conico reparte
- * color por angulo, asi que sus «brazos» son cunas rectas que salen del centro.
- * A tamano de icono colaba, pero el zoom llega a 10x y lo que se veia era un
- * cometa. Una curva SVG se mantiene nitida a cualquier escala y ademas se
- * enrolla, que es justo lo que distingue una galaxia de una mancha.
- *
- * Se calcula una sola vez al cargar el modulo: son dos cadenas de texto.
+ * El primero es la aureola —va relleno y cae justo detras del pelo, asi que se
+ * queda pequeno aunque el sistema crezca— y los SEIS siguientes son uno por
+ * area, sin compartir. Los limites no son esteticos: por dentro, un cuerpo en
+ * un anillo mas estrecho que 0.41 le monta encima a la aureola; por fuera,
+ * pasando de 0.95 el cuerpo del anillo de arriba se mete debajo de la barra
+ * del menu.
  */
-function arm(turns = 2.05, b = 0.29, n = 56) {
-  const pts = [];
-  for (let i = 0; i <= n; i++) {
-    const th = (i / n) * turns * Math.PI * 2;
-    const r = 3.4 * Math.exp(b * th);
-    pts.push(`${(50 + r * Math.cos(th)).toFixed(1)} ${(50 + r * Math.sin(th)).toFixed(1)}`);
-  }
-  return `M${pts.join("L")}`;
-}
+const RINGS = [0.24, 0.41, 0.52, 0.63, 0.74, 0.84, 0.95];
 
-const SPIRAL = arm();
+/**
+ * Lo que se le pasa a cada agujero del halo en vez del viaje por la pagina.
+ *
+ *  · `isolation: 1` apaga el campo de estrellas del shader y deja el fondo
+ *    TRANSPARENTE (ver `uIsolation` en BlackHole.jsx). Sin esto cada cuerpo
+ *    era un rectangulo negro con su propio cielo estrellado pegado encima del
+ *    de la pagina, recortado sobre el fondo. Es el mismo interruptor que usa
+ *    el agujero que aterriza en las manos del astronauta.
+ *  · `scale` es cuanto se aleja la camara: MENOS es mas grande. Tiene que
+ *    dejar el disco ENTERO dentro de la caja cuadrada del boton, porque el
+ *    lienzo la recorta: mas cerca, el disco se salia por los lados y con el
+ *    zoom puesto se veia el canto recto del lienzo cruzando la pantalla. Y
+ *    ademas tiene que dejar sitio LIBRE alrededor: ahi es donde van los
+ *    anillos de las herramientas, y con el disco mas cerca los de dentro le
+ *    caian encima.
+ *  · `topDown: 1` sube la camara del plano ecuatorial —de canto, que es como
+ *    se ha visto un agujero negro toda la vida— a ochenta grados, o sea casi
+ *    en vertical. Desde ahi el disco se lee como un SISTEMA, con sus orbitas
+ *    alrededor. De canto se ve como se ha visto un agujero negro toda la
+ *    vida; desde arriba se ve el sistema.
+ *
+ * Es un objeto fijo y compartido por los seis: el shader solo lo lee.
+ */
+const CUERPO = { current: { isolation: 1, scale: 2.26, cy: 0, cx: 0, topDown: 1, lens: 0 } };
 
-/** El cuerpo: una galaxia, o un planeta cuando lleva anillos o lunas. */
-function Shape({ body }) {
-  const kind = body.kind ?? "galaxy";
-  return (
-    <span className="halo__shape" data-kind={kind} aria-hidden="true">
-      {kind === "galaxy" ? (
-        <svg className="halo__disc" viewBox="0 0 100 100">
-          {/* Dos pasadas por brazo: una ancha y apagada que hace el cuerpo del
-              brazo, y otra fina y clara encima que le da el filo. Cuatro
-              trazos en total, y con eso ya se lee el enrollado. */}
-          <g className="halo__arms">
-            <path className="halo__arm halo__arm--glow" d={SPIRAL} />
-            <path className="halo__arm halo__arm--glow" d={SPIRAL} transform="rotate(180 50 50)" />
-            <path className="halo__arm" d={SPIRAL} />
-            <path className="halo__arm" d={SPIRAL} transform="rotate(180 50 50)" />
-            <path className="halo__arm halo__arm--edge" d={SPIRAL} />
-            <path className="halo__arm halo__arm--edge" d={SPIRAL} transform="rotate(180 50 50)" />
-          </g>
-          <circle className="halo__bulge" cx="50" cy="50" r="9" />
-        </svg>
-      ) : (
-        <span className="halo__sphere" />
-      )}
-      {kind === "ringed" && <span className="halo__belt" />}
-      {kind === "moons" &&
-        body.moons.map((m, i) => (
-          <span
-            key={i}
-            className="halo__moonpath"
-            style={{
-              "--moon-d": m.r * 2,
-              "--moon-size": m.size,
-              "--moon-turn": `${m.turn}s`,
-              "--moon-start": `${m.start}deg`,
-            }}
-          >
-            <span className="halo__moon" />
-          </span>
-        ))}
-    </span>
-  );
-}
+/**
+ * Tope de resolucion del lienzo ampliado.
+ *
+ * Con el zoom, la caja de 94 px se ve a 735: el lienzo tiene que pintarse a
+ * ocho veces su caja para salir nitido. Mas de ahi no se gana nada —ya es
+ * tamano real— y se paga en pixeles por fotograma.
+ */
+const DPR_MAX = 8;
+
+/**
+ * Cuanto se estira el borde exterior del disco, y cuanto se calienta su parte
+ * interna hacia el blanco.
+ *
+ * El tamano de la SOMBRA no es un ajuste: sale de las geodesicas, es el radio
+ * de captura de los fotones y no hay parametro que lo encoja. Lo que si se
+ * puede es hacer el disco mas grande a su alrededor, y entonces el nucleo se
+ * lee pequeno, que es lo que se pedia.
+ *
+ * `DISCO` y el `scale` de CUERPO van juntos y en la MISMA proporcion: el disco
+ * se estira 2.8 veces y la camara se aleja otras tantas, asi que en pantalla
+ * el agujero mide lo mismo que antes y lo unico que ha cambiado es cuanto de
+ * el ocupa la sombra. Subir solo uno de los dos cambia el tamano en vez del
+ * nucleo.
+ *
+ * `BLANCO` sube el pico de la rampa al blanco. Solo la parte caliente —la de
+ * dentro—, para que el filo brille en blanco y el disco conserve el color del
+ * area hacia fuera; blanqueandolo entero, los seis saldrian iguales.
+ */
+const DISCO = 2.8;
+const BLANCO = 0.8;
+
+/**
+ * Cuanto del lado corto del marco ocupa el cuerpo una vez ampliado.
+ *
+ * Pasa de 1: el agujero INUNDA la pantalla y se sale por los lados, que es
+ * como se ve uno cuando se esta dentro. Quedandose por debajo de 1 se leia
+ * como una ficha centrada con aire alrededor, y lo que se quiere es que ya no
+ * haya nada mas.
+ */
+const ZOOM_FILL = 1.15;
+
+const BY_ID = new Map(services.map((s) => [s.id, s]));
+const AREAS = workAreas.map((area) => ({
+  ...area,
+  // Se resuelve al cargar el modulo, no en cada pintada: son seis listas fijas.
+  items: area.services.map((key) => BY_ID.get(key)).filter(Boolean),
+}));
 
 export default function Halo() {
   const { tr } = useLang();
@@ -105,11 +117,12 @@ export default function Halo() {
   const refs = useRef({});
   const [drawn, setDrawn] = useState(false);
   const [focus, setFocus] = useState(null);
+  // La escala del acercamiento, que tambien es la resolucion que necesita el
+  // lienzo del cuerpo ampliado para no verse a escalones.
+  const [zoom, setZoom] = useState(1);
   const reduced = prefersReducedMotion();
 
-  // Los anillos se trazan cuando la seccion entra en pantalla, no al montar:
-  // esta a cuatro pantallas de la primera y dibujarlos antes gastaria la
-  // animacion sin que nadie la vea.
+  // Activa la apertura de los anillos y, despues, el destello de los cuerpos.
   useEffect(() => {
     if (reduced) {
       setDrawn(true);
@@ -117,12 +130,48 @@ export default function Halo() {
     }
     const node = root.current;
     if (!node) return undefined;
+    const portrait = node.closest(".meditation__portrait");
+    let inView = false;
+    let started = false;
+    let goingUp = false;
+    let lastY = window.scrollY;
+    const sync = () => {
+      // Stage escribe la opacidad durante el viaje. La interseccion por si
+      // sola tambien detecta el halo cuando el retrato sigue invisible.
+      const opacity = portrait ? Number(getComputedStyle(portrait).opacity) : 1;
+      if (started && (goingUp || !inView || opacity <= 0.05)) {
+        started = false;
+        setDrawn(false);
+      } else if (!started && !goingUp && inView && opacity >= 0.85) {
+        started = true;
+        setDrawn(true);
+      }
+    };
+    const onScroll = () => {
+      if (document.body.classList.contains("is-anchored")) return;
+      const y = window.scrollY;
+      // Acumula los movimientos pequenos para evitar cambios por redondeo.
+      if (Math.abs(y - lastY) < 3) return;
+      goingUp = y < lastY;
+      lastY = y;
+      sync();
+    };
     const observer = new IntersectionObserver(
-      ([entry]) => entry.isIntersecting && setDrawn(true),
+      ([entry]) => {
+        inView = entry.isIntersecting && entry.intersectionRatio >= 0.2;
+        sync();
+      },
       { threshold: 0.2 }
     );
+    const visibility = new MutationObserver(sync);
+    if (portrait) visibility.observe(portrait, { attributes: true, attributeFilter: ["style"] });
     observer.observe(node);
-    return () => observer.disconnect();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      observer.disconnect();
+      visibility.disconnect();
+      window.removeEventListener("scroll", onScroll);
+    };
   }, [reduced]);
 
   const salir = useCallback(() => {
@@ -132,6 +181,7 @@ export default function Halo() {
       node.style.removeProperty("--zoom-x");
       node.style.removeProperty("--zoom-y");
     }
+    setZoom(1);
     setFocus(null);
   }, []);
 
@@ -141,6 +191,47 @@ export default function Halo() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [focus, salir]);
+
+  /**
+   * Con la camara dentro, la pagina se ancla.
+   *
+   * No es un capricho: la escena de esta seccion la escribe el scroll en cada
+   * fotograma —la pose del astronauta, el fundido del retrato y el viaje del
+   * agujero, todo en `follow()` de Stage.jsx—, asi que un solo golpe de rueda
+   * mientras se esta mirando una galaxia de cerca le mueve el suelo por
+   * debajo. Bloqueando el desplazamiento, lo que se ha ampliado se queda
+   * donde estaba hasta salir.
+   *
+   * Clase propia y no `is-locked`: esa la escribe App.jsx para el cargador y
+   * dos duenos sobre la misma clase acaban pisandose.
+   */
+  useEffect(() => {
+    document.body.classList.toggle("is-anchored", Boolean(focus));
+    if (!focus) {
+      scroller.current?.start();
+      return undefined;
+    }
+    // Lenis no desplaza el documento, lleva el scroll por su cuenta: el
+    // `overflow: hidden` de la clase no le afecta y hay que pararlo aparte.
+    scroller.current?.stop();
+    // Y ni con las dos cosas basta. `overflow: hidden` quita la barra y corta
+    // la rueda, pero NO impide un desplazamiento por codigo —un `scrollTo`, un
+    // enlace ancla del menu, que sigue ahi arriba—, y el marco de esta seccion
+    // es `sticky`: si la pagina se corre, la galaxia ampliada se va de la
+    // pantalla aunque no se haya movido ni un pixel dentro de ella. Medido:
+    // 3508 -> 5200 y la galaxia en y = -1996. Asi que se apunta la altura al
+    // entrar y se devuelve a ella cualquier intento de moverla.
+    const anclaje = window.scrollY;
+    const pin = () => {
+      if (Math.abs(window.scrollY - anclaje) > 1) window.scrollTo(0, anclaje);
+    };
+    window.addEventListener("scroll", pin, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", pin);
+      document.body.classList.remove("is-anchored");
+      scroller.current?.start();
+    };
+  }, [focus]);
 
   /**
    * El acercamiento.
@@ -157,8 +248,8 @@ export default function Halo() {
    * H + S*(P - H); para que ese destino sea el centro del marco F hay que
    * sumarle F - H - S*(P - H), que es la traslacion de abajo.
    *
-   * Las orbitas se congelan al entrar (`animation-play-state` en el CSS): si
-   * siguieran girando, el cuerpo se iria del centro mientras la camara viaja.
+   * Las orbitas son estaticas, asi que el cuerpo conserva su posicion durante
+   * el acercamiento.
    */
   const entrar = useCallback((id) => {
     const node = root.current;
@@ -177,6 +268,7 @@ export default function Halo() {
     const bx = b.left + b.width / 2;
     const by = b.top + b.height / 2;
 
+    setZoom(escala);
     node.style.setProperty("--zoom-s", escala.toFixed(3));
     node.style.setProperty("--zoom-x", `${(f.left + f.width / 2 - hx - escala * (bx - hx)).toFixed(1)}px`);
     node.style.setProperty("--zoom-y", `${(f.top + f.height / 2 - hy - escala * (by - hy)).toFixed(1)}px`);
@@ -190,30 +282,43 @@ export default function Halo() {
         ref={root}
         data-drawn={drawn ? "true" : "false"}
         data-focus={focus ? "true" : "false"}
+        style={{ "--ring-count": RINGS.length }}
         // Mientras no se ha trazado, la seccion esta fuera de pantalla y sus
         // botones no deben poder recibir el foco del teclado.
         inert={!drawn}
       >
         <svg className="halo__rings" viewBox="0 0 100 100" aria-hidden="true">
           {RINGS.map((f, i) => (
-            <circle key={f} cx="50" cy="50" r={f * 50} pathLength="1" style={{ "--ring-i": i }} />
+            <circle
+              key={f}
+              cx="50"
+              cy="50"
+              r={f * 50}
+              style={{
+                "--ring-i": i,
+                // De cuanto arranca cada anillo para salir EXACTAMENTE del
+                // borde de la aureola: la escala que lo encoge hasta el radio
+                // de esta. El de dentro es la propia aureola, asi que le sale
+                // 1 y no se mueve; solo enciende.
+                "--from": (RINGS[0] / f).toFixed(4),
+              }}
+            />
           ))}
         </svg>
 
-        {SYSTEM.map((b) => (
+        {AREAS.map((b) => (
           <div
             key={b.id}
             className="halo__orbit"
             style={{
               "--orbit-d": `${RINGS[b.ring] * 100}%`,
-              "--orbit-turn": `${b.turn}s`,
               "--orbit-start": `${b.start}deg`,
               "--ring-i": b.ring,
             }}
           >
             <div
               className="halo__upright"
-              style={{ "--orbit-turn": `${b.turn}s`, "--orbit-start": `${b.start}deg` }}
+              style={{ "--orbit-start": `${b.start}deg` }}
             >
               <button
                 type="button"
@@ -221,17 +326,28 @@ export default function Halo() {
                 ref={(el) => { refs.current[b.id] = el; }}
                 data-on={focus === b.id ? "true" : "false"}
                 aria-pressed={focus === b.id}
-                style={{
-                  "--body-size": b.size,
-                  "--body-ink": b.color,
-                  "--body-ink-2": b.color2 ?? b.color,
-                  "--body-tilt": `${b.tilt ?? 0}deg`,
-                  "--body-squash": b.squash ?? 1,
-                  "--body-swirl": `${b.swirl ?? 70}s`,
-                }}
+                aria-label={tr(b.name)}
+                style={{ "--body-size": b.size, "--body-ink": b.color }}
                 onClick={() => (focus === b.id ? salir() : entrar(b.id))}
               >
-                <Shape body={b} />
+                {/* El mismo agujero negro que sostiene el astronauta, clonado
+                    y tenido con el color del area. No es un dibujo que se le
+                    parece: es el shader entero —geodesicas, disco, aro de
+                    fotones y lente— con el tono girado sobre el eje de los
+                    grises, que es lo unico que cambia de uno a otro. */}
+                <span className="halo__hole">
+                  <BlackHole
+                    bare
+                    tint={b.color}
+                    journey={CUERPO}
+                    disk={DISCO}
+                    white={BLANCO}
+                    dpr={focus === b.id ? Math.min(Math.max(zoom, 1), DPR_MAX) : undefined}
+                  />
+                </span>
+
+                {/* El nombre, solo en reposo: con la camara dentro lo dice la
+                    tarjeta de abajo, que no cuelga de esta caja. */}
                 <span className="halo__label">{tr(b.name)}</span>
               </button>
             </div>
@@ -239,15 +355,54 @@ export default function Halo() {
         ))}
       </div>
 
-      {/* Solo existe con el zoom puesto, y solo para poder salir pulsando
-          fuera. No pinta nada: no es una capa oscura ni una ficha. */}
+      {/* Dos salidas, y las dos hacen falta. La capa cubre todo lo que no es
+          la galaxia y no pinta nada —ni fondo oscuro ni ficha—, para que se
+          pueda salir pulsando fuera sin que se vea un marco. Pero con la
+          galaxia inundando la pantalla, «fuera» casi no existe: por eso va
+          ademas un boton que SE VE, que es lo unico que dice que de aqui se
+          puede volver. */}
       {focus && (
-        <button
-          type="button"
-          className="halo__exit"
-          aria-label={tr({ es: "Alejar", en: "Zoom out" })}
-          onClick={salir}
-        />
+        <>
+          <button
+            type="button"
+            className="halo__exit"
+            aria-label={tr({ es: "Alejar", en: "Zoom out" })}
+            onClick={salir}
+          />
+          {/* Al body, y no donde cae en el arbol. Un `position: fixed` deja de
+              ser fijo en cuanto algun ancestro tiene `transform` —y aqui
+              `.meditation__portrait` lleva un `translateY(11%)`—, asi que el
+              boton se colocaba respecto al retrato: medido, aparecia en x=312
+              y 16 px por DEBAJO del borde de la pantalla, cortado. Sacandolo
+              al body vuelve a tener la ventana como referencia. */}
+          {/* El nombre del area y sus servicios.
+              Colgaban de la caja del cuerpo, y eso funcionaba mientras el
+              cuerpo ampliado cabia en pantalla. Ya no: ocupa 735 px de alto en
+              una ventana de 639, asi que su borde de abajo —de donde colgaba
+              el rotulo— cae fuera y el nombre desaparecia. Aqui van fijos al
+              pie de la ventana, que es donde se leen pase lo que pase con el
+              tamano del agujero. */}
+          {createPortal(
+            <div className="halo__card">
+              <p className="halo__cardName">{tr(AREAS.find((a) => a.id === focus).name)}</p>
+              <ul className="halo__cardList">
+                {AREAS.find((a) => a.id === focus).items.map((s) => (
+                  <li key={s.id}>{tr(s.title)}</li>
+                ))}
+              </ul>
+            </div>,
+            document.body
+          )}
+          {createPortal(
+            <button type="button" className="halo__back" onClick={salir}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {tr({ es: "Volver", en: "Back" })}
+            </button>,
+            document.body
+          )}
+        </>
       )}
     </>
   );

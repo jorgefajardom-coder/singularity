@@ -331,181 +331,101 @@ export const stack = [
 ];
 
 /**
- * Las areas, que es el stack contado en grande.
+ * Las areas de trabajo, que son los servicios contados en grande.
  *
- * Diez grupos de herramientas son demasiados para leerlos de un vistazo, asi
- * que se agrupan en seis areas. Esto NO sustituye al stack: la seccion Stack
- * sigue mostrandolo entero y estas areas solo apuntan a el por `key`, de modo
- * que anadir una herramienta alla la hace aparecer aqui sin tocar nada.
+ * Catorce servicios son demasiados para leerlos de un vistazo girando
+ * alrededor de una cabeza: los rotulos se pisaban entre si. Asi que se
+ * agrupan en CINCO areas. Esto NO quita ninguno: la seccion Servicios los
+ * sigue mostrando los catorce, y aqui cada area solo apunta a ellos por su
+ * `id`, de modo que anadir un servicio alla lo mete en su area sin tocar
+ * nada mas. La lista de cada area se lee al entrar a su cuerpo.
  *
- * Cada area es una GALAXIA del sistema que orbita al personaje en la seccion
+ * Cada area es un CUERPO del sistema que orbita al personaje en la seccion
  * de meditacion (ver Halo.jsx). `size` es el diametro en unidades del viewBox
- * del halo, `ring` el anillo en el que va y `turn` los segundos que tarda en
- * dar la vuelta: todos distintos y sin divisores comunes obvios, para que no
- * se alineen ni formen figuras.
+ * del halo y es el MISMO en las seis: son seis areas, no una jerarquia, y con
+ * tamanos distintos las mas grandes se leian como las importantes. `ring` el anillo en el que va y `start` el angulo, en grados
+ * desde arriba y en el sentido del reloj.
  *
- * Lo demas es como se dibuja: `color` es el nucleo y el brazo principal,
- * `color2` el brazo secundario, `tilt` como esta girada en el plano, `squash`
- * cuanto se ve de canto (1 = de frente) y `swirl` los segundos que tarda en
- * dar una vuelta sobre si misma. Los colores se separan a proposito —ambar,
- * azul, rojo, oro, violeta y turquesa—: si todas tiraran a naranja como el
- * resto del sitio, el sistema seria una mancha.
+ * Cada area tiene su PROPIO anillo y no lo comparte con nadie, que es lo que
+ * hace que se lean como seis cuerpos en seis orbitas y no como un monton.
+ *
+ * Y `color` es lo unico que cambia de un cuerpo a otro, porque cada cuerpo ES
+ * el agujero negro del astronauta clonado: el mismo shader, con el tono del
+ * disco girado hasta ese color (ver `uHue` en BlackHole.jsx). Los seis tonos
+ * se reparten por la rueda a proposito y con distancia entre ellos: el giro
+ * conserva la luminancia, asi que dos colores a veinticinco grados uno de otro
+ * dan dos agujeros que no se distinguen.
  */
-export const areas = [
+export const workAreas = [
   {
-    id: "software",
-    name: t("Software", "Software"),
-    blurb: t(
-      "El codigo que sostiene todo lo demas: del script que limpia datos al servicio que corre en produccion.",
-      "The code holding everything else up: from the script that cleans data to the service running in production."
-    ),
-    groups: ["dev", "datos"],
-    kind: "galaxy",
-    color: "#ff8a1f",
-    color2: "#ffd79a",
-    tilt: -24,
-    squash: 0.40,
-    swirl: 74,
-    size: 7.0,
-    ring: 1,
-    turn: 41,
-    start: 18,
-  },
-  {
-    id: "ia",
-    name: t("Inteligencia artificial", "Artificial Intelligence"),
-    blurb: t(
-      "Modelos y vision por computador puestos a trabajar sobre problemas de planta, no sobre demos.",
-      "Models and computer vision put to work on shop-floor problems, not on demos."
-    ),
-    groups: ["ia"],
-    kind: "galaxy",
-    color: "#6ea8ff",
-    color2: "#c6e7ff",
-    tilt: 31,
-    squash: 0.34,
-    swirl: 88,
-    size: 6.0,
+    id: "visual",
+    name: t("3D y visualización", "3D & Visualization"),
+    services: ["modelado-3d", "animacion-3d", "web3d-juegos"],
+    color: "#2fe0cf",
+    size: 16.0,
     ring: 2,
-    turn: 53,
-    start: 212,
+    start: 296,
   },
   {
-    id: "automatizacion",
-    name: t("Automatizacion", "Automation"),
-    blurb: t(
-      "Del PLC que gobierna una celda al flujo que conecta las herramientas del negocio entre si.",
-      "From the PLC that runs a cell to the flow that wires the business tools together."
-    ),
-    groups: ["industrial", "integra"],
-    kind: "galaxy",
-    color: "#ef4b23",
-    color2: "#ff9a6a",
-    tilt: -13,
-    squash: 0.46,
-    swirl: 61,
-    size: 8.0,
-    ring: 3,
-    turn: 67,
-    start: 95,
-  },
-  {
-    id: "electronica",
-    name: t("Electronica", "Electronics"),
-    blurb: t(
-      "Placas, microcontroladores y redes: la capa que convierte una idea en algo que se enciende.",
-      "Boards, microcontrollers and networks: the layer that turns an idea into something that powers on."
-    ),
-    groups: ["electronica"],
-    kind: "galaxy",
-    color: "#ffcf70",
-    color2: "#fff0c2",
-    tilt: 42,
-    squash: 0.30,
-    swirl: 95,
-    size: 6.5,
-    ring: 4,
-    turn: 79,
-    start: 300,
+    id: "codigo",
+    name: t("Programación y datos", "Programming & Data"),
+    services: ["web"],
+    color: "#9ae02f",
+    size: 16.0,
+    // Arriba del todo y en el centro, que es el sitio que mas se mira, y con
+    // catorce herramientas es ademas la mas poblada de las seis. Estaba metida
+    // dentro de «Producto y diseno», que es donde menos se busca a alguien que
+    // programa. En el anillo 5 el cuerpo se iba por encima del menu —medido:
+    // y = 54, con la barra ocupando hasta 60—, asi que va en el 3.
+    ring: 1,
+    start: 0,
   },
   {
     id: "producto",
-    name: t("Producto", "Product"),
-    blurb: t(
-      "Decidir que se construye y en que orden, y sostener esa decision con datos.",
-      "Deciding what gets built and in what order, and backing that decision with data."
-    ),
-    groups: ["producto"],
-    kind: "galaxy",
-    color: "#c07bff",
-    color2: "#ecd6ff",
-    tilt: -37,
-    squash: 0.38,
-    swirl: 67,
-    size: 5.5,
-    ring: 5,
-    turn: 97,
-    start: 145,
+    name: t("Producto y diseño", "Product & Design"),
+    services: ["packaging", "producto"],
+    color: "#c04fff",
+    size: 16.0,
+    // Mas adentro que los otros cuatro a proposito. Arriba del todo y en el
+    // anillo 3 su rotulo llegaba a rozar el de Ingenieria en pantalla
+    // estrecha, donde los cinco se juntan; en el 2 baja lo justo para que las
+    // dos filas de rotulos no se toquen, y de paso el sistema deja de ser un
+    // arco perfecto.
+    ring: 6,
+    start: 326,
   },
   {
-    id: "3d",
-    name: t("3D y diseno", "3D & Design"),
-    blurb: t(
-      "La cara visible del producto: el render, el prototipo, el empaque y la marca con la que sale.",
-      "The product's visible side: the render, the prototype, the packaging and the brand it ships with."
-    ),
-    groups: ["tresd", "diseno", "cad"],
-    kind: "galaxy",
-    color: "#35d6b5",
-    color2: "#b6fff0",
-    tilt: 17,
-    squash: 0.44,
-    swirl: 82,
-    size: 7.5,
-    ring: 5,
-    turn: 113,
-    start: 255,
-  },
-];
-
-/**
- * Los dos cuerpos que NO son un area: estan por el gusto de que el sistema se
- * parezca a uno de verdad, uno con anillos y otro con su corte de lunas.
- */
-export const bodies = [
-  {
-    id: "anillado",
-    kind: "ringed",
-    name: t("Cuerpo anillado", "Ringed body"),
-    color: "#ff9a3c",
-    size: 7.0,
+    id: "hardware",
+    name: t("Ingeniería y hardware", "Engineering & Hardware"),
+    services: ["electronica", "industrial", "robotica"],
+    color: "#2fe04f",
+    size: 16.0,
     ring: 3,
-    turn: 87,
-    start: 40,
+    start: 60,
   },
   {
-    id: "lunas",
-    kind: "moons",
-    name: t("Cuerpo con lunas", "Body with moons"),
-    color: "#9fb0c8",
-    size: 6.5,
+    id: "inteligencia",
+    name: t("IA y automatización", "AI & Automation"),
+    services: ["ia", "flujos-crm"],
+    color: "#3f7dff",
+    size: 16.0,
     ring: 4,
-    turn: 103,
-    start: 330,
-    // `r` y `size` van en las mismas unidades que `size` del cuerpo: centesimas
-    // del ancho del halo. Cuatro lunas con periodos primos entre si, para que
-    // no se junten siempre en el mismo sitio.
-    moons: [
-      { r: 4.6, size: 1.3, turn: 11, start: 0 },
-      { r: 6.0, size: 1.0, turn: 17, start: 120 },
-      { r: 7.5, size: 1.6, turn: 23, start: 210 },
-      { r: 9.0, size: 0.9, turn: 31, start: 300 },
-    ],
+    start: 248,
+  },
+  {
+    id: "marca",
+    name: t("Marca y contenido", "Brand & Content"),
+    services: ["marca", "marketing", "locucion"],
+    color: "#ff2f5e",
+    size: 16.0,
+    ring: 5,
+    start: 105,
   },
 ];
 
 export const services = [
   {
+    id: "modelado-3d",
     title: t("Modelado y visualización 3D", "3D Modeling & Visualization"),
     desc: t(
       "Modelado hard-surface y orgánico en Blender, listo para render o para motor en tiempo real. Iluminación de estudio, materiales físicamente correctos y variantes de color para catálogo o campaña.",
@@ -514,6 +434,7 @@ export const services = [
     tags: ["Blender", "Look dev", "HDRI", "Retopo"],
   },
   {
+    id: "animacion-3d",
     title: t("Animación 3D y gemelos digitales", "3D Animation & Digital Twins"),
     desc: t(
       "Animación de cámara, rigging mecánico y simulación física para explicar cómo funciona un mecanismo. Entornos virtuales sincronizados con la planta real para validar antes de desplegar.",
@@ -522,6 +443,7 @@ export const services = [
     tags: ["Blender", "Unity", "C#", "Rigging"],
   },
   {
+    id: "web3d-juegos",
     title: t("Web 3D y videojuegos", "Web 3D & Games"),
     desc: t(
       "Experiencias en tiempo real: configuradores, landings inmersivas y videojuegos. Del prototipo jugable a la escena WebGL que también va fluida en móvil.",
@@ -530,6 +452,7 @@ export const services = [
     tags: ["Unity", "C#", "Three.js / R3F", "WebGL"],
   },
   {
+    id: "web",
     title: t("Diseño y desarrollo web", "Web Design & Development"),
     desc: t(
       "Sitios y landings que cargan rápido y se ven bien en cualquier pantalla. Del diseño de la interfaz al código, sin plantillas genéricas.",
@@ -538,6 +461,7 @@ export const services = [
     tags: ["React", "Vite", "UI", "Responsive", "SEO"],
   },
   {
+    id: "electronica",
     title: t("Diseño de PCB y electrónica", "PCB & Electronics Design"),
     desc: t(
       "Esquemático, ruteo y preparación para fabricación. Del prototipo en protoboard a la placa lista para ensamblar, con la parte embebida incluida.",
@@ -546,6 +470,7 @@ export const services = [
     tags: ["EasyEDA", "Fritzing", "Arduino", "ESP32"],
   },
   {
+    id: "packaging",
     title: t("Packaging y diseño de producto", "Packaging & Product Design"),
     desc: t(
       "Estructura, troquel y acabado del empaque, más el render que lo vende antes de existir físicamente. CAD y 3D trabajando sobre la misma pieza.",
@@ -554,6 +479,7 @@ export const services = [
     tags: ["Fusion 360", "Inventor", "Blender", "Dieline"],
   },
   {
+    id: "marca",
     title: t("Creación de marca", "Brand Creation"),
     desc: t(
       "Identidad visual desde cero: naming, logotipo, sistema de color y tipografía, y el manual para que la marca se sostenga cuando la use otro.",
@@ -562,6 +488,7 @@ export const services = [
     tags: ["Identidad", "Naming", "Art direction", "Brand book"],
   },
   {
+    id: "marketing",
     title: t("Marketing y contenido", "Marketing & Content"),
     desc: t(
       "Las piezas que ponen la marca a trabajar: campañas, vídeo y contenido para redes, edición y montaje incluidos.",
@@ -570,6 +497,7 @@ export const services = [
     tags: ["CapCut", "Filmora", "Campañas", "Social"],
   },
   {
+    id: "locucion",
     title: t("Locución y radio", "Voice & Radio"),
     desc: t(
       "Locución para radio, podcast y voz en off. Guion, grabación y montaje: la voz que le pone cara a la marca.",
@@ -578,6 +506,7 @@ export const services = [
     tags: ["Locución", "Radio", "Podcast", "Voz en off"],
   },
   {
+    id: "industrial",
     title: t("Automatización industrial", "Industrial Automation"),
     desc: t(
       "Control de celdas de manufactura con PLC: lógica IEC 61131-3, comunicación industrial y puesta en marcha. De la especificación al sistema funcionando en planta.",
@@ -586,6 +515,7 @@ export const services = [
     tags: ["CODESYS", "Ladder Logic", "OPC UA", "Modbus"],
   },
   {
+    id: "robotica",
     title: t("Robótica y control de movimiento", "Robotics & Motion Control"),
     desc: t(
       "Arquitecturas modulares de 6 GDL, cinemática, planificación de trayectorias y coordinación entre varios robots que comparten tarea y espacio de trabajo.",
@@ -594,6 +524,7 @@ export const services = [
     tags: ["Python", "C++", "MATLAB", "Kinematics"],
   },
   {
+    id: "ia",
     title: t("IA aplicada y visión artificial", "Applied AI & Computer Vision"),
     desc: t(
       "Detección, seguimiento y análisis en tiempo real integrados con robots, ajustados para baja latencia en entornos de producción.",
@@ -602,6 +533,7 @@ export const services = [
     tags: ["OpenCV", "MediaPipe", "TensorFlow", "PyTorch"],
   },
   {
+    id: "flujos-crm",
     title: t("Automatización de flujos y CRM", "Workflow Automation & CRM"),
     desc: t(
       "Agentes e integraciones que conectan las herramientas del negocio por API: CRM, bases de datos y procesos internos que dejan de hacerse a mano.",
@@ -610,6 +542,7 @@ export const services = [
     tags: ["n8n", "Make", "HubSpot", "Airtable"],
   },
   {
+    id: "producto",
     title: t("Gestión técnica de producto", "Technical Product Management"),
     desc: t(
       "Traducir necesidad de negocio en especificación técnica, priorizar el roadmap y coordinar hardware, software y manufactura hasta la entrega.",

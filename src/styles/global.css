@@ -1052,6 +1052,7 @@ body.is-locked {
   animation: about-float 7s ease-in-out infinite;
 }
 .about__astronaut { display: block; width: 100%; height: auto; }
+.meditation__image { filter: brightness(0.75); }
 .about__pose { transform-origin: 50% 0; will-change: transform, opacity; }
 
 .meditation {
@@ -1073,7 +1074,7 @@ body.is-locked {
      ningun texto, y dejarle aire alrededor es lo que hace que se lea como una
      pausa. El agujero y la aureola cuelgan de este ancho, asi que se encogen
      con el sin tocar nada mas. */
-  width: min(64vw, 40svh);
+  width: min(46vw, 40svh);
   /* La cintura tiene que quedar pegada a la base, y el borde de la CAJA no es
      la cintura: por debajo hay un 8 % de alto transparente, y antes de eso el
      busto se estrecha en punta (el torso se mantiene ancho hasta el 89 % y de
@@ -1090,8 +1091,8 @@ body.is-locked {
    El sistema que orbita al personaje (ver Halo.jsx)
    ============================================================ */
 
-/* Va centrado en la CABEZA, no en la figura: el centro esta al 17 % del alto,
-   que es donde queda el pelo en la ilustracion. El z-index negativo lo deja
+/* La aureola queda sobre la cabeza, ligeramente desplazada a la izquierda.
+   El z-index negativo lo deja
    por debajo de la imagen sin sacarlo de su caja, porque el retrato ya es
    contexto de apilamiento al tener `opacity`.
 
@@ -1102,10 +1103,25 @@ body.is-locked {
    depende del TAMANO del contenedor y no de su transformacion, al acercarse la
    camara las galaxias conservan sus proporciones. */
 .halo {
+  --ring-duration: 0.95s;
+  --ring-stagger: 0.1s;
+  --rings-ready: calc(var(--ring-duration) + (var(--ring-count, 7) - 1) * var(--ring-stagger));
   position: absolute;
-  left: 50%;
-  top: 17%;
-  width: 142%;
+  left: 48%;
+  /* Sube por encima del pelo. Centrado en la cabeza el sistema no podia pasar
+     de un radio de 270 px sin que el anillo de fuera se lo comiera el borde de
+     abajo del marco, que es lo que recorta (`overflow: clip` en
+     `.meditation__frame`). Subiendo el centro al 11 % del alto del retrato
+     caben casi 300 px de radio, y los anillos siguen cerrando enteros. */
+  top: 11%;
+  /* Los tres limites hacen falta y ninguno sobra: el 92 svh es el que manda en
+     una pantalla apaisada —que es el caso normal— y evita justo ese recorte;
+     el 78 vw manda en una ventana estrecha y alta, y es mas duro que el resto
+     porque ahi lo que se sale no son los anillos sino los ROTULOS, que miden
+     lo que miden —el tipo tiene un minimo de 8 px— y no encogen con el
+     sistema; y el 240 % del ancho del retrato mantiene la proporcion entre el
+     sistema y la figura cuando la pantalla es muy ancha y baja. */
+  width: min(240%, 78vw, 92svh);
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
   z-index: -1;
@@ -1133,35 +1149,36 @@ body.is-locked {
 }
 .halo__rings circle {
   fill: none;
-  /* Mismo trazo que `.orbit__rings ellipse`. */
-  stroke: rgba(255, 238, 224, 0.32);
+  stroke: rgba(255, 154, 60, 0.55);
   stroke-width: 1;
+  /* El trazo no engorda ni adelgaza con la escala, ni con la de la animacion
+     de apertura ni con la del zoom: siempre 1 px. */
   vector-effect: non-scaling-stroke;
-  /* `pathLength="1"` en el marcado normaliza cada circunferencia a 1, asi que
-     el mismo par dasharray/dashoffset traza igual de bien el anillo interior
-     que el exterior sin calcular 2*pi*r por cada uno. */
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  opacity: 0;
-}
-/* Se trazan de dentro hacia fuera al entrar la seccion en pantalla, uno detras
-   de otro. Girados -90 grados para que el trazo arranque arriba, justo sobre
-   la cabeza, y se cierre por detras. */
-.halo[data-drawn="true"] .halo__rings circle {
-  animation: halo-draw 1.15s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
-  animation-delay: calc(var(--ring-i) * 0.11s);
-  transform: rotate(-90deg);
+  transform-box: view-box;
   transform-origin: 50% 50%;
-}
-@keyframes halo-draw {
-  from { stroke-dashoffset: 1; opacity: 0; }
-  12%  { opacity: 1; }
-  to   { stroke-dashoffset: 0; opacity: 1; }
+  scale: var(--from, 0);
+  opacity: 0;
+  transition: scale 0.65s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.65s ease-in;
+  transition-delay: calc((var(--ring-count, 7) - 1 - var(--ring-i, 0)) * 0.06s);
 }
 
-/* Cada cuerpo cuelga de una caja cuadrada del diametro de su anillo, que gira
-   entera. Se anima la propiedad `rotate` y no `transform` para que el
-   `translate` del centrado no se pise con el giro. */
+/* Abren desde la aureola y se recogen de fuera hacia dentro al subir.
+   Las transiciones permiten invertir el movimiento desde la escala actual. */
+.halo[data-drawn="true"] .halo__rings circle {
+  scale: 1;
+  opacity: 1;
+  transition: scale var(--ring-duration) cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.18s ease-out;
+  transition-delay: calc(var(--ring-i, 0) * var(--ring-stagger));
+}
+.halo__rings circle:first-child {
+  fill: var(--accent-a);
+  fill-opacity: 0.24;
+  stroke: var(--accent-a);
+  stroke-opacity: 0.9;
+  filter: drop-shadow(0 0 0.5px rgba(255, 154, 60, 0.55));
+}
+
+/* Cada cuerpo queda fijo en el angulo inicial de su anillo. */
 .halo__orbit {
   position: absolute;
   left: 50%;
@@ -1171,16 +1188,8 @@ body.is-locked {
   translate: -50% -50%;
   rotate: var(--orbit-start);
 }
-.halo[data-drawn="true"] .halo__orbit {
-  animation: halo-spin var(--orbit-turn) linear infinite;
-}
-@keyframes halo-spin {
-  from { rotate: var(--orbit-start); }
-  to   { rotate: calc(var(--orbit-start) + 360deg); }
-}
 
-/* El cuerpo va en lo alto de su caja y deshace el giro del padre, para que ni
-   su rotulo ni sus anillos se pongan boca abajo al dar la vuelta. */
+/* Compensa el angulo de la orbita para mantener el cuerpo y el rotulo rectos. */
 .halo__upright {
   position: absolute;
   left: 50%;
@@ -1188,22 +1197,9 @@ body.is-locked {
   translate: -50% -50%;
   rotate: calc(-1 * var(--orbit-start));
 }
-.halo[data-drawn="true"] .halo__upright {
-  animation: halo-unspin var(--orbit-turn) linear infinite;
-}
-@keyframes halo-unspin {
-  from { rotate: calc(-1 * var(--orbit-start)); }
-  to   { rotate: calc(-1 * var(--orbit-start) - 360deg); }
-}
-
-/* Con la camara dentro, las orbitas se congelan: si siguieran girando, el
-   cuerpo al que se ha entrado se saldria del centro mientras se llega. */
-.halo[data-focus="true"] .halo__orbit,
-.halo[data-focus="true"] .halo__upright {
-  animation-play-state: paused;
-}
 
 .halo__body {
+  --birth-delay: calc(var(--rings-ready) + 0.12s + (var(--ring-i, 1) - 1) * 0.12s);
   position: relative;
   display: block;
   width: calc(var(--body-size) * 1cqw);
@@ -1216,137 +1212,63 @@ body.is-locked {
   pointer-events: auto;
   cursor: zoom-in;
   opacity: 0;
+  visibility: hidden;
   transition: opacity 0.5s var(--ease), scale 0.4s var(--ease);
 }
 .halo[data-drawn="true"] .halo__body {
-  animation: halo-body-in 0.7s ease-out forwards;
-  /* Entran detras del anillo que los lleva. */
-  animation-delay: calc(0.5s + var(--ring-i, 0) * 0.11s);
+  opacity: 1;
+  visibility: visible;
+  animation: halo-body-in 0.7s ease-out backwards;
+  animation-delay: var(--birth-delay);
 }
-@keyframes halo-body-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes halo-body-in {
+  from { opacity: 0; visibility: hidden; }
+  12% { opacity: 1; visibility: visible; }
+  to { opacity: 1; visibility: visible; }
+}
+/* Un solo pulso local: nucleo blanco, resplandor del color de cada disco. */
+.halo__hole::after {
+  content: "";
+  position: absolute;
+  inset: -28%;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(ellipse 48% 4% at center, #fff 0%, var(--body-ink) 38%, transparent 100%),
+    radial-gradient(ellipse 4% 42% at center, #fff 0%, var(--body-ink) 30%, transparent 100%),
+    radial-gradient(circle at center, #fff 0%, #fff 5%, var(--body-ink) 18%, transparent 58%);
+}
+.halo[data-drawn="true"] .halo__hole::after {
+  animation: halo-birth-flash 0.7s ease-out backwards;
+  animation-delay: var(--birth-delay);
+}
+@keyframes halo-birth-flash {
+  0% { opacity: 0; transform: scale(0.25); }
+  15% { opacity: 1; transform: scale(0.85); }
+  38% { opacity: 0.65; }
+  100% { opacity: 0; transform: scale(1.35); }
+}
+.halo[data-focus="true"] .halo__hole::after { display: none; }
 .halo__body:hover, .halo__body:focus-visible { scale: 1.2; }
 .halo__body:focus-visible { outline: 2px solid var(--accent-a); outline-offset: 6px; border-radius: 50%; }
 
-.halo__shape { position: absolute; inset: 0; }
-
-/* ---- Galaxia -------------------------------------------------------------
-   Un disco con dos brazos y un nucleo. Los brazos son un degradado conico
-   —que es una rampa de ANGULO, justo lo que hace falta para una espiral—
-   aplastado en Y para que el disco se vea inclinado, y con una mascara radial
-   que lo apaga hacia el borde en lugar de cortarlo en un circulo duro. */
-/* ---- Galaxia -------------------------------------------------------------
-   Brazos en espiral logaritmica (ver `arm()` en Halo.jsx) sobre un disco
-   escorzado, girando sobre si mismo. Es SVG y no un degradado porque el zoom
-   llega a 10x: una cuna de `conic-gradient` a esa escala se lee como un
-   cometa, y una curva se mantiene enrollada y nitida. */
-.halo__disc {
-  position: absolute;
-  inset: -22%;
-  overflow: visible;
-  rotate: var(--body-tilt);
-  scale: 1 var(--body-squash);
-  /* El desenfoque va dividido por el zoom. Vive en el espacio local del
-     elemento, asi que sin dividirlo la camara lo amplia igual que todo lo
-     demas y al acercarse la galaxia se convierte en un borron. */
-  filter: blur(calc(0.4cqw / var(--zoom-s, 1)));
-  animation: halo-swirl var(--body-swirl) linear infinite;
-}
-@keyframes halo-swirl {
-  from { rotate: var(--body-tilt); }
-  to   { rotate: calc(var(--body-tilt) + 360deg); }
-}
-.halo[data-focus="true"] .halo__disc { animation-play-state: paused; }
-
-.halo__arm {
-  fill: none;
-  stroke: var(--body-ink);
-  /* En unidades del viewBox, NO `non-scaling-stroke`: el brazo tiene que
-     engordar con la galaxia al acercarse la camara. Con trazo de ancho fijo el
-     zoom dejaba unos hilos de 7 px alrededor de un nucleo enorme. */
-  stroke-width: 7;
-  stroke-linecap: round;
-  opacity: 0.5;
-}
-/* Una tercera pasada, ancha y casi transparente, hace de resplandor. Da el
-   borde blando sin tirar de desenfoque, que a 8x se lleva el dibujo por
-   delante. */
-.halo__arm--glow {
-  stroke-width: 16;
-  opacity: 0.16;
-}
-/* La segunda pasada, fina y clara, es la que le pone filo al brazo. */
-.halo__arm--edge {
-  stroke: var(--body-ink-2);
-  stroke-width: 2.4;
-  opacity: 0.85;
-}
-.halo__bulge {
-  fill: var(--body-ink-2);
-  filter: blur(calc(0.5cqw / var(--zoom-s, 1)));
-}
-
-.halo__core {
-  position: absolute;
-  inset: 32%;
-  border-radius: 50%;
-  background: radial-gradient(circle, #fff 0%, var(--body-ink-2) 38%, transparent 78%);
-  filter: blur(calc(0.25cqw / var(--zoom-s, 1)));
-}
-
-
-/* ---- Planetas ------------------------------------------------------------
-   Los dos que no son un area. Una luz alta a la izquierda y el terminador a la
-   derecha es lo minimo para que un circulo plano se lea como cuerpo redondo. */
-.halo__sphere {
+/* ---- El cuerpo de un area ------------------------------------------------
+   Un agujero negro, el mismo que sostiene el astronauta (ver BlackHole.jsx),
+   con el tono girado al color del area. Aqui no hay nada que pintar: solo hay
+   que darle al lienzo la caja del boton, porque por dentro trae su propio
+   `min-height` pensado para el hero. */
+.halo__hole {
   position: absolute;
   inset: 0;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 28%, #ffffff66, transparent 46%),
-    radial-gradient(circle at 34% 30%, var(--body-ink), transparent 78%),
-    radial-gradient(circle at 70% 74%, #00000099, transparent 60%),
-    var(--body-ink);
-  box-shadow: 0 0 calc(var(--body-size, 7) * 0.5cqw) color-mix(in srgb, var(--body-ink) 55%, transparent);
+  pointer-events: none;
 }
-/* El anillo va inclinado y mas mate que la esfera, que es lo que lo separa en
-   vez de fundirse con ella (mismo criterio que el planeta de Props3D.jsx). */
-.halo__belt {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 230%;
-  height: 62%;
-  translate: -50% -50%;
-  rotate: -18deg;
-  border: 1px solid color-mix(in srgb, var(--body-ink) 70%, #fff);
-  border-radius: 50%;
-  opacity: 0.75;
-}
-/* Las lunas: cada una en su caja, girando a su ritmo. */
-.halo__moonpath {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: calc(var(--moon-d) * 1cqw);
-  height: calc(var(--moon-d) * 1cqw);
-  translate: -50% -50%;
-  rotate: var(--moon-start);
-  animation: halo-moon var(--moon-turn) linear infinite;
-}
-@keyframes halo-moon {
-  from { rotate: var(--moon-start); }
-  to   { rotate: calc(var(--moon-start) + 360deg); }
-}
-.halo__moon {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  width: calc(var(--moon-size) * 1cqw);
-  height: calc(var(--moon-size) * 1cqw);
-  translate: -50% -50%;
-  border-radius: 50%;
-  background: #e9e2da;
-  box-shadow: 0 0 3px #ffffff66;
+.halo__hole .blackhole,
+.halo__hole .blackhole__surface,
+.halo__hole .blackhole__fallback {
+  height: 100%;
+  min-height: 0;
+  border-radius: 0;
 }
 
 .halo__label {
@@ -1372,24 +1294,101 @@ body.is-locked {
    el sistema. No se toca `.meditation__portrait`, cuya opacidad la escribe
    Stage.jsx en cada fotograma: se apaga solo la imagen. */
 .meditation__portrait:has(.halo[data-focus="true"]) .meditation__image {
-  opacity: 0.18;
+  /* Cero, no un 18 %: dentro de la galaxia el astronauta no pinta nada, y a
+     medio apagar lo que se leia era una calcomania por detras de los rotulos
+     del stack. */
+  opacity: 0;
   transition: opacity 0.7s var(--ease);
 }
+
+/* Mientras se esta dentro de una galaxia la pagina no se desplaza, asi que la
+   escena se queda clavada donde estaba. La escribe Halo.jsx; es una clase
+   aparte de `is-locked` porque esa la lleva App.jsx para el cargador.
+
+   Solo el BODY. Ponerlo tambien en `html` parecia mas seguro y lo que hace es
+   romper el `position: sticky` del marco de la seccion: al volverse el
+   documento un contenedor de overflow, el marco deja de pegarse arriba y se va
+   con el scroll. Medido: el marco se quedaba en top = -256 y la galaxia
+   ampliada aparecia centrada 256 px por encima de la pantalla, con cuatro
+   rotulos fuera. Lo que falta aqui —el desplazamiento por codigo— lo cubre el
+   pin de Halo.jsx, que no toca el layout. */
+body.is-anchored {
+  overflow: hidden;
+}
+
+/* Y el balanceo del astronauta, que es una animacion CSS y no pasa por
+   `follow()`: congelar el ticker dejaba quieta la POSE —la que escribe
+   Stage.jsx— pero su marco seguia meciendose por su cuenta, arrastrandola.
+   Medido: 28 px en dos segundos con la camara ya dentro de una galaxia. Se ve
+   cuando se entra al zoom antes de que el fundido al retrato haya terminado,
+   que es cuando esta figura todavia esta a la vista. */
+body.is-anchored .about__float {
+  animation-play-state: paused;
+}
 .meditation__image { transition: opacity 0.7s var(--ease); }
+
+/* Y con ella, el agujero que sostiene. No vive dentro del retrato —es el
+   lienzo que viaja desde el hero y cuelga de `.stage__void`—, asi que hay que
+   ir a buscarlo desde el ancestro comun. Sin esto se queda encendido a plena
+   luz por detras de la lista de servicios del area, que cae justo encima, y es
+   lo unico que no se aparta cuando la camara entra en otro cuerpo.
+   Se toca solo la opacidad: la transformacion la escribe Stage.jsx en cada
+   fotograma y no se le puede pisar. */
+.stage:has(.halo[data-focus="true"]) .stage__traveler {
+  opacity: 0.12;
+}
+.stage__traveler { transition: opacity 0.7s var(--ease); }
 
 .halo[data-focus="true"] .halo__rings circle { stroke: rgba(255, 238, 224, 0.1); }
 .halo[data-focus="true"] .halo__body { opacity: 0.22; }
 .halo[data-focus="true"] .halo__body[data-on="true"] { opacity: 1; cursor: zoom-out; }
 .halo[data-focus="true"] .halo__label { opacity: 0; }
-.halo[data-focus="true"] .halo__body[data-on="true"] .halo__label {
-  opacity: 1;
-  top: calc(100% + 1.4cqw);
-  scale: calc(1 / var(--zoom-s, 1));
-  transform-origin: top center;
+
+/* La ficha del area con la camara dentro: su nombre y los servicios que
+   agrupa. Va `fixed` y colgada del body (ver el portal en Halo.jsx) porque el
+   agujero ampliado se sale de la pantalla y cualquier cosa anclada a su caja
+   se sale con el. */
+.halo__card {
+  position: fixed;
+  z-index: 6;
+  left: 50%;
+  bottom: max(1.5rem, 4vh);
+  translate: -50% 0;
+  width: max-content;
+  max-width: min(46rem, 86vw);
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  animation: halo-card-in 0.5s var(--ease) 0.55s forwards;
+}
+@keyframes halo-card-in { to { opacity: 1; } }
+.halo__cardName {
+  margin: 0 0 0.5em;
+  font-size: clamp(13px, 1.5vw, 18px);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--text);
 }
+.halo__cardList {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4em 1.4em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: clamp(10px, 1.05vw, 13px);
+  color: rgba(255, 238, 224, 0.66);
+}
+/* Un punto entre uno y el siguiente, no delante de cada uno: en una fila, el
+   separador va en medio. */
+.halo__cardList li + li::before {
+  content: "·";
+  margin-right: 1.4em;
+  margin-left: -0.7em;
+  color: var(--accent-a);
+}
 
-/* Capa para salir pulsando fuera. No pinta nada: ni fondo ni ficha. */
 .halo__exit {
   position: absolute;
   inset: 0;
@@ -1400,22 +1399,52 @@ body.is-locked {
   cursor: zoom-out;
 }
 
+/* La salida visible. Va `fixed` y no `absolute` porque con la galaxia
+   inundando la pantalla el marco de la seccion ya no es una referencia util:
+   el boton tiene que estar donde siempre esta un «volver», en la esquina, pase
+   lo que pase con lo que hay detras. Por encima del halo (z-index 4). */
+.halo__back {
+  position: fixed;
+  z-index: 6;
+  left: max(1.5rem, 4vw);
+  bottom: max(1.5rem, 4vh);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.7em 1.15em 0.7em 0.9em;
+  border: 1px solid rgba(255, 238, 224, 0.28);
+  border-radius: 999px;
+  background: rgba(10, 6, 12, 0.6);
+  backdrop-filter: blur(6px);
+  color: var(--text);
+  font: inherit;
+  font-size: clamp(11px, 1.1vw, 13px);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0;
+  animation: halo-back-in 0.4s var(--ease) 0.5s forwards;
+  transition: border-color 0.3s var(--ease), background 0.3s var(--ease);
+}
+.halo__back svg { width: 1.15em; height: 1.15em; }
+.halo__back:hover, .halo__back:focus-visible {
+  border-color: var(--accent-a);
+  background: rgba(24, 10, 4, 0.8);
+}
+@keyframes halo-back-in { to { opacity: 1; } }
+
 /* Sin movimiento: el sistema se queda quieto y trazado, sin giro ni remolino.
    Los cuerpos siguen siendo pulsables y el acercamiento sigue funcionando,
    solo que sin recorrido. */
 @media (prefers-reduced-motion: reduce) {
   .halo,
   .halo[data-drawn="true"] .halo__rings circle,
-  .halo[data-drawn="true"] .halo__orbit,
-  .halo[data-drawn="true"] .halo__upright,
-  .halo[data-drawn="true"] .halo__body,
-  .halo__moonpath,
-  .halo__disc {
+  .halo[data-drawn="true"] .halo__body {
     animation: none;
     transition: none;
   }
-  .halo[data-drawn="true"] .halo__rings circle { stroke-dashoffset: 0; opacity: 1; }
   .halo[data-drawn="true"] .halo__body { opacity: 1; }
+  .halo[data-drawn="true"] .halo__hole::after { animation: none; }
 }
 
 .meditation__image {
@@ -1441,6 +1470,12 @@ body.is-locked {
   top: 50.5%;
   width: 64%;
   aspect-ratio: 1.55;
+  /* Encoge alrededor de su propio centro, que es lo que hace que baste con
+     este numero para achicar el agujero sin sacarlo de entre las manos: el
+     lienzo que viaja desde el hero se coloca midiendo ESTA caja ya
+     transformada (`finalHand.getBoundingClientRect()` en Stage.jsx), asi que
+     sigue al centro solo. */
+  transform: scale(0.54);
   pointer-events: none;
   /* Solo afecta al respaldo estatico de movimiento reducido: el lienzo que
      viaja desde el hero no vive aqui dentro, se limita a aterrizar encima.
@@ -1460,6 +1495,7 @@ body.is-locked {
   position: absolute;
   width: 38%;
   aspect-ratio: 1.8;
+  transform: scale(0.7);
   left: 66%;
   top: 28.8%;
   pointer-events: none;

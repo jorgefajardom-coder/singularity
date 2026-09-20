@@ -127,6 +127,13 @@ export default function Stage({ entered, warm }) {
     // La mano se mide en cada fotograma para que el aterrizaje acompane
     // tambien su flotacion en reposo.
     const follow = () => {
+      // Con la camara dentro de una galaxia la escena esta ANCLADA (lo escribe
+      // Halo.jsx). Parar a Lenis no basta: esta funcion corre en el ticker de
+      // GSAP y vuelve a medir el marco flotante del astronauta en cada
+      // fotograma, asi que la figura y el agujero seguian meciendose aunque el
+      // scroll no se moviera. Saliendo aqui se quedan exactamente donde
+      // estaban, que es lo unico que se puede llamar anclar.
+      if (document.body.classList.contains("is-anchored")) return;
       const layer = traveler.current;
       const holder = carrier.current;
       if (!layer || !holder) return;

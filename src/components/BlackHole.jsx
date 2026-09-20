@@ -18,7 +18,7 @@ const fragmentShader = `
 precision highp float;
 varying vec2 vUv;
 uniform float uTime, uRigid, uWind, uPower, uAspect, uFormation, uBass, uMid, uTreble, uReveal;
-uniform float uScale, uTopDown;
+uniform float uScale, uTopDown, uIsolation;
 uniform vec2 uPointer, uCenter;
 uniform sampler2D uText, uCopy;
 
@@ -74,6 +74,16 @@ vec3 starField(vec3 d) {
   vec3 local = fract(g) - 0.5;
   vec3 off = vec3(hash31(cell), hash31(cell + 7.3), hash31(cell + 13.1)) - 0.5;
   float mag = 0.22 + 1.85 * pow(hash31(cell + 91.3), 3.0);
+  // Titileo. Solo parpadea una parte —la que saca mas de 0.62 en su propio
+  // hash—, y cada una con su ritmo y su fase: si parpadearan todas, o a la
+  // vez, se leeria como un pulso de todo el cielo en lugar de como estrellas.
+  // El resto se queda fija, que es lo que hace de referencia para que el
+  // parpadeo de las otras se note. Mismo criterio que la capa DOM del resto de
+  // la pagina (ver Starfield.jsx).
+  float blinks = step(0.62, hash31(cell + 41.7));
+  float rate   = 1.1 + 3.4 * hash31(cell + 5.9);
+  float phase  = hash31(cell + 67.3) * 6.2831853;
+  mag *= mix(1.0, 0.52 + 0.48 * sin(uTime * rate + phase), blinks);
   float spark = exp(-length(local - off * 0.7) * mix(15.0, 8.0, clamp(mag * 0.5, 0.0, 1.0)));
   vec3 tint = mix(vec3(0.72, 0.81, 1.00), vec3(1.00, 0.87, 0.70), hash31(cell + 57.1));
   return tint * spark * mag;
@@ -351,7 +361,7 @@ void main() {
 
   if (!captured) {
     vec3 away = normalize(vel);
-    col += starField(away) * trans * (1.05 + uTreble * 0.85);
+    col += starField(away) * trans * (2.15 + uTreble * 1.15) * (1.0 - uIsolation);
     // El titular es el fondo por el que pasan los fotones. Se vuelve a
     // proyectar la dirección de SALIDA del rayo: sin curvatura cae exactamente
     // donde lo pone el DOM, y cerca del horizonte se estira y desaparece.
@@ -405,7 +415,13 @@ void main() {
   col = min(col * (mapped / max(peak, 1e-4)), vec3(1.0));
   col = pow(max(col, 0.0), vec3(0.92));
   col *= 1.0 - smoothstep(1.70, 3.30, d) * 0.28;
-  gl_FragColor = vec4(col, 1.0);
+  // Keep the horizon opaque, but let the page show through empty space.
+  // Isolate the disk before moving the canvas so its bounds never travel
+  // with it as a black rectangle. Preserve the glow with straight alpha.
+  float light = max(col.r, max(col.g, col.b));
+  float diskAlpha = captured ? 1.0 : smoothstep(0.0, 0.12, light);
+  float alpha = mix(1.0, diskAlpha, uIsolation);
+  gl_FragColor = vec4(col / max(alpha, 0.0001), alpha);
 }
 `;
 
@@ -540,7 +556,7 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey 
     uText: { value: null }, uCopy: { value: null }, uReveal: { value: 0 },
     // Viaje por la pagina: donde esta el agujero, cuanto se aleja y desde
     // que altura se mira. Lo escribe el scroll (ver Stage.jsx).
-    uCenter: { value: new Vector2() }, uScale: { value: 1 }, uTopDown: { value: 0 },
+    uCenter: { value: new Vector2() }, uScale: { value: 1 }, uTopDown: { value: 0 }, uIsolation: { value: 0 },
   }), []);
   useFrame((state, delta) => {
     if (!material.current) return;
@@ -589,6 +605,7 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey 
     live.uCenter.value.set(trip?.cx ?? 0, trip?.cy ?? 0);
     live.uScale.value = trip?.scale ?? 1;
     live.uTopDown.value = trip?.topDown ?? 0;
+    live.uIsolation.value = trip?.isolation ?? 0;
     // Relevo directo del texto DOM a sus texturas, sin un intervalo oscuro.
     live.uText.value = lens.current.title;
     live.uCopy.value = lens.current.copy;
@@ -601,7 +618,7 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey 
   });
   return <mesh frustumCulled={false}><planeGeometry args={[2,2]} /><shaderMaterial
     ref={material} uniforms={uniforms} vertexShader={vertexShader} fragmentShader={fragmentShader}
-    depthTest={false} depthWrite={false} toneMapped={false}
+    transparent depthTest={false} depthWrite={false} toneMapped={false}
   /></mesh>;
 }
 
@@ -669,8 +686,18 @@ export default function BlackHole({ bare = false, className = "", formation, jou
       onKeyDown={(e) => { if(e.key === " " || e.key === "Enter") {e.preventDefault();interaction.current.down=true;} }}
       onKeyUp={(e) => {if(e.key === " " || e.key === "Enter") {e.preventDefault();reset();}}}
     >
-      <SceneBoundary><Canvas dpr={[1,1.25]} frameloop={active ? "always" : "never"}
-        gl={{antialias:false,alpha:false,powerPreference:"high-performance"}}
+      {/* `scroll: false` no es un detalle de rendimiento. react-use-measure
+          vuelve a medir la caja TRANSFORMADA en cada desplazamiento, y
+          `.stage__traveler` escala este lienzo para meterlo en la mano del
+          astronauta (ver Stage.jsx). Con la remedicion puesta se realimentaba:
+          el rect encogido redimensionaba el lienzo, la misma escala lo volvia a
+          encoger, y el agujero del hero acababa en 93 px tras un solo viaje
+          hasta abajo, sin recuperarse al subir. El lienzo siempre cubre el
+          viewport entero, asi que al desplazarse no hay nada que volver a
+          medir; de los cambios de tamano ya se encarga el ResizeObserver. */}
+      <SceneBoundary><Canvas key="transparent-context" dpr={[1,1.25]} resize={{ offsetSize: true, scroll: false }} frameloop={active ? "always" : "never"}
+        gl={{antialias:false,alpha:true,powerPreference:"high-performance"}}
+        onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
         fallback={<div className="blackhole__fallback" />}>
         <Scene interaction={interaction} reduced={reduced} formation={formation} journey={journey} sample={sample} visual={visual} lens={lens} />
       </Canvas></SceneBoundary>

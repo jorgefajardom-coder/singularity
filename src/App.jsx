@@ -8,8 +8,7 @@ import { Suspense, lazy, useEffect, useRef, useState } from "react";
 const ViewCanvas = lazy(() => import("./three/ViewCanvas"));
 import Nav from "./components/Nav";
 import Stage from "./components/Stage";
-import Gallery from "./components/Gallery";
-import About from "./components/About";
+import Starfield from "./components/Starfield";
 import Stack from "./components/Stack";
 import Services from "./components/Services";
 import Projects from "./components/Projects";
@@ -59,6 +58,8 @@ export default function App() {
       {holeReady && !introGone && <MusicPlayer intro />}
       {!introGone ? <Loader onWarm={() => setWarm(true)} onEnter={() => setEntered(true)} onDone={() => setIntroGone(true)} onReady={setHoleReady} /> : null}
 
+      <Starfield />
+
       <div ref={root} inert={!entered}>
         <Nav />
 
@@ -66,8 +67,6 @@ export default function App() {
           {/* Hero y orbita comparten un solo agujero negro, que viaja de uno
               a otra con el scroll. */}
           <Stage entered={entered} warm={warm} />
-          <Gallery />
-          <About />
           <Stack />
           <Services />
           <Projects />

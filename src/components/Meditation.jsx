@@ -1,0 +1,42 @@
+import Halo from "./Halo";
+import { sections, ui } from "../data/content";
+import { useLang } from "../lib/i18n";
+
+/**
+ * El astronauta con el agujero negro entre las manos: el final del viaje que
+ * arranca en el hero (ver Stage.jsx).
+ *
+ * Aqui NO se monta ningun lienzo. Con animacion, el agujero que llega es el
+ * mismo que viene viajando desde la primera pantalla, y aterriza en
+ * `.meditation__singularity` sin que esta seccion sepa nada de el. Sin
+ * animacion no hay viaje, asi que el hueco se rellena con el degradado
+ * estatico de `.blackhole__fallback`: montar un tercer contexto WebGL aqui
+ * —ademas del del hero y del de Sobre mi— le cargaba tres trazadores de
+ * geodesicas a quien justamente ha pedido menos movimiento.
+ */
+export default function Meditation({ reduced }) {
+  const { tr } = useLang();
+  return (
+    <section className="meditation" aria-label={tr(sections.meditation.label)}>
+      <div className="meditation__frame">
+        <div className="meditation__portrait">
+          <Halo />
+          <img
+            className="meditation__image"
+            src={`${import.meta.env.BASE_URL}images/astronaut-meditation-v2.webp`}
+            width="1024"
+            height="1536"
+            alt={tr(ui.a11y.meditationImage)}
+            decoding="async"
+          />
+          {/* `inert`, no `aria-hidden`: lo de dentro no debe recibir foco. Con
+              aria-hidden el teclado seguiria parando aqui sin que ningun lector
+              de pantalla pudiera anunciar en que ha parado. */}
+          <div className="meditation__singularity" inert={true}>
+            {reduced && <div className="blackhole__fallback" />}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}

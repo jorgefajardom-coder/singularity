@@ -90,6 +90,11 @@ export const sections = {
       "Brands and organizations I have worked with."
     ),
   },
+  meditation: {
+    // Sin `heading` ni `id`: no entra en el nav, es una pausa visual. El
+    // rotulo solo lo oyen los lectores de pantalla.
+    label: t("El universo entre mis manos", "The universe in my hands"),
+  },
   contact: {
     id: "contact",
     nav: t("Contacto", "Contact"),
@@ -155,9 +160,16 @@ export const ui = {
       "Agujero negro interactivo. Mueve el puntero para inclinarlo y mantén pulsado o presiona espacio para acelerar.",
       "Interactive black hole. Move the pointer to tilt and hold down or press space to accelerate."
     ),
+    meditationImage: t(
+      "Astronauta con los ojos cerrados, sosteniendo un agujero negro entre las manos.",
+      "Astronaut with closed eyes, holding a black hole between their hands."
+    ),
   },
 };
 
+// La rejilla de capturas ya no se pinta: la seccion se quito de App.jsx y su
+// componente se borro. Sigue en el historial —`git log --diff-filter=D -- // src/components/Gallery.jsx` da el commit del que sacarlo—, y estos datos se
+// quedan aqui por si vuelve.
 export const gallery = [
   {
     id: "g1",
@@ -202,6 +214,7 @@ export const about = {
 
 export const stack = [
   {
+    key: "dev",
     group: t("Desarrollo", "Development"),
     items: [
       { name: "Python", color: "#ffb52e" },
@@ -218,6 +231,7 @@ export const stack = [
     ],
   },
   {
+    key: "ia",
     group: t("Inteligencia artificial", "Artificial Intelligence"),
     items: [
       { name: "Claude Code", color: "#ef4b23" },
@@ -232,6 +246,7 @@ export const stack = [
     ],
   },
   {
+    key: "integra",
     group: t("Automatización e integración", "Automation & Integration"),
     items: [
       { name: "n8n", color: "#ff6a00" },
@@ -243,6 +258,7 @@ export const stack = [
     ],
   },
   {
+    key: "industrial",
     group: t("Automatización industrial", "Industrial Automation"),
     items: [
       { name: "CODESYS", color: "#8B95A7" },
@@ -254,6 +270,7 @@ export const stack = [
     ],
   },
   {
+    key: "electronica",
     group: t("Electrónica, embebidos y redes", "Electronics, Embedded & Networking"),
     items: [
       { name: "Arduino", color: "#ffcf70" },
@@ -265,6 +282,7 @@ export const stack = [
     ],
   },
   {
+    key: "tresd",
     group: t("3D, simulación y juego", "3D, Simulation & Games"),
     items: [
       { name: "Blender", color: "#ff6a00" },
@@ -274,6 +292,7 @@ export const stack = [
     ],
   },
   {
+    key: "diseno",
     group: t("Diseño, vídeo y contenido", "Design, Video & Content"),
     items: [
       { name: "Canva", color: "#ef4b23" },
@@ -282,6 +301,7 @@ export const stack = [
     ],
   },
   {
+    key: "cad",
     group: t("CAD y diseño de producto", "CAD & Product Design"),
     items: [
       { name: "Autodesk Inventor", color: "#ff6a00" },
@@ -291,6 +311,7 @@ export const stack = [
     ],
   },
   {
+    key: "datos",
     group: t("Datos y cálculo", "Data & Computing"),
     items: [
       { name: "MATLAB", color: "#ef4b23" },
@@ -299,11 +320,186 @@ export const stack = [
     ],
   },
   {
+    key: "producto",
     group: t("Producto", "Product"),
     items: [
       { name: "Jira", color: "#ff6a00" },
       { name: "Obsidian", color: "#ffcf70" },
       { name: "Agile · Scrum · Kanban", color: "#8B95A7" },
+    ],
+  },
+];
+
+/**
+ * Las areas, que es el stack contado en grande.
+ *
+ * Diez grupos de herramientas son demasiados para leerlos de un vistazo, asi
+ * que se agrupan en seis areas. Esto NO sustituye al stack: la seccion Stack
+ * sigue mostrandolo entero y estas areas solo apuntan a el por `key`, de modo
+ * que anadir una herramienta alla la hace aparecer aqui sin tocar nada.
+ *
+ * Cada area es una GALAXIA del sistema que orbita al personaje en la seccion
+ * de meditacion (ver Halo.jsx). `size` es el diametro en unidades del viewBox
+ * del halo, `ring` el anillo en el que va y `turn` los segundos que tarda en
+ * dar la vuelta: todos distintos y sin divisores comunes obvios, para que no
+ * se alineen ni formen figuras.
+ *
+ * Lo demas es como se dibuja: `color` es el nucleo y el brazo principal,
+ * `color2` el brazo secundario, `tilt` como esta girada en el plano, `squash`
+ * cuanto se ve de canto (1 = de frente) y `swirl` los segundos que tarda en
+ * dar una vuelta sobre si misma. Los colores se separan a proposito —ambar,
+ * azul, rojo, oro, violeta y turquesa—: si todas tiraran a naranja como el
+ * resto del sitio, el sistema seria una mancha.
+ */
+export const areas = [
+  {
+    id: "software",
+    name: t("Software", "Software"),
+    blurb: t(
+      "El codigo que sostiene todo lo demas: del script que limpia datos al servicio que corre en produccion.",
+      "The code holding everything else up: from the script that cleans data to the service running in production."
+    ),
+    groups: ["dev", "datos"],
+    kind: "galaxy",
+    color: "#ff8a1f",
+    color2: "#ffd79a",
+    tilt: -24,
+    squash: 0.40,
+    swirl: 74,
+    size: 7.0,
+    ring: 1,
+    turn: 41,
+    start: 18,
+  },
+  {
+    id: "ia",
+    name: t("Inteligencia artificial", "Artificial Intelligence"),
+    blurb: t(
+      "Modelos y vision por computador puestos a trabajar sobre problemas de planta, no sobre demos.",
+      "Models and computer vision put to work on shop-floor problems, not on demos."
+    ),
+    groups: ["ia"],
+    kind: "galaxy",
+    color: "#6ea8ff",
+    color2: "#c6e7ff",
+    tilt: 31,
+    squash: 0.34,
+    swirl: 88,
+    size: 6.0,
+    ring: 2,
+    turn: 53,
+    start: 212,
+  },
+  {
+    id: "automatizacion",
+    name: t("Automatizacion", "Automation"),
+    blurb: t(
+      "Del PLC que gobierna una celda al flujo que conecta las herramientas del negocio entre si.",
+      "From the PLC that runs a cell to the flow that wires the business tools together."
+    ),
+    groups: ["industrial", "integra"],
+    kind: "galaxy",
+    color: "#ef4b23",
+    color2: "#ff9a6a",
+    tilt: -13,
+    squash: 0.46,
+    swirl: 61,
+    size: 8.0,
+    ring: 3,
+    turn: 67,
+    start: 95,
+  },
+  {
+    id: "electronica",
+    name: t("Electronica", "Electronics"),
+    blurb: t(
+      "Placas, microcontroladores y redes: la capa que convierte una idea en algo que se enciende.",
+      "Boards, microcontrollers and networks: the layer that turns an idea into something that powers on."
+    ),
+    groups: ["electronica"],
+    kind: "galaxy",
+    color: "#ffcf70",
+    color2: "#fff0c2",
+    tilt: 42,
+    squash: 0.30,
+    swirl: 95,
+    size: 6.5,
+    ring: 4,
+    turn: 79,
+    start: 300,
+  },
+  {
+    id: "producto",
+    name: t("Producto", "Product"),
+    blurb: t(
+      "Decidir que se construye y en que orden, y sostener esa decision con datos.",
+      "Deciding what gets built and in what order, and backing that decision with data."
+    ),
+    groups: ["producto"],
+    kind: "galaxy",
+    color: "#c07bff",
+    color2: "#ecd6ff",
+    tilt: -37,
+    squash: 0.38,
+    swirl: 67,
+    size: 5.5,
+    ring: 5,
+    turn: 97,
+    start: 145,
+  },
+  {
+    id: "3d",
+    name: t("3D y diseno", "3D & Design"),
+    blurb: t(
+      "La cara visible del producto: el render, el prototipo, el empaque y la marca con la que sale.",
+      "The product's visible side: the render, the prototype, the packaging and the brand it ships with."
+    ),
+    groups: ["tresd", "diseno", "cad"],
+    kind: "galaxy",
+    color: "#35d6b5",
+    color2: "#b6fff0",
+    tilt: 17,
+    squash: 0.44,
+    swirl: 82,
+    size: 7.5,
+    ring: 5,
+    turn: 113,
+    start: 255,
+  },
+];
+
+/**
+ * Los dos cuerpos que NO son un area: estan por el gusto de que el sistema se
+ * parezca a uno de verdad, uno con anillos y otro con su corte de lunas.
+ */
+export const bodies = [
+  {
+    id: "anillado",
+    kind: "ringed",
+    name: t("Cuerpo anillado", "Ringed body"),
+    color: "#ff9a3c",
+    size: 7.0,
+    ring: 3,
+    turn: 87,
+    start: 40,
+  },
+  {
+    id: "lunas",
+    kind: "moons",
+    name: t("Cuerpo con lunas", "Body with moons"),
+    color: "#9fb0c8",
+    size: 6.5,
+    ring: 4,
+    turn: 103,
+    start: 330,
+    // `r` y `size` van en las mismas unidades que `size` del cuerpo: centesimas
+    // del ancho del halo. Cuatro lunas con periodos primos entre si, para que
+    // no se junten siempre en el mismo sitio.
+    moons: [
+      { r: 4.6, size: 1.3, turn: 11, start: 0 },
+      { r: 6.0, size: 1.0, turn: 17, start: 120 },
+      { r: 7.5, size: 1.6, turn: 23, start: 210 },
+      { r: 9.0, size: 0.9, turn: 31, start: 300 },
     ],
   },
 ];

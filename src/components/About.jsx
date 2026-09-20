@@ -10,7 +10,7 @@ import { useLang } from "../lib/i18n";
 import { GhostHeading } from "./ui";
 import SplitText from "./SplitText";
 
-export default function About() {
+export default function About({ sharedHole = false }) {
   const { tr } = useLang();
   // El astronauta va anclado: no se arrastra. Solo flota, y el agujero negro
   // viaja con el en la mano, sin animacion propia de scroll que lo despegue.
@@ -26,20 +26,29 @@ export default function About() {
         <div className="about__layout">
           <div className="about__figure" aria-hidden="true">
             <div className="about__float">
-              <img
-                className="about__astronaut"
-                src={`${import.meta.env.BASE_URL}images/about-astronaut-gaze.webp`}
-                width="1122"
-                height="1402"
-                alt=""
-                draggable={false}
-                loading="lazy"
-                decoding="async"
-              />
-              <div className="about__singularity" inert>
-                <Suspense fallback={<div className="blackhole__fallback" />}>
-                  <BlackHole bare />
-                </Suspense>
+              {/* La pose es lo que Stage.jsx mueve y funde hacia el busto de la
+                  seccion de meditacion; la flotacion en reposo vive en el
+                  padre para que las dos no se pisen. */}
+              <div className="about__pose">
+                <img
+                  className="about__astronaut"
+                  src={`${import.meta.env.BASE_URL}images/about-astronaut-gaze.webp`}
+                  width="1122"
+                  height="1402"
+                  alt=""
+                  draggable={false}
+                  loading="lazy"
+                  decoding="async"
+                />
+                {/* Con animacion no se monta nada aqui: el agujero que ocupa
+                    este hueco es el que viaja desde el hero (ver Stage.jsx). */}
+                <div className="about__singularity" inert={true}>
+                  {!sharedHole && (
+                    <Suspense fallback={<div className="blackhole__fallback" />}>
+                      <BlackHole bare />
+                    </Suspense>
+                  )}
+                </div>
               </div>
             </div>
           </div>

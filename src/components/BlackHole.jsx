@@ -326,6 +326,10 @@ void main() {
   float trans = 1.0;
   bool captured = false;
   vec3 vel = dir;
+  // Angulo recorrido alrededor del agujero. Vive FUERA del bloque de
+  // integracion porque lo necesita tambien el fondo: un rayo que se salta el
+  // bucle no ha girado nada y se queda en cero.
+  float swept = 0.0;
 
   // Un rayo con parámetro de impacto grande no puede tocar ni el disco ni el
   // horizonte: se salta la integración entera y el fondo sale casi gratis.
@@ -334,10 +338,8 @@ void main() {
     vec3 pos = camPos;
     float side = dot(pos, nrm);
     vec3 mom = cross(pos, vel);
-    // Angulo que lleva recorrido el rayo alrededor del agujero. El momento
-    // angular se conserva salvo por el arrastre, asi que dφ = |L|/r²·dt sale
-    // de una division por paso.
-    float swept = 0.0;
+    // El momento angular se conserva salvo por el arrastre, asi que
+    // dφ = |L|/r²·dt sale de una division por paso.
     float angMom = length(mom);
     // La curvatura también bombea: con el golpe la sombra se abre.
     float h2 = dot(mom, mom) * lens * (1.0 + uBass * 0.28);
@@ -393,7 +395,23 @@ void main() {
 
   if (!captured) {
     vec3 away = normalize(vel);
-    col += starField(away) * trans * (2.15 + uTreble * 1.15) * (1.0 - uIsolation);
+    // La misma cuenta que apaga el anillo de fotones hay que hacersela al
+    // FONDO, y esto es lo que quitaba la raya blanca punteada de dentro de la
+    // sombra.
+    //
+    // Los rayos que rozan la esfera de fotones salen disparados en
+    // direcciones que cambian muchisimo de un pixel al de al lado. Con una
+    // muestra por pixel, el campo de estrellas —que son puntos diminutos y
+    // muy brillantes— no se puede resolver ahi: lo que sale no son estrellas
+    // sino aliasing, un punteado blanco apilado justo en el filo de la sombra.
+    // Se veia como una linea dibujada encima del agujero.
+    //
+    // Por eso se apaga por angulo recorrido, igual que el disco: un rayo que
+    // ha girado mas de dos radianes alrededor del agujero ya no esta mirando
+    // al cielo de forma que se pueda muestrear, asi que se funde en vez de
+    // aliasear. El fondo normal —que llega girando casi nada— no se toca.
+    float clear = 1.0 - smoothstep(2.0, 3.6, swept);
+    col += starField(away) * trans * (2.15 + uTreble * 1.15) * (1.0 - uIsolation) * clear;
     // El titular es el fondo por el que pasan los fotones. Se vuelve a
     // proyectar la dirección de SALIDA del rayo: sin curvatura cae exactamente
     // donde lo pone el DOM, y cerca del horizonte se estira y desaparece.

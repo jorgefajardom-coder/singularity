@@ -349,6 +349,13 @@ export const stack = [
  * Cada area tiene su PROPIO anillo y no lo comparte con nadie, que es lo que
  * hace que se lean como seis cuerpos en seis orbitas y no como un monton.
  *
+ * Los angulos NO estan repartidos a partes iguales. Se probo —48 grados
+ * justos entre uno y el siguiente— y quedaba peor: lo que se lee bien es este
+ * reparto, con dos cuerpos en la vertical de la cabeza, dos a media altura a
+ * los lados y dos abajo. Dos pares van ademas alineados a proposito:
+ * Producto y Programacion comparten la vertical, y 3D e Ingenieria la
+ * horizontal.
+ *
  * Y `color` es lo unico que cambia de un cuerpo a otro, porque cada cuerpo ES
  * el agujero negro del astronauta clonado: el mismo shader, con el tono del
  * disco girado hasta ese color (ver `uHue` en BlackHole.jsx). Los seis tonos
@@ -392,7 +399,7 @@ export const workAreas = [
     // dos filas de rotulos no se toquen, y de paso el sistema deja de ser un
     // arco perfecto.
     ring: 6,
-    start: 326,
+    start: 0,
   },
   {
     id: "hardware",
@@ -401,7 +408,7 @@ export const workAreas = [
     color: "#2fe04f",
     size: 16.0,
     ring: 3,
-    start: 60,
+    start: 68.79,
   },
   {
     id: "inteligencia",

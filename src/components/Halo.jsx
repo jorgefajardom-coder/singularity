@@ -31,10 +31,11 @@ import { prefersReducedMotion, scroller } from "../lib/anim";
  *
  * El primero es la aureola —va relleno y cae justo detras del pelo, asi que se
  * queda pequeno aunque el sistema crezca— y los SEIS siguientes son uno por
- * area, sin compartir. Los limites no son esteticos: por dentro, un cuerpo en
- * un anillo mas estrecho que 0.41 le monta encima a la aureola; por fuera,
- * pasando de 0.95 el cuerpo del anillo de arriba se mete debajo de la barra
- * del menu.
+ * area, sin compartir.
+ *
+ * Los extremos no son esteticos: por dentro, un cuerpo en un anillo mas
+ * estrecho que 0.41 le monta encima a la aureola; por fuera, pasando de 0.95
+ * el anillo se mete debajo de la barra del menu.
  */
 const RINGS = [0.24, 0.41, 0.52, 0.63, 0.74, 0.84, 0.95];
 
@@ -61,7 +62,7 @@ const RINGS = [0.24, 0.41, 0.52, 0.63, 0.74, 0.84, 0.95];
  *
  * Es un objeto fijo y compartido por los seis: el shader solo lo lee.
  */
-const CUERPO = { current: { isolation: 1, scale: 2.26, cy: 0, cx: 0, topDown: 1, lens: 0 } };
+const CUERPO = { current: { isolation: 1, scale: 1.34, cy: 0, cx: 0, topDown: 1, lens: 0 } };
 
 /**
  * Tope de resolucion del lienzo ampliado.
@@ -81,11 +82,13 @@ const DPR_MAX = 8;
  * puede es hacer el disco mas grande a su alrededor, y entonces el nucleo se
  * lee pequeno, que es lo que se pedia.
  *
- * `DISCO` y el `scale` de CUERPO van juntos y en la MISMA proporcion: el disco
- * se estira 2.8 veces y la camara se aleja otras tantas, asi que en pantalla
- * el agujero mide lo mismo que antes y lo unico que ha cambiado es cuanto de
- * el ocupa la sombra. Subir solo uno de los dos cambia el tamano en vez del
- * nucleo.
+ * `DISCO` decide la PROPORCION entre la sombra y el disco; el `scale` de
+ * CUERPO, el tamano del conjunto en pantalla. Son dos cosas distintas y por
+ * eso hay dos numeros: estirando solo el disco, el nucleo encoge pero el
+ * agujero entero crece y se sale de su caja; alejando solo la camara, encoge
+ * todo por igual y la sombra sigue ocupando lo mismo. Aqui el disco se estira
+ * 2.8 veces —de ahi el nucleo pequeno— y la camara se ajusta hasta que el
+ * conjunto vuelve a llenar la pantalla al ampliarlo.
  *
  * `BLANCO` sube el pico de la rampa al blanco. Solo la parte caliente —la de
  * dentro—, para que el filo brille en blanco y el disco conserve el color del

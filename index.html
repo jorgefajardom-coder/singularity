@@ -20,6 +20,80 @@
       href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap"
       rel="stylesheet"
     />
+
+    <script>
+      /*
+       * Autolimpieza de version vieja.
+       *
+       * GitHub Pages sirve index.html con `Cache-Control: max-age=600` y NO
+       * deja cambiar cabeceras. O sea que durante diez minutos el navegador
+       * reusa el HTML viejo sin preguntar, y ese HTML apunta a los assets
+       * viejos: se publica una version nueva y el visitante sigue viendo la
+       * anterior hasta que vacia la cache a mano.
+       *
+       * Los assets llevan hash en el nombre, asi que el HTML es lo UNICO que
+       * puede quedarse atras. Aqui se vuelve a pedir, saltandose la cache, y
+       * se compara el chunk de entrada que declara con el que esta cargado.
+       * Si no coinciden, este HTML es viejo y se recarga una sola vez.
+       *
+       * Va inline y no en el bundle a proposito: asi funciona aunque el
+       * bundle viejo este roto, que es justo cuando mas falta hace.
+       */
+      (function () {
+        var CLAVE = "singularity-recarga";
+
+        function revisar() {
+          try {
+            // Este sitio no usa service worker ni Cache Storage. Lo que haya
+            // ahi es de alguna version anterior y solo puede estorbar.
+            if (navigator.serviceWorker) {
+              navigator.serviceWorker.getRegistrations()
+                .then(function (rs) { rs.forEach(function (r) { r.unregister(); }); })
+                .catch(function () {});
+            }
+            if (window.caches) {
+              caches.keys()
+                .then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); })
+                .catch(function () {});
+            }
+
+            var tag = document.querySelector('script[type="module"][src]');
+            var mio = tag && tag.getAttribute("src").split("/").pop();
+            if (!mio) return;
+
+            // `cache: "reload"` hace dos cosas, y hacen falta las dos: pide a
+            // red saltandose la cache Y deja la respuesta nueva guardada, asi
+            // que la recarga de abajo ya encuentra el HTML bueno.
+            fetch(location.href, { cache: "reload" })
+              .then(function (r) { return r.ok ? r.text() : ""; })
+              .then(function (html) {
+                var m = html.match(/assets\/(index-[A-Za-z0-9_-]+\.js)/);
+                if (!m || m[1] === mio) return;
+
+                // Un intento por version. Si al recargar sigue sin cuadrar
+                // —un proxy por medio, por ejemplo— no se entra en bucle.
+                if (sessionStorage.getItem(CLAVE) === m[1]) return;
+                sessionStorage.setItem(CLAVE, m[1]);
+
+                // Solo mientras el cargador sigue delante: ahi no hay nada que
+                // perder. Si ya ha entrado, no se le tira la pagina; la
+                // comprobacion volvera a correr en la siguiente visita, con el
+                // cargador puesto.
+                if (!document.querySelector(".loader")) return;
+                location.reload();
+              })
+              .catch(function () {});
+          } catch (e) {}
+        }
+
+        // En tiempo muerto y despues de cargar: el arranque son ~150 ms y esto
+        // no debe competir con ellos.
+        addEventListener("load", function () {
+          if (window.requestIdleCallback) requestIdleCallback(revisar, { timeout: 3000 });
+          else setTimeout(revisar, 1500);
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

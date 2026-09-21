@@ -440,21 +440,31 @@ void main() {
       // El texto pequeño va en su propia capa con mucha menos lente: el mismo
       // desplazamiento que en un titular de 130 px se lee como curvatura, y en
       // uno de 14 px como un renglón tirado por la página.
-      // El mismo freno del cielo (clear) tambien AQUI. Ojo: nada de comillas
-      // invertidas en este bloque, que vive dentro de una plantilla de JS.
-      // Los rayos que rozan la
-      // esfera de fotones salen en direcciones que cambian muchisimo de un
-      // pixel al siguiente; con una muestra por pixel, un glifo blanco sobre
-      // negro no se puede resolver ahi, y lo que sale no es texto sino
-      // aliasing: un punteado blanco apilado justo por dentro del filo de la
-      // sombra, que se lee como una raya dibujada encima del agujero.
+      // El titular se frena por angulo recorrido, igual que el cielo, pero con
+      // UN UMBRAL MUY DISTINTO, y esa diferencia es el asunto entero. Ojo:
+      // nada de comillas invertidas en este bloque, que vive dentro de una
+      // plantilla de JS.
       //
-      // Es la MISMA cuenta que ya se le hacia al campo de estrellas unas
-      // lineas mas arriba. Se hizo solo para el cielo, y por eso la raya
-      // seguia ahi: la pintaba el titular, no las estrellas. Medido sobre el
-      // lienzo a 1536x639: 27 pixeles blancos (255) dentro de la sombra antes,
-      // 2 de brillo naranja (maximo 52) despues.
-      float bright = trans * uReveal * (2.05 + uBass * 0.7) * clear;
+      // Un rayo RECTO que pasa cerca del agujero ya barre del orden de PI
+      // radianes solo por ir de lejos a lejos: el angulo que ve el origen
+      // entre la entrada y la salida. O sea que barrer ~3 NO significa haber
+      // dado vueltas. Reutilizar aqui el umbral del cielo —que empieza a
+      // apagar en 2.0, por DEBAJO de PI— apagaba rayos normales: medido a
+      // 1536x639, el titular pasaba de 248.8 de luminancia media y 38137
+      // pixeles casi blancos a 166.8 y 11. O sea de blanco a gris.
+      //
+      // Empezando a apagar en 4.2 (por encima de PI) y acabando en 6.0 (~2PI)
+      // solo caen los que de verdad se han enrollado en la esfera de fotones,
+      // que son los que no se pueden muestrear con un rayo por pixel y salian
+      // como un punteado blanco por dentro del filo de la sombra. Medido en
+      // cinco fotogramas: el titular se queda en 248.6-248.7 con ~38120 casi
+      // blancos —identico al original sin frenar— y dentro de la sombra
+      // quedan de 0 a 2 pixeles de brillo naranja con luminancia 13-21,
+      // frente a los 26 de blanco puro (255) que habia.
+      //
+      // EL TITULAR VA BLANCO BRILLANTE. Si algun dia hay que tocar esto,
+      // medir su luminancia media ANTES y DESPUES, no solo contar las rayas.
+      float bright = trans * uReveal * (2.05 + uBass * 0.7) * (1.0 - smoothstep(4.2, 6.0, swept));
       vec2 tcA = (base + pull * warp) / frame + 0.5;
       if (tcA.x > 0.0 && tcA.x < 1.0 && tcA.y > 0.0 && tcA.y < 1.0) {
         // La textura de canvas ya llega volteada: tc se usa tal cual.

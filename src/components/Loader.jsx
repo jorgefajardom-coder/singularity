@@ -229,6 +229,13 @@ export default function Loader({ onWarm, onEnter, onDone, onReady }) {
     void prepare();
 
     if (prefersReducedMotion()) {
+      // Montar los lienzos AQUI tambien. Sin movimiento el selector sale de
+      // inmediato —no hay contador de 1,5 s que esperar—, asi que lo normal
+      // es pulsar antes de los 900 ms del aviso de mas abajo; y al salir este
+      // componente se limpia ese temporizador. El resultado era que quien
+      // pide menos movimiento se quedaba sin el agujero negro del hero y sin
+      // el ViewCanvas entero, o sea sin ningun objeto 3D en toda la pagina.
+      warm.current?.();
       onReady(true);
       onEnter();
       onDone();

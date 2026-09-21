@@ -1646,43 +1646,17 @@ body.is-anchored .about__float {
   margin-bottom: 0;
 }
 
+/* Cuelga del `shell`, no de `.about__copy`: se centra sobre el ancho entero
+   de la seccion y cierra el bloque (antes tenia los contadores debajo). */
 .about__cta {
   position: relative;
-  z-index: 2;
-  margin-top: clamp(28px, 4vh, 48px);
+  z-index: 4;
+  margin-top: clamp(36px, 6vh, 72px);
 }
 
 .about__cta--center {
   display: flex;
   justify-content: center;
-}
-
-.about__stats {
-  position: relative;
-  z-index: 4;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: clamp(24px, 6vw, 88px);
-  margin-top: clamp(48px, 8vh, 96px);
-  padding-top: 40px;
-  border-top: 1px solid var(--line);
-}
-
-.about__stat b {
-  display: block;
-  font-size: clamp(34px, min(4.5vw, 8.5svh), 64px);
-  font-weight: 800;
-  font-stretch: 112%;
-  line-height: 1;
-}
-
-.about__stat span {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--text-dim);
 }
 
 /* ============================================================

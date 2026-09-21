@@ -63,21 +63,17 @@ export default function About({ sharedHole = false }) {
           ))}
         </div>
 
+          </div>
+        </div>
+
+        {/* Fuera de `.about__copy`: ahi quedaba centrado dentro de la columna
+            derecha de la rejilla, o sea escorado a la derecha de la seccion.
+            Como hijo directo del `shell` se centra sobre el ancho entero, y
+            ademas cierra la seccion ahora que no hay contadores debajo. */}
         <div className="about__cta about__cta--center">
           <a className="btn" href="#contact">
             {tr(ui.workTogether)}
           </a>
-        </div>
-          </div>
-        </div>
-
-        <div className="about__stats" data-reveal="stagger">
-          {about.stats.map((s) => (
-            <div className="about__stat" key={tr(s.label)}>
-              <CountUp value={s.value} />
-              <span>{tr(s.label)}</span>
-            </div>
-          ))}
         </div>
       </div>
     </section>

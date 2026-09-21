@@ -31,6 +31,14 @@ export default defineConfig({
         // El orden importa: "@react-three" contiene "react", asi que va antes.
         manualChunks(id) {
           const file = id.split("\\").join("/");
+          // El ayudante `__vitePreload` (el que carga los chunks diferidos) va
+          // en su PROPIO chunk. Rollup lo colocaba dentro del de r3f, asi que
+          // el entry hacia `import{_}from"./r3f-*.js"` solo para tener esa
+          // funcion: 298 kB que habia que bajar y ejecutar para arrancar, y
+          // three detras por orden de ejecucion. Es exactamente el problema
+          // que este `manualChunks` venia a resolver, sobreviviendo escondido
+          // en un import de una sola letra.
+          if (file.includes("vite/preload-helper")) return "preload";
           if (!file.includes("node_modules")) return;
           if (file.includes("@react-three")) return "r3f";
           if (file.includes("node_modules/three/")) return "three";

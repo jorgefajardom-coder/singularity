@@ -1,7 +1,19 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { services, workAreas } from "../data/content";
-import BlackHole from "./BlackHole";
+
+// DIFERIDO, y no es un detalle de estilo. Halo cuelga de una cadena
+// totalmente estatica —Halo <- Meditation <- Stage <- App—, asi que un
+// `import` normal aqui mete BlackHole ENTERO dentro del chunk de arranque, y
+// con el three (704 kB) y r3f (298 kB): `index.html` pasa a precargarlos y el
+// cargador vuelve a tardar en pintarse, que es justo lo que se arreglo en su
+// dia (ver los comentarios de App.jsx y de vite.config.js).
+//
+// Vite lo avisa, pero solo como WARNING —"dynamic import will not move module
+// into another chunk"— y el build pasa igual. Si vuelve a aparecer en la
+// salida de `vite build`, o si `dist/index.html` vuelve a listar `three`, es
+// que alguien deshizo esto.
+const BlackHole = lazy(() => import("./BlackHole"));
 import { useLang } from "../lib/i18n";
 import { prefersReducedMotion, scroller } from "../lib/anim";
 
@@ -374,14 +386,16 @@ export default function Halo() {
                     fotones y lente— con el tono girado sobre el eje de los
                     grises, que es lo unico que cambia de uno a otro. */}
                 <span className="halo__hole">
-                  <BlackHole
-                    bare
-                    tint={b.color}
-                    journey={CUERPO}
-                    disk={DISCO}
-                    white={BLANCO}
-                    dpr={focus === b.id ? Math.min(Math.max(zoom, 1), DPR_MAX) : undefined}
-                  />
+                  <Suspense fallback={<span className="blackhole__fallback" />}>
+                    <BlackHole
+                      bare
+                      tint={b.color}
+                      journey={CUERPO}
+                      disk={DISCO}
+                      white={BLANCO}
+                      dpr={focus === b.id ? Math.min(Math.max(zoom, 1), DPR_MAX) : undefined}
+                    />
+                  </Suspense>
                 </span>
 
                 {/* El nombre sigue el arco interior del disco. El boton ya

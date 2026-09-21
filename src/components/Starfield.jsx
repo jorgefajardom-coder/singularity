@@ -1,3 +1,4 @@
+import { useLayoutEffect } from "react";
 import { twinkling } from "./twinkling";
 
 /**
@@ -17,6 +18,20 @@ import { twinkling } from "./twinkling";
  * desde el mismo punto.
  */
 export default function Starfield() {
+  // El cielo quieto (`body::before`) arranca apagado y se enciende AQUI.
+  // Es CSS pura, asi que si no se apaga se pinta en cuanto llega la hoja de
+  // estilos y se queda a la vista los ~400 ms que tarda React en montar el
+  // cargador, que es lo unico opaco que lo tapa. Encendiendolo desde un
+  // componente, el cielo no puede aparecer antes que el infinito: las dos
+  // cosas entran en el mismo commit.
+  //
+  // `useLayoutEffect` y no `useEffect`: corre antes del primer pintado, asi
+  // que no hay ni un fotograma intermedio.
+  useLayoutEffect(() => {
+    document.body.classList.add("is-starlit");
+    return () => document.body.classList.remove("is-starlit");
+  }, []);
+
   return (
     <div className="starfield" aria-hidden="true">
       {twinkling.map((s, i) => (

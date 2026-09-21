@@ -84,6 +84,19 @@ body::before {
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
+  /* APAGADO hasta que el cargador este montado, y no es un detalle.
+     Esta capa es CSS pura, asi que se pinta en cuanto llega la hoja de
+     estilos; el `.loader`, que es lo opaco que la tapa, no existe hasta que
+     React monta. Medido en produccion: CSS a los 52 ms, el SVG del cielo a
+     los 79, y el cargador a los 478. Eran ~400 ms de cielo estrellado a
+     pelo antes de que apareciera el infinito. Lo enciende Starfield.jsx. */
+  opacity: 0;
+}
+
+/* La pone Starfield.jsx al montar. Sin transicion: en ese momento el
+   cargador ya esta encima y es opaco, asi que el cambio no se ve. */
+body.is-starlit::before {
+  opacity: 1;
 }
 
 /* Capa de las estrellas que parpadean (ver Starfield.jsx). Va en el mismo

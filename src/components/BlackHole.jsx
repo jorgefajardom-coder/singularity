@@ -618,7 +618,7 @@ const TIME_WRAP = 200 * Math.PI;
 // partir de ahí la figura gira rígida, conservando su forma.
 const WIND_MAX = 22;
 
-function Scene({ interaction, reduced, formation, sample, visual, lens, journey, hue = 0, disk = 1, white = 0 }) {
+function Scene({ interaction, reduced, formation, sample, visual, lens, journey, espejo, espejoModo, hue = 0, disk = 1, white = 0 }) {
   const elapsed = useRef(0);
   const rigid = useRef(0);
   const wound = useRef(0);
@@ -643,9 +643,67 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     uniforms.uDisk.value = disk;
     uniforms.uWhite.value = white;
   }, [hue, disk, white, uniforms]);
+  // El que publica borra el espejo al irse. A partir de ahi el lienzo que
+  // seguia continua con su propio reloj, ya sembrado con los ultimos valores
+  // copiados, asi que no da ningun salto.
+  useEffect(() => {
+    if (espejoModo !== "publica" || !espejo) return undefined;
+    return () => { espejo.current = null; };
+  }, [espejo, espejoModo]);
+
   useFrame((state, delta) => {
     if (!material.current) return;
     const live = material.current.uniforms;
+
+    /**
+     * Relevo del cargador al hero.
+     *
+     * Durante la intro hay DOS lienzos pintando el mismo agujero: el del
+     * cargador y el del hero, que ya esta montado detras. Cada uno llevaba su
+     * propio reloj desde que monto, asi que el disco de uno iba girado
+     * respecto al del otro; y el del cargador iba ademas por detras en el
+     * morph. Medido con los dos en formation = 1: diferian en el 14,7 % de los
+     * pixeles, con la sombra un 10 % mas pequena en el del cargador. El
+     * fundido entre los dos era una doble exposicion, y eso es lo que se veia
+     * como tiron o como cambio de tamano.
+     *
+     * Aqui el del hero deja de pensar por su cuenta y COPIA lo que publica el
+     * del cargador. Las dos imagenes pasan a ser la misma, asi que el fundido
+     * ya no cruza nada: lo unico que cambia durante el relevo es el titular,
+     * que solo dibuja el del hero.
+     */
+    const copia = espejoModo === "sigue" ? espejo?.current : null;
+    if (copia) {
+      elapsed.current = copia.time;
+      rigid.current = copia.rigid;
+      wound.current = copia.wound;
+      lastFormation.current = copia.formation;
+      visual.current.bass = copia.bass;
+      visual.current.mid = copia.mid;
+      visual.current.treble = copia.treble;
+      live.uTime.value = copia.time;
+      live.uRigid.value = copia.rigid;
+      live.uWind.value = copia.wind;
+      live.uFormation.value = copia.formation;
+      live.uBass.value = copia.bass;
+      live.uMid.value = copia.mid;
+      live.uTreble.value = copia.treble;
+      live.uPower.value = copia.power;
+      live.uPointer.value.set(copia.px, copia.py);
+      live.uCenter.value.set(copia.cx, copia.cy);
+      live.uScale.value = copia.scale;
+      live.uTopDown.value = copia.topDown;
+      live.uFaceOn.value = copia.faceOn;
+      live.uIsolation.value = copia.isolation;
+      live.uAspect.value = state.size.width / Math.max(state.size.height, 1);
+      // El titular no se copia: durante la intro no lo dibuja nadie, y entra
+      // solo cuando este lienzo toma el mando.
+      live.uText.value = lens.current.title;
+      live.uCopy.value = lens.current.copy;
+      live.uReveal.value = 0;
+      visual.current.time = copia.time;
+      return;
+    }
     const dt = Math.min(delta, 0.05);
     const smooth = 1-Math.exp(-dt*7);
     const audio = sample();
@@ -701,6 +759,19 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     visual.current.time=elapsed.current;
     visual.current.x=live.uPointer.value.x;
     visual.current.y=live.uPointer.value.y;
+
+    if (espejoModo === "publica" && espejo) {
+      espejo.current = {
+        time: elapsed.current, rigid: rigid.current, wound: wound.current,
+        wind: live.uWind.value, formation: live.uFormation.value,
+        bass: live.uBass.value, mid: live.uMid.value, treble: live.uTreble.value,
+        power: live.uPower.value,
+        px: live.uPointer.value.x, py: live.uPointer.value.y,
+        cx: live.uCenter.value.x, cy: live.uCenter.value.y,
+        scale: live.uScale.value, topDown: live.uTopDown.value,
+        faceOn: live.uFaceOn.value, isolation: live.uIsolation.value,
+      };
+    }
   });
   return <mesh frustumCulled={false}><planeGeometry args={[2,2]} /><shaderMaterial
     ref={material} uniforms={uniforms} vertexShader={vertexShader} fragmentShader={fragmentShader}
@@ -739,7 +810,7 @@ function hueOf(hex) {
  * dpr a la misma proporcion, el lienzo se repinta a tamano real y queda
  * nitido. Ver `entrar()` en Halo.jsx.
  */
-export default function BlackHole({ bare = false, className = "", formation, journey, lensSource, onLensReady, tint, dpr = [1, 1.25], disk = 1, white = 0 }) {
+export default function BlackHole({ bare = false, className = "", formation, journey, lensSource, onLensReady, tint, dpr = [1, 1.25], disk = 1, white = 0, espejo, espejoModo }) {
   const { lang, tr } = useLang();
   const { sample } = useMusic();
   const root = useRef(null);
@@ -851,7 +922,7 @@ export default function BlackHole({ bare = false, className = "", formation, jou
         gl={{antialias:false,alpha:true,powerPreference:"high-performance"}}
         onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
         fallback={<div className="blackhole__fallback" />}>
-        <Scene interaction={interaction} reduced={reduced} formation={formation} journey={journey} sample={sample} visual={visual} lens={lens} hue={hueOf(tint)} disk={disk} white={white} />
+        <Scene interaction={interaction} reduced={reduced} formation={formation} journey={journey} sample={sample} visual={visual} lens={lens} espejo={espejo} espejoModo={espejoModo} hue={hueOf(tint)} disk={disk} white={white} />
       </Canvas></SceneBoundary>
     </div>
   </div>;

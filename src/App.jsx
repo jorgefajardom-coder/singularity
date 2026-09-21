@@ -33,6 +33,10 @@ export default function App() {
   // con el sitio ya montado debajo. Sin eso quedaría un negro entre los dos.
   const [introGone, setIntroGone] = useState(false);
   const [holeReady, setHoleReady] = useState(false);
+  // Durante la intro los dos lienzos del agujero negro estan vivos a la vez.
+  // Aqui el del cargador publica su estado y el del hero lo copia, para que el
+  // relevo no cruce dos imagenes distintas (ver BlackHole.jsx).
+  const espejo = useRef(null);
 
   useSmoothScroll();
   useReveal(root);
@@ -56,7 +60,7 @@ export default function App() {
     <LangProvider>
       <MusicProvider active={holeReady}>
       {holeReady && !introGone && <MusicPlayer intro />}
-      {!introGone ? <Loader onWarm={() => setWarm(true)} onEnter={() => setEntered(true)} onDone={() => setIntroGone(true)} onReady={setHoleReady} /> : null}
+      {!introGone ? <Loader espejo={espejo} onWarm={() => setWarm(true)} onEnter={() => setEntered(true)} onDone={() => setIntroGone(true)} onReady={setHoleReady} /> : null}
 
       <Starfield />
 
@@ -66,7 +70,7 @@ export default function App() {
         <main>
           {/* Hero y orbita comparten un solo agujero negro, que viaja de uno
               a otra con el scroll. */}
-          <Stage entered={entered} warm={warm} />
+          <Stage entered={entered} warm={warm} espejo={espejo} />
           <Stack />
           <Services />
           <Projects />

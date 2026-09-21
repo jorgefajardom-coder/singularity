@@ -24,7 +24,7 @@ const LAYERS = [
   { name: "light", offset: -0.8 },
 ];
 
-export default function Loader({ onWarm, onEnter, onDone, onReady }) {
+export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
   const { lang, setLang } = useLang();
   const { prepare } = useMusic();
   const root = useRef(null);
@@ -258,7 +258,7 @@ export default function Loader({ onWarm, onEnter, onDone, onReady }) {
           pulsar, el SVG se apaga antes de que haya nada dibujado debajo. */}
       {(phase === "choose" || phase === "transforming") && <div className="loader__singularity">
         <Suspense fallback={null}>
-          <BlackHole formation={formation} journey={travel} />
+          <BlackHole formation={formation} journey={travel} espejo={espejo} espejoModo="publica" />
         </Suspense>
       </div>}
       <svg className="loader__mark" viewBox="0 0 205 105" role="group" aria-label={lang === "en" ? "Choose your language" : "Elige tu idioma"}>

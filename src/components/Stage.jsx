@@ -40,7 +40,7 @@ const span = ([a, b], p) => Math.min(1, Math.max(0, (p - a) / (b - a)));
 // Suaviza los extremos: sin esto cada fase arranca y frena de golpe.
 const ease = (x) => x * x * (3 - 2 * x);
 
-export default function Stage({ entered, warm }) {
+export default function Stage({ entered, warm, espejo }) {
   const stage = useRef(null);
   const copy = useRef(null);
   const carrier = useRef(null);
@@ -295,7 +295,7 @@ export default function Stage({ entered, warm }) {
         <div className="stage__void" ref={carrier}>
           <div className="stage__traveler" ref={traveler}>
           <Suspense fallback={null}>
-            <BlackHole bare lensSource={copy} journey={journey} onLensReady={setLensed} />
+            <BlackHole bare lensSource={copy} journey={journey} onLensReady={setLensed} espejo={espejo} espejoModo="sigue" />
           </Suspense>
           </div>
         </div>

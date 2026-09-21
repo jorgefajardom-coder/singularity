@@ -95,7 +95,7 @@ export default function About({ sharedHole = false }) {
  * queda lista para repetirse. `toggleActions` con `reverse` al salir por
  * arriba es lo que lo consigue.
  */
-function CountUp({ value }) {
+export function CountUp({ value, triggerSelector }) {
   const ref = useRef(null);
   // "12+" -> ["", 12, "+"]. Si no hay numero, el texto se muestra sin animar.
   const parts = useMemo(() => {
@@ -132,7 +132,7 @@ function CountUp({ value }) {
     // cifra bajando en mitad de la pantalla, que se lee como un error. Al
     // salir por arriba vuelve a cero, y al bajar de nuevo cuenta otra vez.
     const trigger = ScrollTrigger.create({
-      trigger: el,
+      trigger: (triggerSelector && el.closest(triggerSelector)) || el,
       start: "top 92%",
       // `restart`, no `play`: un tween ya completado ignora `play()`, asi que
       // al bajar por segunda vez la cifra se quedaba clavada en cero.
@@ -147,7 +147,7 @@ function CountUp({ value }) {
       trigger.kill();
       tween.kill();
     };
-  }, [parts, value]);
+  }, [parts, value, triggerSelector]);
 
   if (!parts) return <b>{value}</b>;
   // El valor final va en `aria-label`: un lector de pantalla no tiene por que

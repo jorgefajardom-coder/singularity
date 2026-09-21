@@ -1074,7 +1074,7 @@ body.is-locked {
      ningun texto, y dejarle aire alrededor es lo que hace que se lea como una
      pausa. El agujero y la aureola cuelgan de este ancho, asi que se encogen
      con el sin tocar nada mas. */
-  width: min(46vw, 40svh);
+  width: min(38vw, 38svh);
   /* La cintura tiene que quedar pegada a la base, y el borde de la CAJA no es
      la cintura: por debajo hay un 8 % de alto transparente, y antes de eso el
      busto se estrecha en punta (el torso se mantiene ancho hasta el 89 % y de
@@ -1085,6 +1085,74 @@ body.is-locked {
   transform: translateY(11%);
   opacity: 0;
   will-change: opacity;
+}
+
+.meditation__stats {
+  position: absolute;
+  right: clamp(18px, 2.5vw, 36px);
+  bottom: 22px;
+  z-index: 3;
+  display: flex;
+  gap: clamp(12px, 1.7vw, 24px);
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.meditation__stat {
+  display: grid;
+  gap: 5px;
+  text-align: left;
+  opacity: 0;
+  text-shadow: 0 2px 12px #08070a;
+}
+
+.meditation__stat + .meditation__stat {
+  border-left: 1px solid rgba(255, 154, 60, 0.2);
+  padding-left: clamp(12px, 1.7vw, 24px);
+}
+
+.meditation__stat b {
+  font-size: clamp(20px, 2.5vw, 28px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 240, 228, 0.86);
+}
+
+.meditation__stat span {
+  font-size: 8px;
+  line-height: 1.5;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(255, 240, 228, 0.5);
+}
+
+.meditation__frame:has(.halo[data-formed="true"]) .meditation__stat {
+  animation: meditation-stat-in 0.65s ease-out both;
+  animation-delay: calc(var(--stat-i) * 0.15s);
+}
+
+@keyframes meditation-stat-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 600px) {
+  .meditation__stats { right: 12px; bottom: 16px; gap: 7px; }
+  .meditation__stat + .meditation__stat { padding-left: 7px; }
+  .meditation__stat b { font-size: 17px; }
+  .meditation__stat span { font-size: 6px; letter-spacing: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meditation__frame:has(.halo[data-formed="true"]) .meditation__stat {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+.meditation__frame:has(.halo[data-focus="true"]) .meditation__stats {
+  opacity: 0;
 }
 
 /* ============================================================
@@ -1108,24 +1176,9 @@ body.is-locked {
   --rings-ready: calc(var(--ring-duration) + (var(--ring-count, 7) - 1) * var(--ring-stagger));
   position: absolute;
   left: 48%;
-  /* A la altura de las OREJAS: el 31 % del alto de la ilustracion, medido
-     sobre su canal alfa. Ahi la silueta mide el 50 % del ancho —entre el pelo,
-     que llega al 61 %, y los hombros, que se van al 83 %—, y es la unica franja
-     de la figura donde la aureola puede asomar por los dos lados.
-     Mas abajo no sirve: al 52 % la silueta mide el 75 % y se la traga entera.
-
-     El sistema entero baja con ella, porque comparten centro, pero solo se
-     TRASLADA: los seis cuerpos conservan su anillo y su angulo, asi que la
-     disposicion no cambia. */
-  top: 31%;
-  /* Los tres limites hacen falta y ninguno sobra: el 92 svh es el que manda en
-     una pantalla apaisada —que es el caso normal— y evita justo ese recorte;
-     el 78 vw manda en una ventana estrecha y alta, y es mas duro que el resto
-     porque ahi lo que se sale no son los anillos sino los ROTULOS, que miden
-     lo que miden —el tipo tiene un minimo de 8 px— y no encogen con el
-     sistema; y el 240 % del ancho del retrato mantiene la proporcion entre el
-     sistema y la figura cuando la pantalla es muy ancha y baja. */
-  width: min(240%, 78vw, 92svh);
+  /* Centro sobre la coronilla y busto delante de las orbitas inferiores. */
+  top: 20%;
+  width: min(240%, 82vw, 90svh);
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
   z-index: -1;
@@ -1162,24 +1215,55 @@ body.is-locked {
   transform-origin: 50% 50%;
   scale: var(--from, 0);
   opacity: 0;
-  transition: scale 0.65s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.65s ease-in;
+  translate: 0.25% 1%;
+  transition: scale 0.65s cubic-bezier(0.4, 0, 0.2, 1), translate 0.65s ease, opacity 0.65s ease-in;
   transition-delay: calc((var(--ring-count, 7) - 1 - var(--ring-i, 0)) * 0.06s);
 }
 
 /* Abren desde la aureola y se recogen de fuera hacia dentro al subir.
    Las transiciones permiten invertir el movimiento desde la escala actual. */
 .halo[data-drawn="true"] .halo__rings circle {
+  translate: 0 0;
   scale: 1;
   opacity: 1;
-  transition: scale var(--ring-duration) cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.18s ease-out;
+  transition: scale var(--ring-duration) cubic-bezier(0.22, 0.61, 0.36, 1), translate var(--ring-duration) ease, opacity 0.18s ease-out;
   transition-delay: calc(var(--ring-i, 0) * var(--ring-stagger));
 }
 .halo__rings circle:first-child {
+  translate: 0 0;
   fill: var(--accent-a);
   fill-opacity: 0.24;
   stroke: var(--accent-a);
   stroke-opacity: 0.9;
   filter: drop-shadow(0 0 0.5px rgba(255, 154, 60, 0.55));
+}
+
+/* La aureola se dibuja en su posicion final y luego conserva un brillo fijo. */
+.halo[data-formed="true"] .halo__rings circle:first-child {
+  scale: 1;
+  opacity: 1;
+  animation: aureola-form var(--ring-duration) ease-out both,
+    aureola-glow 0.8s ease-out var(--ring-duration) forwards;
+}
+
+@keyframes aureola-form {
+  from { fill-opacity: 0; stroke-opacity: 0; }
+  to { fill-opacity: 0.24; stroke-opacity: 0.9; }
+}
+
+@keyframes aureola-glow {
+  to { filter: drop-shadow(0 0 5px rgba(255, 154, 60, 0.35)); }
+}
+
+.stage:has(.halo[data-drawn="true"]) .about__float {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .halo[data-formed="true"] .halo__rings circle:first-child {
+    animation: none;
+    filter: drop-shadow(0 0 5px rgba(255, 154, 60, 0.35));
+  }
 }
 
 /* Cada cuerpo queda fijo en el angulo inicial de su anillo. */
@@ -1244,8 +1328,14 @@ body.is-locked {
     radial-gradient(circle at center, #fff 0%, #fff 5%, var(--body-ink) 18%, transparent 58%);
 }
 .halo[data-drawn="true"] .halo__hole::after {
-  animation: halo-birth-flash 0.7s ease-out backwards;
-  animation-delay: var(--birth-delay);
+  animation: halo-birth-flash 0.7s ease-out backwards,
+    halo-idle-flash 7s ease-in-out infinite;
+  animation-delay: var(--birth-delay), calc(var(--birth-delay) + 2s);
+}
+@keyframes halo-idle-flash {
+  0%, 12%, 100% { opacity: 0; transform: scale(0.8); }
+  4% { opacity: 0.28; transform: scale(1); }
+  8% { opacity: 0.08; transform: scale(1.12); }
 }
 @keyframes halo-birth-flash {
   0% { opacity: 0; transform: scale(0.25); }

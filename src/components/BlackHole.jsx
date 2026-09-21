@@ -25,7 +25,7 @@ uniform float uHue;
 uniform float uDisk, uWhite;
 // DISK_OUT ya estirado. Es global y no constante porque depende del uniforme;
 // main() lo fija antes de que nadie lo lea.
-uniform float uScale, uTopDown, uIsolation;
+uniform float uScale, uTopDown, uIsolation, uFaceOn;
 uniform vec2 uPointer, uCenter;
 uniform sampler2D uText, uCopy;
 
@@ -301,6 +301,8 @@ void main() {
   float inclBase = 0.092 + uPointer.y * 0.055 + sin(uTime * 0.17) * 0.010 * grow + uBass * 0.025;
   float incl = mix(inclBase, 1.40 + uPointer.y * 0.10, uTopDown);
   float yaw  = uPointer.x * 0.26 + sin(uTime * 0.13) * 0.020 * grow;
+  incl = mix(incl, 1.57079632679, uFaceOn);
+  yaw *= 1.0 - uFaceOn;
 
   // Plano de la materia: arranca de frente a la cámara (el ∞ se lee entero) y
   // se tumba hasta el ecuador, donde ya es el disco de acreción.
@@ -318,7 +320,8 @@ void main() {
 
   vec3 camPos = vec3(sin(yaw) * cos(incl), sin(incl), cos(yaw) * cos(incl)) * CAM_DIST;
   vec3 fwd   = normalize(-camPos);
-  vec3 right = normalize(cross(fwd, vec3(0.0, 1.0, 0.0)));
+  // Base estable incluso al mirar el disco exactamente desde arriba.
+  vec3 right = vec3(cos(yaw), 0.0, -sin(yaw));
   vec3 up    = cross(right, fwd);
   vec3 dir   = normalize(fwd * LENSE + right * uv.x + up * uv.y);
 
@@ -606,7 +609,7 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     uText: { value: null }, uCopy: { value: null }, uReveal: { value: 0 },
     // Viaje por la pagina: donde esta el agujero, cuanto se aleja y desde
     // que altura se mira. Lo escribe el scroll (ver Stage.jsx).
-    uCenter: { value: new Vector2() }, uScale: { value: 1 }, uTopDown: { value: 0 }, uIsolation: { value: 0 },
+    uCenter: { value: new Vector2() }, uScale: { value: 1 }, uTopDown: { value: 0 }, uIsolation: { value: 0 }, uFaceOn: { value: 0 },
     uHue: { value: hue }, uDisk: { value: disk }, uWhite: { value: white },
   }), []);
   // Pueden cambiar sin volver a montar el lienzo (el idioma, por ejemplo,
@@ -663,6 +666,7 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     live.uCenter.value.set(trip?.cx ?? 0, trip?.cy ?? 0);
     live.uScale.value = trip?.scale ?? 1;
     live.uTopDown.value = trip?.topDown ?? 0;
+    live.uFaceOn.value = trip?.faceOn ? 1 : 0;
     live.uIsolation.value = trip?.isolation ?? 0;
     // Relevo directo del texto DOM a sus texturas, sin un intervalo oscuro.
     live.uText.value = lens.current.title;

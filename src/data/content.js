@@ -387,7 +387,7 @@ export const workAreas = [
     services: ["modelado-3d", "animacion-3d", "web3d-juegos"],
     color: "#2fe0cf",
     size: 16.0,
-    ring: 6,
+    ring: 2,
     start: 296,
   },
   {
@@ -396,13 +396,8 @@ export const workAreas = [
     services: ["web"],
     color: "#9ae02f",
     size: 16.0,
-    // Arriba del todo y en el centro, que es el sitio que mas se mira, y con
-    // catorce herramientas es ademas la mas poblada de las seis. Estaba metida
-    // dentro de «Producto y diseno», que es donde menos se busca a alguien que
-    // programa. En el anillo 5 el cuerpo se iba por encima del menu —medido:
-    // y = 54, con la barra ocupando hasta 60—, asi que va en el 3.
     ring: 1,
-    start: 90,
+    start: 0,
   },
   {
     id: "producto",
@@ -410,12 +405,7 @@ export const workAreas = [
     services: ["packaging", "producto"],
     color: "#c04fff",
     size: 16.0,
-    // Mas adentro que los otros cuatro a proposito. Arriba del todo y en el
-    // anillo 3 su rotulo llegaba a rozar el de Ingenieria en pantalla
-    // estrecha, donde los cinco se juntan; en el 2 baja lo justo para que las
-    // dos filas de rotulos no se toquen, y de paso el sistema deja de ser un
-    // arco perfecto.
-    ring: 2,
+    ring: 6,
     start: 0,
   },
   {
@@ -425,7 +415,7 @@ export const workAreas = [
     color: "#2fe04f",
     size: 16.0,
     ring: 3,
-    start: 48.66,
+    start: 69,
   },
   {
     id: "inteligencia",

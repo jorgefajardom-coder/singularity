@@ -25,23 +25,8 @@ import { prefersReducedMotion, scroller } from "../lib/anim";
  * Lo unico que toca JavaScript es el zoom, y solo en el momento del clic.
  */
 
-/**
- * Fracciones del ANCHO del halo, o sea diametros: el radio de cada anillo es
- * la mitad.
- *
- * El primero es la AUREOLA, el que va relleno. A la altura de las orejas la
- * silueta ocupa el 50 % del ancho de la ilustracion, asi que la aureola tiene
- * que pasar de eso para asomar: 0.34 del halo son un 78 % de ese ancho, o sea
- * 14 puntos a cada lado. A 0.24 se quedaba en el 55 % y solo asomaban dos.
- * Y no puede crecer mucho mas sin comerse el anillo 1, que esta a 0.41.
- *
- * Los SEIS siguientes son uno por area, sin compartir.
- *
- * Los extremos no son esteticos: por dentro, un cuerpo en un anillo mas
- * estrecho que 0.41 le monta encima a la aureola; por fuera, pasando de 0.95
- * el anillo se mete debajo de la barra del menu.
- */
-const RINGS = [0.34, 0.41, 0.52, 0.63, 0.74, 0.84, 0.95];
+/** Diametros relativos: aureola compacta y seis orbitas concentricas. */
+const RINGS = [0.28, 0.41, 0.52, 0.63, 0.74, 0.84, 0.95];
 
 /**
  * Lo que se le pasa a cada agujero del halo en vez del viaje por la pagina.
@@ -66,7 +51,7 @@ const RINGS = [0.34, 0.41, 0.52, 0.63, 0.74, 0.84, 0.95];
  *
  * Es un objeto fijo y compartido por los seis: el shader solo lo lee.
  */
-const CUERPO = { current: { isolation: 1, scale: 1.34, cy: 0, cx: 0, topDown: 1, lens: 0 } };
+const CUERPO = { current: { isolation: 1, scale: 1.34, cy: 0, cx: 0, topDown: 1, faceOn: true, lens: 0 } };
 
 /**
  * Tope de resolucion del lienzo ampliado.
@@ -125,6 +110,7 @@ export default function Halo() {
   const root = useRef(null);
   const refs = useRef({});
   const [drawn, setDrawn] = useState(false);
+  const [formed, setFormed] = useState(false);
   const [deploying, setDeploying] = useState(false);
   const [focus, setFocus] = useState(null);
   const anchored = deploying || Boolean(focus);
@@ -137,6 +123,7 @@ export default function Halo() {
   useEffect(() => {
     if (reduced) {
       setDrawn(true);
+      setFormed(true);
       return undefined;
     }
     const node = root.current;
@@ -148,6 +135,14 @@ export default function Halo() {
     let lastY = window.scrollY;
     const sync = () => {
       if (document.body.classList.contains("is-anchored")) return;
+      if (goingUp) {
+        if (started) {
+          started = false;
+          setDrawn(false);
+        }
+        return;
+      }
+      if (started) return;
       // Stage escribe la opacidad durante el viaje. La interseccion por si
       // sola tambien detecta el halo cuando el retrato sigue invisible.
       const opacity = portrait ? Number(getComputedStyle(portrait).opacity) : 1;
@@ -157,23 +152,20 @@ export default function Halo() {
       // no al fundido, que termina antes de que llegue el cuerpo completo.
       const waist = bounds ? bounds.top + bounds.height * 0.89 : Infinity;
       const atWaist = waist <= window.innerHeight + 1 && waist >= window.innerHeight - 2;
-      if (started && (goingUp || !inView || opacity <= 0.05)) {
-        started = false;
-        setDrawn(false);
-        setDeploying(false);
-      } else if (!started && !goingUp && inView && opacity >= 0.99 && atWaist) {
+      // La aureola permanece; los aros se despliegan de nuevo al bajar.
+      if (inView && opacity >= 0.99 && atWaist) {
         started = true;
         setDeploying(true);
         setDrawn(true);
+        setFormed(true);
       }
     };
     const onScroll = () => {
+      const y = window.scrollY;
       if (document.body.classList.contains("is-anchored")) {
-        lastY = window.scrollY;
+        lastY = y;
         return;
       }
-      const y = window.scrollY;
-      // Acumula los movimientos pequenos para evitar cambios por redondeo.
       if (Math.abs(y - lastY) < 3) return;
       goingUp = y < lastY;
       lastY = y;
@@ -321,6 +313,7 @@ export default function Halo() {
         className="halo"
         ref={root}
         data-drawn={drawn ? "true" : "false"}
+        data-formed={formed ? "true" : "false"}
         data-focus={focus ? "true" : "false"}
         style={{ "--ring-count": RINGS.length }}
         // Mientras no se ha trazado, la seccion esta fuera de pantalla y sus
@@ -331,8 +324,8 @@ export default function Halo() {
           {RINGS.map((f, i) => (
             <circle
               key={f}
-              cx="50"
-              cy="50"
+              cx={i === 0 ? 50.25 : 50}
+              cy={i === 0 ? 51 : 50}
               r={f * 50}
               style={{
                 "--ring-i": i,

@@ -1,5 +1,6 @@
 import Halo from "./Halo";
-import { sections, ui } from "../data/content";
+import { about, sections, ui } from "../data/content";
+import { CountUp } from "./About";
 import { useLang } from "../lib/i18n";
 
 /**
@@ -35,6 +36,14 @@ export default function Meditation({ reduced }) {
           <div className="meditation__singularity" inert={true}>
             {reduced && <div className="blackhole__fallback" />}
           </div>
+        </div>
+        <div className="meditation__stats">
+          {about.stats.map((stat, i) => (
+            <div className="meditation__stat" key={stat.value} style={{ "--stat-i": i }}>
+              <CountUp value={stat.value} triggerSelector=".meditation__stats" />
+              <span>{i === 1 ? tr({ es: "Áreas", en: "Areas" }) : tr(stat.label)}</span>
+            </div>
+          ))}
         </div>
       </div>
     </section>

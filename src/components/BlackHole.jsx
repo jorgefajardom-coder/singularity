@@ -440,7 +440,21 @@ void main() {
       // El texto pequeño va en su propia capa con mucha menos lente: el mismo
       // desplazamiento que en un titular de 130 px se lee como curvatura, y en
       // uno de 14 px como un renglón tirado por la página.
-      float bright = trans * uReveal * (2.05 + uBass * 0.7);
+      // El mismo freno del cielo (clear) tambien AQUI. Ojo: nada de comillas
+      // invertidas en este bloque, que vive dentro de una plantilla de JS.
+      // Los rayos que rozan la
+      // esfera de fotones salen en direcciones que cambian muchisimo de un
+      // pixel al siguiente; con una muestra por pixel, un glifo blanco sobre
+      // negro no se puede resolver ahi, y lo que sale no es texto sino
+      // aliasing: un punteado blanco apilado justo por dentro del filo de la
+      // sombra, que se lee como una raya dibujada encima del agujero.
+      //
+      // Es la MISMA cuenta que ya se le hacia al campo de estrellas unas
+      // lineas mas arriba. Se hizo solo para el cielo, y por eso la raya
+      // seguia ahi: la pintaba el titular, no las estrellas. Medido sobre el
+      // lienzo a 1536x639: 27 pixeles blancos (255) dentro de la sombra antes,
+      // 2 de brillo naranja (maximo 52) despues.
+      float bright = trans * uReveal * (2.05 + uBass * 0.7) * clear;
       vec2 tcA = (base + pull * warp) / frame + 0.5;
       if (tcA.x > 0.0 && tcA.x < 1.0 && tcA.y > 0.0 && tcA.y < 1.0) {
         // La textura de canvas ya llega volteada: tc se usa tal cual.
@@ -738,8 +752,37 @@ export default function BlackHole({ bare = false, className = "", formation, jou
     const target = lensSource?.current;
     if(!target || !root.current) return;
     let alive = true;
+    let esperando = 0;
+
+    /**
+     * `getBoundingClientRect` devuelve la caja TRANSFORMADA, y este lienzo se
+     * escala a ~1/12 durante el viaje a la mano del astronauta (ver `follow()`
+     * en Stage.jsx). Rasterizar el titular ahi daba una textura de 53x48 con
+     * los glifos fuera de encuadre; y como la textura NO es nula, `uReveal`
+     * seguia a 1 y el <h1> del DOM seguia transparente, asi que al volver
+     * arriba no habia titular ninguno. Tampoco se recuperaba solo: el
+     * ResizeObserver vigila la caja de LAYOUT, y un transform no la cambia.
+     *
+     * Lo dispara cualquier repintado hecho a media pagina: cambiar de idioma
+     * con el conmutador del nav, o redimensionar la ventana.
+     */
+    const enReposo = () => {
+      const el = root.current;
+      const caja = el.getBoundingClientRect();
+      return Math.abs(caja.width - el.offsetWidth) <= 1
+        && Math.abs(caja.height - el.offsetHeight) <= 1;
+    };
+
+    // Mientras siga encogido se conserva la textura buena y se vuelve a mirar
+    // en el fotograma siguiente. El sondeo se apaga solo en cuanto pinta.
+    const reintentar = () => {
+      if (esperando || !alive) return;
+      esperando = requestAnimationFrame(() => { esperando = 0; repaint(); });
+    };
+
     const repaint = () => {
       if(!alive || !root.current) return;
+      if(!enReposo()) { reintentar(); return; }
       const box = root.current.getBoundingClientRect();
       if(!target.querySelector('[data-lens-line][data-lens-group="title"]')) return;
       const title = paintLensText(target, box, "title");
@@ -757,6 +800,7 @@ export default function BlackHole({ bare = false, className = "", formation, jou
     observer.observe(target);
     return () => {
       alive = false; observer.disconnect();
+      if (esperando) cancelAnimationFrame(esperando);
       lens.current.title?.dispose(); lens.current.copy?.dispose();
       lens.current.title = null; lens.current.copy = null;
       onLensReady?.(false);
@@ -776,8 +820,13 @@ export default function BlackHole({ bare = false, className = "", formation, jou
       }}
       onPointerDown={(e) => { if(e.button !== 0) return; interaction.current.down=true; e.currentTarget.setPointerCapture(e.pointerId); }}
       onPointerUp={reset} onPointerCancel={reset} onLostPointerCapture={reset} onPointerLeave={reset} onBlur={reset}
-      onKeyDown={(e) => { if(e.key === " " || e.key === "Enter") {e.preventDefault();interaction.current.down=true;} }}
-      onKeyUp={(e) => {if(e.key === " " || e.key === "Enter") {e.preventDefault();reset();}}}
+      // Solo Enter. Con Espacio tambien puesto, quien navega con teclado se
+      // quedaba sin poder avanzar la pagina: este control es enfocable, esta
+      // en la primera pantalla, y el preventDefault se comia el scroll. El
+      // efecto es un adorno —acelera el disco mientras se mantiene—, asi que
+      // no compensa quedarse con la tecla de avanzar pagina.
+      onKeyDown={(e) => { if(e.key === "Enter") {e.preventDefault();interaction.current.down=true;} }}
+      onKeyUp={(e) => {if(e.key === "Enter") {e.preventDefault();reset();}}}
     >
       {/* `scroll: false` no es un detalle de rendimiento. react-use-measure
           vuelve a medir la caja TRANSFORMADA en cada desplazamiento, y

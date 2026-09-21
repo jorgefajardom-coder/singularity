@@ -163,6 +163,20 @@ button {
   color: var(--text-ink);
 }
 
+/* Visible solo para lectores de pantalla. Lo usan SplitText y RollText, que
+   parten el texto en piezas y esconden esas piezas de la accesibilidad. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ============================================================
    Tipografia display
    ============================================================ */
@@ -1646,12 +1660,20 @@ body.is-anchored .about__float {
   margin-bottom: 0;
 }
 
-/* Cuelga del `shell`, no de `.about__copy`: se centra sobre el ancho entero
-   de la seccion y cierra el bloque (antes tenia los contadores debajo). */
+/* Misma caja que `.about__body`, para que el boton se centre sobre EL TEXTO
+   y no sobre la pagina: `.about__copy .about__body` pone `margin: 0`, asi que
+   el texto va pegado al borde izquierdo de su columna y su centro no es el de
+   la pantalla. El margen corto lo mantiene cosido al parrafo. */
 .about__cta {
   position: relative;
   z-index: 4;
-  margin-top: clamp(36px, 6vh, 72px);
+  max-width: 52ch;
+  /* El `font-size` NO es para el boton —ese lo pone `.btn`—, es para que el
+     `52ch` de arriba mida lo mismo que el de `.about__body`: `ch` se resuelve
+     contra la letra del propio elemento, y con la del padre daba 477 px en
+     vez de 567, o sea el boton 45 px a la izquierda del centro del texto. */
+  font-size: clamp(15px, 1.4vw, 19px);
+  margin-top: clamp(24px, 4vh, 44px);
 }
 
 .about__cta--center {
@@ -2534,7 +2556,9 @@ body.is-anchored .about__float {
   border-color: rgba(255, 240, 228, 0.3);
 }
 
-.filters__btn[aria-selected="true"] {
+/* Botones de dos estados, no pestanas: el estado activo va en aria-pressed
+   (ver Projects.jsx). */
+.filters__btn[aria-pressed="true"] {
   background: var(--text);
   border-color: var(--text);
   color: var(--ink);

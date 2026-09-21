@@ -63,17 +63,18 @@ export default function About({ sharedHole = false }) {
           ))}
         </div>
 
-          </div>
-        </div>
-
-        {/* Fuera de `.about__copy`: ahi quedaba centrado dentro de la columna
-            derecha de la rejilla, o sea escorado a la derecha de la seccion.
-            Como hijo directo del `shell` se centra sobre el ancho entero, y
-            ademas cierra la seccion ahora que no hay contadores debajo. */}
+        {/* Pegado al bloque de texto y centrado SOBRE EL, no sobre la pagina.
+            Colgando del `shell` caia en x=768 (el centro de la pantalla) con
+            el texto centrado en 946: dos centros distintos, asi que el boton
+            se leia suelto y torcido bajo el hueco entre el astronauta y la
+            columna. Comparte la caja de `.about__body` —el `max-width` va en
+            el CSS— para que los dos centros sean el mismo. */}
         <div className="about__cta about__cta--center">
           <a className="btn" href="#contact">
             {tr(ui.workTogether)}
           </a>
+        </div>
+          </div>
         </div>
       </div>
     </section>

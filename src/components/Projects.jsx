@@ -42,11 +42,16 @@ export default function Projects() {
           </GhostHeading>
         </div>
 
-        <div className="filters" role="tablist" aria-label={tr(ui.categories)}>
+        {/* Grupo de botones de dos estados, NO pestañas. El patron `tab`
+            exige un `tabpanel` al que apuntar y navegacion con flechas, y
+            aqui no hay ni una cosa ni la otra: esto filtra una lista. Con
+            `role="tab"` puesto, un lector de pantalla anunciaba pestañas que
+            no llevan a ningun sitio. */}
+        <div className="filters" role="group" aria-label={tr(ui.categories)}>
           <button
-            role="tab"
+            type="button"
             className="filters__btn"
-            aria-selected={filter === "all"}
+            aria-pressed={filter === "all"}
             onClick={() => {
               setFilter("all");
               setOpen(0);
@@ -61,9 +66,9 @@ export default function Projects() {
             return (
               <button
                 key={c.id}
-                role="tab"
+                type="button"
                 className="filters__btn"
-                aria-selected={filter === c.id}
+                aria-pressed={filter === c.id}
                 onClick={() => {
                   setFilter(c.id);
                   setOpen(0);
@@ -82,8 +87,11 @@ export default function Projects() {
             return (
               <article className="proj__row" key={p.name} data-open={isOpen ? "true" : "false"}>
                 <button
+                  type="button"
+                  id={`proj-btn-${i}`}
                   className="proj__btn"
                   aria-expanded={isOpen}
+                  aria-controls={`proj-panel-${i}`}
                   onClick={() => setOpen(isOpen ? -1 : i)}
                 >
                   <span className="proj__num">{String(i + 1).padStart(2, "0")}</span>
@@ -101,7 +109,7 @@ export default function Projects() {
                   </span>
                 </button>
 
-                <div className="proj__panel">
+                <div className="proj__panel" id={`proj-panel-${i}`} role="region" aria-labelledby={`proj-btn-${i}`} aria-hidden={!isOpen}>
                   <div>
                     <div className="proj__body">
                       <p className="proj__desc">{tr(p.desc)}</p>

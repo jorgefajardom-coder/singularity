@@ -128,13 +128,18 @@ export default function SplitText({
     return <span className="split__word" key={i}>{move(word, "w")}</span>;
   });
 
+  // El texto va DENTRO, en un span fuera de pantalla, no en un `aria-label`.
+  // Con `as="p"` el elemento es role=paragraph, y ahi aria-label esta
+  // prohibido por la especificacion: los lectores de pantalla lo ignoran, y
+  // como las piezas visibles van en aria-hidden el parrafo se quedaba mudo.
+  // Un span real se lee siempre, sea cual sea la etiqueta que se pase en `as`.
   return (
     <Tag
       ref={ref}
       className={`split split--${variant} ${className}`.trim()}
-      aria-label={text}
       {...rest}
     >
+      <span className="sr-only">{text}</span>
       <span aria-hidden="true">{pieces}</span>
     </Tag>
   );

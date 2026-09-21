@@ -29,8 +29,11 @@ export default function Services() {
               return (
                 <div className="acc__row" key={title} data-open={isOpen ? "true" : "false"}>
                   <button
+                    type="button"
+                    id={`acc-btn-${i}`}
                     className="acc__btn"
                     aria-expanded={isOpen}
+                    aria-controls={`acc-panel-${i}`}
                     onClick={() => setOpen(isOpen ? -1 : i)}
                   >
                     <span className="acc__num">{String(i + 1).padStart(2, "0")}</span>
@@ -40,7 +43,7 @@ export default function Services() {
                     </span>
                   </button>
 
-                  <div className="acc__panel">
+                  <div className="acc__panel" id={`acc-panel-${i}`} role="region" aria-labelledby={`acc-btn-${i}`} aria-hidden={!isOpen}>
                     <div>
                       <div className="acc__content">
                         <p className="acc__desc">{tr(s.desc)}</p>

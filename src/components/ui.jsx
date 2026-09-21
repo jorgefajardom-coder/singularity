@@ -85,7 +85,10 @@ export function RollText({ children, className = "" }) {
   const text = String(children ?? "");
 
   return (
-    <span className={`roll ${className}`.trim()} aria-label={text}>
+    <span className={`roll ${className}`.trim()}>
+      {/* El texto real, no un aria-label: un span sin rol no admite nombre
+          de autor y los lectores de pantalla lo ignoran. Ver SplitText.jsx. */}
+      <span className="sr-only">{text}</span>
       <span aria-hidden="true">
         {[...text].map((char, i) => (
           <span className="roll__char" key={i} style={{ "--i": i }}>

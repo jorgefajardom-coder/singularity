@@ -24,6 +24,37 @@ const LAYERS = [
   { name: "light", offset: -0.8 },
 ];
 
+/**
+ * EL ∞ DEL SVG TIENE QUE MEDIR LO MISMO QUE LA CINTA DEL SHADER.
+ *
+ * En el relevo se cruzan dos dibujos del mismo ∞: el de arriba es este SVG y
+ * el de abajo lo traza el shader (ver `uFormation` en BlackHole.jsx). El SVG
+ * medía `min(78vw, 560px)` —un ancho de hoja de estilos, sin relacion con el
+ * otro— y la cinta del shader crece con el ALTO del viewport. Resultado: al
+ * relevar, la figura pegaba un salto de tamaño. Medido: 1,64x en 1536x639 y
+ * 2,67x en 1920x1080. No es un desajuste fino, es que son dos figuras.
+ *
+ * Aqui el SVG se planta con la formula del shader, que es la unica que hay:
+ *
+ *   semiancho en pantalla = (LEM_A * LENSE / CAM_DIST) * px por unidad
+ *   px por unidad         = alto del viewport / (2 * zoom)
+ *
+ * El zoom es el mismo `clamp(1.85 / aspecto, 1, 2.2)` del shader. Sale que los
+ * pixeles por unidad dependen solo del ALTO, no del ancho, porque el shader
+ * escala x por el aspecto y eso se cancela. Si alguna de las tres constantes
+ * cambia alli, tiene que cambiar aqui.
+ */
+const LEM_A = 10.4;
+const LENSE = 3.0;
+const CAM_DIST = 26.0;
+const VB_W = 205;
+const VB_H = 105;
+// Lo mas ancho que se deja crecer al ∞. En un movil en vertical la cinta del
+// shader se sale de la pantalla, y un selector de idioma con los dos bucles
+// medio fuera del encuadre no se puede usar: alli se encoge el SVG y se aleja
+// la cinta lo mismo, para que sigan midiendo igual (ver `arranque`).
+const MARGEN = 0.94;
+
 export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
   const { lang, setLang } = useLang();
   const { prepare } = useMusic();
@@ -35,6 +66,10 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
   // dos lienzos cruce dos imagenes identicas.
   const travel = useRef({ cx: 0, cy: 0, scale: 1, topDown: 0, fall: 0, lens: 1, p: 0 });
   const [phase, setPhase] = useState("loading");
+  // A que escala arranca el agujero del cargador. Es 1 salvo cuando el ∞ no
+  // cabe a su tamaño natural y hay que encogerlo: entonces la cinta del shader
+  // tiene que salir encogida exactamente lo mismo.
+  const arranque = useRef({ scale: 1 });
 
   // En desarrollo, para poder congelar el morfo y mirarlo fotograma a
   // fotograma:  gsap.globalTimeline.pause(); window.formation.current = 0.4
@@ -51,6 +86,63 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
 
   // Todas las capas comparten el mismo progreso de trazado.
   const strokes = useMemo(() => ({ es: [], en: [] }), []);
+
+  /**
+   * Plantar el ∞ donde y como lo va a dibujar el shader.
+   *
+   * Dos cosas, y las dos hacen falta para que el relevo no se note:
+   *
+   *   TAMAÑO  el ancho sale de la formula de arriba, no de la hoja de estilos.
+   *   CENTRO  la curva NO esta centrada en su propio viewBox: la linea media va
+   *           de 14,2 a 184,9 en x y de 13,8 a 80,3 en y, o sea centro
+   *           (99,6 / 47,1) y no (102,5 / 52,5). El elemento quedaba centrado
+   *           en pantalla pero la figura no, y el shader dibuja la suya
+   *           centrada de verdad: sobraban 9 px en x y 11 en y.
+   *
+   * La curva se mide con getBBox en vez de meter esos numeros a mano, asi que
+   * sigue cuadrando aunque algun dia se redibuje el trazo.
+   */
+  useLayoutEffect(() => {
+    const svg = root.current?.querySelector(".loader__mark");
+    if (!svg) return undefined;
+
+    const encajar = () => {
+      const trazos = svg.querySelectorAll(".loader__rim");
+      if (!trazos.length) return;
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      trazos.forEach((t) => {
+        const b = t.getBBox();
+        x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y);
+        x1 = Math.max(x1, b.x + b.width); y1 = Math.max(y1, b.y + b.height);
+      });
+      if (!(x1 > x0)) return;
+
+      const alto = window.innerHeight;
+      const aspecto = window.innerWidth / Math.max(alto, 1);
+      const zoom = Math.min(2.2, Math.max(1, 1.85 / Math.max(aspecto, 0.35)));
+      const semiancho = (LEM_A * LENSE / CAM_DIST) * (alto / (2 * zoom));
+
+      // Del ancho de la CURVA al del ELEMENTO, que lleva margen a los lados.
+      const ideal = semiancho * 2 * (VB_W / (x1 - x0));
+      const ancho = Math.min(ideal, window.innerWidth * MARGEN);
+      svg.style.width = `${ancho.toFixed(1)}px`;
+      // Y si ha habido que encogerlo, el agujero sale encogido lo mismo.
+      // `uScale` MULTIPLICA las coordenadas del shader, asi que un valor MAYOR
+      // aleja y achica.
+      arranque.current.scale = ideal / ancho;
+
+      // La correccion de que la curva no este en el centro del viewBox.
+      const k = ancho / VB_W;
+      const dx = (VB_W / 2 - (x0 + x1) / 2) * k;
+      const dy = (VB_H / 2 - (y0 + y1) / 2) * k;
+      svg.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`;
+    };
+
+    encajar();
+    // Las fuentes no le afectan; el tamaño de la ventana si.
+    window.addEventListener("resize", encajar);
+    return () => window.removeEventListener("resize", encajar);
+  }, []);
 
   // Ocultar los trazos antes de pintar evita un destello de la figura completa.
   useLayoutEffect(() => {
@@ -126,7 +218,11 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
     const hole = root.current.querySelector(".loader__singularity");
     formation.current=0;
     travel.current.cy = 0;
-    travel.current.scale = 1;
+    // A la escala a la que se esta viendo el ∞, que en pantallas estrechas no
+    // es 1 (ver `encajar`). Arrancando siempre en 1, la cinta del shader salia
+    // mas grande que el SVG justo en el fotograma del relevo.
+    const salida = arranque.current.scale;
+    travel.current.scale = salida;
     const ctx = gsap.context(() => {
       gsap.set(hole,{opacity:1});
       gsap.set(".loader__label, .loader__seams",{opacity:0});
@@ -166,7 +262,7 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
           const settle = Math.min(1, Math.max(0, (motion.p - 0.44) / 0.41));
           const k = settle * settle * (3 - 2 * settle);
           travel.current.cy = rest.cy * k;
-          travel.current.scale = 1 + (rest.scale - 1) * k;
+          travel.current.scale = salida + (rest.scale - salida) * k;
         },
         onComplete() {
           formation.current = 1;

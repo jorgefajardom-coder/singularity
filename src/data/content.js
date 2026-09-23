@@ -635,10 +635,16 @@ export const projects = [
     year: "2025",
     href: "https://github.com/jorgefajardom-coder/drone-packaging-simulation-unity",
     desc: t(
-      "Celda robótica que ensambla y paletiza drones cuadricópteros, validada entera en simulación antes de invertir en hardware. Cuatro manipuladores trabajan en paralelo en un espacio de 3,5 × 3,5 m: Alpha y Beta, de 6 GDL con pinza, montan motores y hélices por pares diagonales; Omega, con ventosa, coloca la PCB y la carcasa y traslada el dron terminado; y un paletizador sobre plataforma omnidireccional con ruedas Mecanum lo deja en su caja, alternando entre dos carros de cuatro posiciones. La lógica corre en un PLC virtual de CODESYS —una secuencia de doce etapas en texto estructurado— que se comunica con Unity por TCP y con el circuito neumático de FluidSIM por OPC: una parada o una emergencia del PLC congela la celda al instante. Los brazos fijos se reparten cuadrantes de 90° para no cruzarse sin necesidad de detectar colisiones, y la celda define tres zonas de seguridad según ISO 10218-2, vigiladas con visión MediaPipe sobre una ESP32-CAM.",
-      "Robotic cell that assembles and palletizes quadcopter drones, validated entirely in simulation before investing in hardware. Four manipulators work in parallel in a 3.5 × 3.5 m space: Alpha and Beta, 6-DOF arms with grippers, fit motors and propellers in diagonal pairs; Omega, with a suction cup, places the PCB and shell and carries the finished drone; and a palletizer on an omnidirectional Mecanum-wheel platform drops it into its box, alternating between two four-slot carts. The logic runs on a CODESYS virtual PLC — a twelve-stage sequence in Structured Text — that talks to Unity over TCP and to the FluidSIM pneumatic circuit over OPC: a stop or emergency from the PLC freezes the cell instantly. The fixed arms split the space into 90° quadrants so they never cross paths without collision detection, and the cell defines three safety zones per ISO 10218-2, monitored with MediaPipe vision on an ESP32-CAM."
+      // Los parrafos se separan con una linea en blanco (ver Projects.jsx).
+      "Celda automatizada para el ensamblaje y paletizado de drones cuadricópteros, compuesta por cuatro manipuladores coordinados en paralelo.\n\nDos robots de 6 GDL realizan el montaje de motores y hélices, mientras un tercer manipulador con ventosa instala la PCB y la carcasa y ejecuta la transferencia del producto. El sistema se completa con un robot paletizador sobre plataforma omnidireccional con ruedas Mecanum.\n\nLa secuencia de operación es gestionada mediante PLC en CODESYS, con lógica desarrollada en Structured Text para coordinar manipuladores, actuadores y condiciones de parada. La celda incorpora sectorización de zonas de trabajo para reducir interferencias entre robots y tres niveles de seguridad definidos bajo criterios de ISO 10218-2, supervisados mediante visión artificial.",
+      "Automated cell for the assembly and palletizing of quadcopter drones, made up of four manipulators coordinated in parallel.\n\nTwo 6-DOF robots mount the motors and propellers, while a third manipulator with a suction cup installs the PCB and the shell and carries out the product transfer. The system is completed by a palletizing robot on an omnidirectional Mecanum-wheel platform.\n\nThe operating sequence is managed by a CODESYS PLC, with logic written in Structured Text to coordinate manipulators, actuators and stop conditions. The cell includes work-zone sectorization to reduce interference between robots and three safety levels defined under ISO 10218-2 criteria, monitored through computer vision."
     ),
-    tags: ["Unity", "C#", "CODESYS", "IEC 61131-3", "FluidSIM", "OPC", "MediaPipe", "ESP32-CAM"],
+    // Lenguajes, de los que detecta GitHub en el repositorio: C# (Unity), HLSL
+    // (shaders), Python (vision) y C++ (firmware). Fuera HTML, que es marcado
+    // (el informe), y ShaderLab, el envoltorio declarativo de Unity para los
+    // shaders. Structured Text no lo detecta GitHub porque el PLC no esta en
+    // el repositorio, pero es el lenguaje de la logica de la celda.
+    tags: ["Unity", "C#", "Structured Text", "Python", "C++", "HLSL", "CODESYS", "IEC 61131-3", "FluidSIM", "OPC", "MediaPipe", "ESP32-CAM"],
     // La coautora del proyecto.
     links: [
       { href: "https://www.linkedin.com/in/laura-vanesa-castro-sierra-b35148208/", label: t("Coautora · Laura Vanesa Castro Sierra", "Co-author · Laura Vanesa Castro Sierra") },
@@ -653,6 +659,26 @@ export const projects = [
     // no le cuesta al visitante una peticion a los servidores de Google.
     videoPoster: "/images/celda-video.webp",
     media: [],
+  },
+  {
+    category: "ai",
+    name: t("Sistema de seguridad por visión con ESP32-CAM", "ESP32-CAM Vision Safety System"),
+    year: "2026",
+    href: "https://github.com/jorgefajardom-coder/esp32cam-hand-detection-safety-system",
+    desc: t(
+      "Capa de seguridad que detecta manos en la zona de trabajo de un robot en tiempo real. Una ESP32-CAM transmite vídeo JPEG a 800 × 600 por WebSocket; un cliente en Python lo procesa con MediaPipe Hands —hasta dos manos a la vez— y, en cuanto ve una, marca la imagen con un aviso de STOP y lanza alertas por voz, correo y Telegram, con 15 segundos de espera entre ráfagas para no saturar a nadie. El firmware se reconecta solo si cae el Wi-Fi e indica su estado con el LED de la placa, y las credenciales viven fuera del código.",
+      "Safety layer that detects hands in a robot's work area in real time. An ESP32-CAM streams 800 × 600 JPEG video over WebSocket; a Python client runs it through MediaPipe Hands — up to two hands at once — and as soon as it sees one, it stamps a STOP warning on the frame and fires voice, email and Telegram alerts, with a 15-second cooldown between bursts so nobody gets flooded. The firmware reconnects on its own when Wi-Fi drops and signals its state with the board's LED, and credentials live outside the code."
+    ),
+    tags: ["ESP32-CAM", "Arduino", "Python", "MediaPipe", "OpenCV", "WebSocket", "Telegram API"],
+    links: [
+      { href: "https://www.linkedin.com/in/laura-vanesa-castro-sierra-b35148208/", label: t("Coautora · Laura Vanesa Castro Sierra", "Co-author · Laura Vanesa Castro Sierra") },
+    ],
+    // La foto va al lado del texto, no debajo (ver `mediaLado` en Projects.jsx).
+    mediaLado: true,
+    media: [{
+      src: "/images/esp32cam-seguridad.webp",
+      alt: t("Módulo ESP32-CAM AI Thinker con su cámara OV2640", "ESP32-CAM AI Thinker module with its OV2640 camera"),
+    }],
   },
   {
     category: "robotics",
@@ -716,18 +742,6 @@ export const projects = [
   },
   {
     category: "ai",
-    name: t("Sistema de visión con IA", "AI Vision System"),
-    year: "2025",
-    href: "",
-    desc: t(
-      "Visión artificial en tiempo real para detección, seguimiento y análisis de objetos mediante cámaras y modelos de IA. Integrado con robots y ajustado para baja latencia.",
-      "Real-time computer vision for object detection, tracking, and analysis via cameras and AI models. Integrated with robots, tuned for low latency."
-    ),
-    tags: ["Python", "OpenCV", "MediaPipe", "TensorFlow"],
-    media: [{ palette: ["#ffb52e", "#ff8a1f"] }, { palette: ["#c93812", "#0a0a0b"] }],
-  },
-  {
-    category: "ai",
     name: t("Automatización de flujos con IA", "AI Workflow Automation"),
     year: "2025",
     href: "",
@@ -737,18 +751,6 @@ export const projects = [
     ),
     tags: ["Python", "n8n", "Make", "HubSpot", "Airtable", "LLMs"],
     media: [{ palette: ["#ff6a00", "#ef4b23"] }, { palette: ["#ff8a1f", "#131316"] }],
-  },
-  {
-    category: "embedded",
-    name: t("Red de cámaras remotas ESP32", "ESP32 Remote Camera Network"),
-    year: "2024",
-    href: "",
-    desc: t(
-      "Infraestructura ESP32-CAM para monitorización remota y streaming de vídeo de baja latencia (MJPEG sobre WebSockets), con control remoto e integración de IA.",
-      "ESP32-CAM infrastructure for remote monitoring and low-latency video streaming (MJPEG over WebSockets), with remote control and AI integration."
-    ),
-    tags: ["ESP32", "Arduino", "Python", "OpenCV"],
-    media: [{ palette: ["#ff8a1f", "#131316"] }, { palette: ["#ff6a00", "#0a0a0b"] }],
   },
   {
     category: "embedded",

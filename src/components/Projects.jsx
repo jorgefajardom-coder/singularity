@@ -1,4 +1,4 @@
-import { Suspense, lazy, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { projects, projectCategories, sections, ui } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { GhostHeading, Placeholder, VideoEmbed } from "./ui";
@@ -55,6 +55,28 @@ export default function Projects() {
   const { tr } = useLang();
   const [filter, setFilter] = useState("all");
   const [open, setOpen] = useState(0);
+  const seccion = useRef(null);
+
+  /**
+   * Los modelos 3D se bajan en segundo plano cuando el visitante se ACERCA a
+   * la seccion, no cuando abre el proyecto: son megabytes, y esperar a que
+   * los pida era ver "Preparando la celda 3D" cada vez. Quien tiene activado
+   * el ahorro de datos o va por 2G no se lleva la descarga sin pedirla.
+   */
+  useEffect(() => {
+    const el = seccion.current;
+    const modelos = projects.map((p) => p.model).filter(Boolean);
+    if (!el || !modelos.length || typeof IntersectionObserver !== "function") return undefined;
+    const red = navigator.connection;
+    if (red && (red.saveData || /2g/.test(red.effectiveType || ""))) return undefined;
+    const obs = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return;
+      obs.disconnect();
+      import("../three/ModelViewer").then(({ preloadModel }) => modelos.forEach(preloadModel));
+    }, { rootMargin: "1500px 0px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   const visible = useMemo(
     () => (filter === "all" ? projects : projects.filter((p) => p.category === filter)),
@@ -67,7 +89,7 @@ export default function Projects() {
   };
 
   return (
-    <section id="projects" className="section">
+    <section id="projects" className="section" ref={seccion}>
       <div className="shell">
         <div className="projects__head">
           <GhostHeading className="display display--lg">
@@ -120,6 +142,8 @@ export default function Projects() {
             const name = tr(p.name);
             const clips = p.clips || [];
             const escena = Boolean(p.model && p.video);
+            // Una sola imagen que acompana al texto, en vez de ir debajo.
+            const lado = !escena && p.mediaLado && p.media.length > 0 ? p.media[0] : null;
             return (
               <article className="proj__row" key={p.name.en} data-open={isOpen ? "true" : "false"}>
                 <button
@@ -145,10 +169,14 @@ export default function Projects() {
 
                 <div className="proj__panel" id={`proj-panel-${i}`} role="region" aria-labelledby={`proj-btn-${i}`} aria-hidden={!isOpen}>
                   <div>
-                    {/* Con modelo y video, el marco va al lado del texto. */}
-                    <div className={escena ? "proj__cabeza proj__cabeza--escena" : "proj__cabeza"}>
+                    {/* Con modelo y video, o con una imagen que va al lado,
+                        la cabecera se parte en dos: texto y medio. */}
+                    <div className={escena || lado ? "proj__cabeza proj__cabeza--escena" : "proj__cabeza"}>
                     <div className="proj__body">
-                      <p className="proj__desc">{tr(p.desc)}</p>
+                      {/* Una linea en blanco en el texto separa parrafos. */}
+                      {tr(p.desc).split("\n\n").map((parrafo, k) => (
+                        <p key={k} className="proj__desc">{parrafo}</p>
+                      ))}
 
                       <div className="proj__tags">
                         {p.tags.map((tag) => (
@@ -179,6 +207,11 @@ export default function Projects() {
                         .glb pesa megabytes y no se le descarga a quien no lo
                         ha pedido. Al cerrar se desmonta y suelta la memoria. */}
                     {escena && isOpen ? <Escena p={p} name={name} /> : null}
+                    {lado ? (
+                      <figure className="proj__lado">
+                        <Placeholder src={lado.src} alt={lado.alt ? tr(lado.alt) : name} />
+                      </figure>
+                    ) : null}
                     </div>
 
                     {/* El modelo se monta SOLO con el proyecto desplegado: el
@@ -212,7 +245,7 @@ export default function Projects() {
                       </div>
                     ) : null}
 
-                    {p.media.length > 0 && <div className={`proj__media${p.media.length === 1 ? " proj__media--solo" : ""}`}>
+                    {p.media.length > 0 && !lado && <div className={`proj__media${p.media.length === 1 ? " proj__media--solo" : ""}`}>
                       {p.media.map((m, j) => (
                         <figure key={j} className={m.fit === "contain" ? "proj__figura--entera" : undefined}>
                           <Placeholder

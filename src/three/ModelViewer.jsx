@@ -1,8 +1,10 @@
-import { Component, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Component, Suspense, use, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { View, useGLTF, Environment, Lightformer, PerspectiveCamera } from "@react-three/drei";
+import { View, Environment, Lightformer, PerspectiveCamera } from "@react-three/drei";
 import { Box3, Vector3 } from "three";
-import { assemblyRoot, prepareAssembly, poseAssembly, disposeAssembly, presentationTime } from "../lib/modelAssembly";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import { assemblyRoot, planAssemblyIdle, prepareAssembly, poseAssembly, disposeAssembly, presentationTime } from "../lib/modelAssembly";
 import { useLang } from "../lib/i18n";
 import { asset } from "../lib/asset";
 import { prefersReducedMotion } from "../lib/anim";
@@ -61,12 +63,12 @@ function LucesTaller() {
  * muchas exportaciones de CAD traen todas las piezas en el origen con la
  * geometria horneada en los vertices, asi que mirar `position` no dice nada.
  */
-function Ensamblaje({ objeto, quieto, activo, montaje }) {
+function Ensamblaje({ objeto, plan, quieto, activo, montaje }) {
   const reloj = useRef(0);
   const terminado = useRef(false);
   const piezasRef = useRef([]);
   useLayoutEffect(() => {
-    const piezas = prepareAssembly(objeto);
+    const piezas = prepareAssembly(objeto, plan);
     piezasRef.current = piezas;
     reloj.current = 0;
     terminado.current = quieto;
@@ -75,7 +77,7 @@ function Ensamblaje({ objeto, quieto, activo, montaje }) {
     montaje.current.duration = Math.max(0, ...piezas.map(pieza => pieza.end));
     poseAssembly(piezas, presentationTime(piezas, 0).time, quieto);
     return () => { disposeAssembly(piezas); montaje.current.active = false; };
-  }, [objeto, quieto, montaje]);
+  }, [objeto, plan, quieto, montaje]);
   useFrame((_, dt) => {
     if (terminado.current || !activo) return;
     reloj.current += Math.min(dt, 0.05);
@@ -104,12 +106,51 @@ function Ensamblaje({ objeto, quieto, activo, montaje }) {
  * la figura gira: en diagonal ocupa mas que de frente, y midiendo solo el lado
  * se salia del encuadre a media vuelta.
  */
-// El .glb va comprimido con Draco, asi que hace falta el decodificador. drei
-// lo baja por defecto de un CDN de Google; aqui se sirve desde /draco, igual
-// que el entorno de luces se genera en casa en vez de bajar un HDRI: el sitio
-// no depende de terceros para pintarse (ver Props3D.jsx).
+/**
+ * CARGA Y PREPARACION, UNA VEZ POR MODELO.
+ *
+ * No se usa useGLTF: aqui no basta con bajar y decodificar el .glb. Lo que de
+ * verdad hacia esperar al abrir el proyecto era todo lo de despues —medir la
+ * celda y calcular la trayectoria de sus ~30.000 piezas—, y eso tambien tiene
+ * que estar hecho antes de que nadie lo pida. La promesa de cada URL guarda el
+ * modelo, su caja y el plan del despiece; `preloadModel` la lanza en segundo
+ * plano y el visor la consume con `use()`, asi que si ya esta resuelta el
+ * modelo aparece sin pasar por el armazon de carga.
+ *
+ * El .glb va comprimido con Draco. El decodificador se sirve desde /draco y
+ * no del CDN de Google: el sitio no depende de terceros para pintarse, igual
+ * que el entorno de luces se genera en casa (ver Props3D.jsx).
+ */
+const modelos = new Map();
+// URL ya descargadas y preparadas: el visor de una de ellas no espera a nada.
+const preparados = new Set();
+let draco = null;
+
+function cargar(url) {
+  if (modelos.has(url)) return modelos.get(url);
+  if (!draco) draco = new DRACOLoader().setDecoderPath(asset("/draco/"));
+  const promesa = new GLTFLoader().setDRACOLoader(draco).loadAsync(url).then(async ({ scene }) => {
+    // El suelo de 8 x 8 esta desplazado: incluirlo aleja la vista y hace que
+    // la maquinaria orbite alrededor de un punto ajeno a la celda.
+    scene.updateMatrixWorld(true);
+    const caja = new Box3().setFromObject(assemblyRoot(scene), true);
+    const plan = await planAssemblyIdle(scene);
+    const listo = { scene, plan, tam: caja.getSize(new Vector3()), centro: caja.getCenter(new Vector3()) };
+    // Marcada como cumplida a la manera de React: `use()` la lee al momento
+    // en vez de suspender un ciclo y enseñar el armazon de carga.
+    promesa.status = "fulfilled";
+    promesa.value = listo;
+    preparados.add(url);
+    return listo;
+  });
+  // Si falla, se olvida: la proxima vez que lo pidan se vuelve a intentar.
+  promesa.catch(() => modelos.delete(url));
+  modelos.set(url, promesa);
+  return promesa;
+}
+
 function Encajado({ url, repeticion, quieto, onReady, activo, montaje }) {
-  const { scene: original } = useGLTF(url, asset("/draco/"));
+  const { scene: original, plan, tam, centro } = use(cargar(url));
   // La animacion cambia posiciones. No mutar la escena cacheada: al volver
   // a abrir, sus piezas desplazadas tambien falsearian el encuadre inicial.
   const { scene, floorMaterials } = useMemo(() => {
@@ -134,14 +175,6 @@ function Encajado({ url, repeticion, quieto, onReady, activo, montaje }) {
   useEffect(() => () => floorMaterials.forEach(material => material.dispose()), [floorMaterials]);
 
   const viewSize = useThree((s) => s.size);
-
-  const { tam, centro } = useMemo(() => {
-    scene.updateMatrixWorld(true);
-    // El suelo de 8 x 8 esta desplazado: incluirlo aleja la vista y hace
-    // que la maquinaria orbite alrededor de un punto ajeno a la celda.
-    const caja = new Box3().setFromObject(assemblyRoot(scene), true);
-    return { tam: caja.getSize(new Vector3()), centro: caja.getCenter(new Vector3()) };
-  }, [scene]);
 
   useEffect(() => { onReady(); }, [scene, onReady]);
 
@@ -168,7 +201,7 @@ function Encajado({ url, repeticion, quieto, onReady, activo, montaje }) {
   return (
     <group ref={encuadre} scale={escala}>
       <primitive object={scene} position={[-centro.x, -centro.y, -centro.z]} />
-      <Ensamblaje objeto={scene} quieto={quieto} activo={activo} montaje={montaje} />
+      <Ensamblaje objeto={scene} plan={plan} quieto={quieto} activo={activo} montaje={montaje} />
     </group>
   );
 }
@@ -293,11 +326,11 @@ function Girado({ mando, quieto, activo, repeticion, children }) {
  * en Props3D: el dev server de Vite responde 200 con un index.html para rutas
  * que no existen, asi que mirar el `ok` no basta.
  */
-function useHayArchivo(url) {
-  const [estado, setEstado] = useState(url ? "mirando" : "no");
+function useHayArchivo(url, conocido) {
+  const [estado, setEstado] = useState(conocido ? "si" : url ? "mirando" : "no");
 
   useEffect(() => {
-    if (!url) return undefined;
+    if (!url || conocido) return undefined;
     setEstado("mirando");
     let vivo = true;
     fetch(url, { method: "HEAD" })
@@ -307,9 +340,18 @@ function useHayArchivo(url) {
       })
       .catch(() => vivo && setEstado("no"));
     return () => { vivo = false; };
-  }, [url]);
+  }, [url, conocido]);
 
-  return estado;
+  return conocido ? "si" : estado;
+}
+
+/**
+ * Baja, decodifica y deja preparado el despiece antes de que nadie abra el
+ * proyecto (ver `cargar`). Misma URL que `Encajado`: si difieren, la cache
+ * no coincide y se hace dos veces.
+ */
+export function preloadModel(model) {
+  cargar(asset(model)).catch(() => {});
 }
 
 export default function ModelViewer({ model, label, hint }) {
@@ -324,8 +366,14 @@ export default function ModelViewer({ model, label, hint }) {
   const caja = useRef(null);
   const mando = useRef({ agarrado: false, dx: 0, dy: 0, giro: 0, x: 0, y: 0 });
   const montaje = useRef({ active: true, elapsed: 0 });
+  const url = asset(model);
+  // Si el modelo ya se preparo en segundo plano (ver `preloadModel`), no hay
+  // que esperar a que el visor asome ni preguntar si el archivo existe: dentro
+  // del acordeon que se esta abriendo, el visor mide 0 px y el observador
+  // tardaba ~350 ms en darlo por visible.
+  const yaPreparado = preparados.has(url);
   // Descargar y decodificar mientras el visitante se acerca a la seccion.
-  const [asomado, setAsomado] = useState(false);
+  const [asomado, setAsomado] = useState(yaPreparado);
   const [enPantalla, setEnPantalla] = useState(false);
 
   useEffect(() => {
@@ -341,8 +389,7 @@ export default function ModelViewer({ model, label, hint }) {
     return () => { obs.disconnect(); visible.disconnect(); };
   }, []);
 
-  const url = asset(model);
-  const estado = useHayArchivo(asomado ? url : null);
+  const estado = useHayArchivo(asomado ? url : null, yaPreparado);
   const quieto = prefersReducedMotion();
 
   // Pixeles de arrastre a radianes. Con la caja mas ancha hace falta mover mas
@@ -411,7 +458,9 @@ export default function ModelViewer({ model, label, hint }) {
         </Girado>
       </View>
 
-      {!listo && (
+      {/* Precargado, el modelo tarda unos cientos de ms en montarse: avisar
+          de que se esta preparando solo seria un parpadeo. */}
+      {!listo && !yaPreparado && (
         <div className="modelo__carga" role="status">
           <span>{fallo || (asomado && estado === "no")
             ? tr({ es: "No se pudo cargar el modelo", en: "Unable to load model" })

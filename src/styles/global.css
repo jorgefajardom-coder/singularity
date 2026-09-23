@@ -2766,155 +2766,174 @@ body.is-anchored .about__float {
 }
 
 /* ============================================================
-   Stack: carriles de tarjetas grandes
+   Stack: pared de posteres (ver Stack.jsx)
    ============================================================ */
-.rails {
-  display: grid;
-  gap: clamp(12px, 1.4vw, 20px);
-  margin-top: clamp(40px, 5vw, 72px);
-}
-
-.rail {
-  overflow: hidden;
-  /* Se difuminan los bordes para que las tarjetas entren y salgan
-     en vez de cortarse en seco */
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
-}
-
-.rail__track {
+.stack__head {
   display: flex;
-  width: max-content;
-  gap: clamp(12px, 1.4vw, 20px);
-  padding-right: clamp(12px, 1.4vw, 20px);
-  animation: rail 46s linear infinite;
-  will-change: transform;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
 }
 
-.rail[data-dir='right'] .rail__track {
-  animation-direction: reverse;
+.stack__nav {
+  display: flex;
+  gap: 8px;
+  padding-bottom: clamp(6px, 1vw, 14px);
 }
 
-/* Al pasar el raton se detiene, si no es imposible leer los chips */
-.rail:hover .rail__track,
-.rail:focus-within .rail__track {
-  animation-play-state: paused;
+.stack__flecha {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background 0.3s var(--ease), color 0.3s var(--ease), opacity 0.3s var(--ease);
 }
 
-@keyframes rail {
-  to {
-    transform: translateX(-50%);
-  }
+.stack__flecha:hover:not(:disabled) { background: var(--text); color: var(--ink); }
+.stack__flecha:disabled { opacity: 0.3; cursor: default; }
+.stack__flecha:focus-visible { outline: 2px solid var(--accent-a); outline-offset: 3px; }
+
+/* La fila. Empieza alineada con el titulo (el mismo margen que el `shell`)
+   y llega hasta el borde de la pantalla, para que se vea que sigue. El
+   relleno vertical deja sitio a la inclinacion y al levantarse al pasar. */
+.posters {
+  --arranque: max(var(--gutter), calc((100vw - var(--maxw)) / 2 + var(--gutter)));
+  display: flex;
+  gap: clamp(14px, 1.6vw, 24px);
+  margin-top: clamp(20px, 3vw, 40px);
+  padding: 18px var(--arranque) 26px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--arranque);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 154, 60, 0.45) transparent;
+  cursor: grab;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 2.5%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 2.5%, #000 94%, transparent);
 }
 
-.railcard {
+.posters.is-arrastrando { cursor: grabbing; scroll-snap-type: none; user-select: none; }
+.posters:focus-visible { outline: 2px solid var(--accent-a); outline-offset: -2px; }
+
+/* El poster: del alto que quepa bajo el titulo en una pantalla baja, y en
+   proporcion de cartel (3:4 aprox.). */
+.poster {
+  /* Cabe entero junto al titulo STACK: en 1536x639 son ~360 px. */
+  --alto: clamp(340px, calc(100svh - 280px), 480px);
   position: relative;
   flex: none;
-  width: clamp(268px, 27vw, 380px);
-  min-height: clamp(210px, 20vw, 268px);
-  border-radius: clamp(14px, 1.4vw, 20px);
-  overflow: hidden;
-  border: 1px solid var(--line);
-  background: var(--ink-2);
-  transition: transform 0.6s var(--ease), border-color 0.6s var(--ease);
-}
-
-.railcard:hover {
-  transform: translateY(-6px);
-  border-color: rgba(255, 240, 228, 0.3);
-}
-
-.railcard__art {
-  position: absolute;
-  inset: 0;
-  filter: saturate(1.15);
-  transform: scale(1.02);
-  transition: transform 0.9s var(--ease);
-}
-
-.railcard:hover .railcard__art {
-  transform: scale(1.08);
-}
-
-.railcard__body {
-  position: relative;
-  z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  height: 100%;
-  padding: clamp(16px, 1.6vw, 22px);
-  /* Velo oscuro: sin el, los chips no se leen sobre el degradado */
-  background: linear-gradient(180deg, rgba(10, 10, 11, 0.32), rgba(10, 10, 11, 0.86));
+  width: calc(var(--alto) * 0.72);
+  height: var(--alto);
+  padding: clamp(18px, 1.6vw, 24px);
+  border: 1px solid var(--line);
+  border-radius: clamp(14px, 1.2vw, 18px);
+  background:
+    radial-gradient(90% 60% at 80% 0%, rgba(255, 106, 18, 0.16), transparent 70%),
+    linear-gradient(180deg, var(--ink-2), var(--ink));
+  scroll-snap-align: start;
+  transform: rotate(-1deg);
+  transition: transform 0.5s var(--ease), border-color 0.5s var(--ease), box-shadow 0.5s var(--ease);
 }
 
-.railcard__num {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  color: rgba(255, 240, 228, 0.55);
+.poster:nth-child(even) { transform: rotate(0.9deg); }
+.poster:nth-child(3n) { transform: rotate(-0.4deg); }
+
+.poster:hover {
+  transform: rotate(0) translateY(-8px);
+  border-color: rgba(255, 154, 60, 0.45);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 106, 18, 0.12), 0 0 40px rgba(255, 106, 18, 0.12);
 }
 
-.railcard__title {
-  margin: 0;
-  font-size: clamp(14px, 1.3vw, 17px);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  line-height: 1.2;
-  text-transform: uppercase;
-  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
-}
-
-.railcard__chips {
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
+.poster__cabeza {
+  display: grid;
   gap: 6px;
-  margin: auto 0 0;
-  padding: 0;
+}
+
+.poster__num {
+  font-size: clamp(38px, 4vw, 54px);
+  font-weight: 800;
+  font-stretch: 112%;
+  line-height: 0.9;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 1.2px rgba(255, 154, 60, 0.8);
+}
+
+.poster__titulo {
+  margin: 0;
+  font-size: clamp(16px, 1.3vw, 19px);
+  /* "Electrónica, embebidos y redes" no cabe en el ancho del poster sin
+     partir palabras: mejor con guion que cortado. */
+  hyphens: auto;
+  overflow-wrap: break-word;
+  font-weight: 800;
+  font-stretch: 108%;
+  line-height: 1.05;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  color: var(--text);
+}
+
+.poster__motivo {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  margin: clamp(10px, 1.4vw, 18px) 0;
+  color: rgba(253, 236, 224, 0.5);
+  transition: color 0.5s var(--ease);
+}
+
+.poster:hover .poster__motivo { color: rgba(253, 236, 224, 0.75); }
+
+.poster__lista {
+  display: grid;
+  gap: 5px 14px;
+  margin: 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--line);
   list-style: none;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 6px 11px;
-  border: 1px solid rgba(255, 240, 228, 0.16);
-  border-radius: 999px;
-  background: rgba(10, 10, 11, 0.55);
-  backdrop-filter: blur(6px);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  color: rgba(255, 240, 228, 0.9);
-  white-space: nowrap;
-  transition: border-color 0.35s var(--ease), transform 0.35s var(--ease);
+  letter-spacing: 0.02em;
+  color: rgba(253, 247, 242, 0.88);
 }
 
-.chip:hover {
-  transform: translateY(-2px);
-  border-color: rgba(255, 240, 228, 0.45);
+.poster__lista--dos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* Nunca se corta un nombre: si no cabe en su columna, baja de linea. */
+.poster__lista li {
+  position: relative;
+  padding-left: 12px;
+  line-height: 1.3;
 }
 
-.chip i {
-  width: 6px;
-  height: 6px;
-  flex: none;
+.poster__lista li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.45em;
+  width: 5px;
+  height: 5px;
   border-radius: 999px;
-  box-shadow: 0 0 9px currentColor;
+  background: var(--accent-b);
+}
+
+@media (max-width: 720px) {
+  .stack__nav { display: none; }
+  /* ~78 % del ancho: asoma el siguiente y se entiende que la fila sigue. */
+  .poster { --alto: min(108vw, 64svh); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rail__track {
-    animation: none;
-    flex-wrap: wrap;
-    width: 100%;
-  }
-
-  .rail {
-    -webkit-mask-image: none;
-    mask-image: none;
-  }
+  .poster, .poster:nth-child(even), .poster:nth-child(3n) { transform: none; transition: none; }
+  .poster:hover { transform: none; }
 }
 
 /* ============================================================

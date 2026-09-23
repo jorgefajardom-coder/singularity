@@ -135,6 +135,8 @@ export const ui = {
   ),
 
   // Filtro de proyectos
+  stackPrev: t("Pósters anteriores", "Previous posters"),
+  stackNext: t("Pósters siguientes", "Next posters"),
   categories: t("Categorías", "Categories"),
   allProjects: t("Todos", "All"),
 

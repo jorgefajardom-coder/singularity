@@ -1957,6 +1957,56 @@ body.is-anchored .about__float {
   .proj__cabeza--escena { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* Visor de producto (ver ProductViewer.jsx): el modelo flota sobre la
+   pagina, sin recuadro ni fondo. El div solo recoge el arrastre. */
+.producto {
+  position: relative;
+  min-width: 0;
+  touch-action: pan-y;
+  cursor: grab;
+}
+
+.producto:active { cursor: grabbing; }
+
+/* Apaisado y bajo: a 4/3 el visor medía 480 px y dejaba ~250 px vacios
+   bajo el texto de al lado. El modelo se encaja a la forma del hueco. */
+.producto__hueco {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 290px;
+}
+
+.producto__pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.producto__boton {
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  transition: background 0.3s var(--ease), color 0.3s var(--ease);
+}
+
+.producto__boton:hover:not(:disabled),
+.producto__boton[aria-pressed="true"] { background: var(--text); color: var(--ink); }
+.producto__boton:disabled { opacity: 0.4; cursor: default; }
+.producto__boton:focus-visible { outline: 2px solid var(--accent-a); outline-offset: 3px; }
+
 /* El marco con pestanas (ver Escena en Projects.jsx). */
 .escena {
   min-width: 0;

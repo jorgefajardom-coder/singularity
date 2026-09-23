@@ -7,6 +7,7 @@ import { asset } from "../lib/asset";
 // El visor arrastra consigo el stack 3D. Se carga aparte para que no entre en
 // el bundle principal de quien nunca abre un proyecto con modelo.
 const ModelViewer = lazy(() => import("../three/ModelViewer"));
+const ProductViewer = lazy(() => import("../three/ProductViewer"));
 
 /**
  * Un proyecto con modelo Y video los junta en un solo marco con pestanas
@@ -66,6 +67,7 @@ export default function Projects() {
   useEffect(() => {
     const el = seccion.current;
     const modelos = projects.map((p) => p.model).filter(Boolean);
+    const productos = projects.map((p) => p.producto3d?.model).filter(Boolean);
     if (!el || !modelos.length || typeof IntersectionObserver !== "function") return undefined;
     const red = navigator.connection;
     if (red && (red.saveData || /2g/.test(red.effectiveType || ""))) return undefined;
@@ -73,6 +75,7 @@ export default function Projects() {
       if (!e.isIntersecting) return;
       obs.disconnect();
       import("../three/ModelViewer").then(({ preloadModel }) => modelos.forEach(preloadModel));
+      import("../three/ProductViewer").then(({ preloadProducto }) => productos.forEach(preloadProducto));
     }, { rootMargin: "1500px 0px" });
     obs.observe(el);
     return () => obs.disconnect();
@@ -144,6 +147,8 @@ export default function Projects() {
             const escena = Boolean(p.model && p.video);
             // Una sola imagen que acompana al texto, en vez de ir debajo.
             const lado = !escena && p.mediaLado && p.media.length > 0 ? p.media[0] : null;
+            // Un producto en 3D (el dron, su empaque) va al lado del texto.
+            const producto = !escena && !lado ? p.producto3d : null;
             return (
               <article className="proj__row" key={p.name.en} data-open={isOpen ? "true" : "false"}>
                 <button
@@ -171,7 +176,7 @@ export default function Projects() {
                   <div>
                     {/* Con modelo y video, o con una imagen que va al lado,
                         la cabecera se parte en dos: texto y medio. */}
-                    <div className={escena || lado ? "proj__cabeza proj__cabeza--escena" : "proj__cabeza"}>
+                    <div className={escena || lado || producto ? "proj__cabeza proj__cabeza--escena" : "proj__cabeza"}>
                     <div className="proj__body">
                       {/* Una linea en blanco en el texto separa parrafos. */}
                       {tr(p.desc).split("\n\n").map((parrafo, k) => (
@@ -207,6 +212,12 @@ export default function Projects() {
                         .glb pesa megabytes y no se le descarga a quien no lo
                         ha pedido. Al cerrar se desmonta y suelta la memoria. */}
                     {escena && isOpen ? <Escena p={p} name={name} /> : null}
+                    {producto && isOpen ? (
+                      <Suspense fallback={null}>
+                        <ProductViewer model={producto.model} despiece={producto.despiece} colores={producto.colores} giro={producto.giro} vaiven={producto.vaiven}
+                          label={`${name} · ${tr(ui.model3d)} · ${tr(ui.dragToRotate)}`} />
+                      </Suspense>
+                    ) : null}
                     {lado ? (
                       <figure className="proj__lado">
                         <Placeholder src={lado.src} alt={lado.alt ? tr(lado.alt) : name} />

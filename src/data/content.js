@@ -142,6 +142,7 @@ export const ui = {
 
   // Visor 3D de un proyecto
   model3d: t("Modelo 3D", "3D model"),
+  dragToRotate: t("Arrastra para girar", "Drag to rotate"),
   modelDrag: t("Arrastra para girar", "Drag to rotate"),
   playVideo: t("Ver la simulación", "Watch the simulation"),
   tabModel: t("Montaje 3D", "3D assembly"),
@@ -598,20 +599,31 @@ export const projects = [
       "Small-format quadcopter designed from scratch, with an X geometry that spreads the load of the four motors evenly. Ten parts organized into subsystems — propulsion, structure, electronics and support — that snap together with no screws or extra fasteners. The PCB drives the motors directly over PWM, with no external speed controllers, and is modeled component by component. ABS shell, FR-4 board and LiPo battery."
     ),
     tags: ["Fusion 360", "Inventor", "CAD", t("Diseño para ensamblaje", "Design for Assembly"), "PCB"],
-    // Los planos viven en el Drive del proyecto; cada pieza es su PDF.
-    links: [
-      { href: "https://drive.google.com/file/d/1EltxCHivTzSWGPLcv4SQB_HtRVR36VPm/view", label: t("Plano de la PCB", "PCB drawing") },
-      { href: "https://drive.google.com/file/d/1I_7pa9GrhQLrT7MeBej3YFSA0SMtyjue/view", label: t("Plano de la carcasa", "Shell drawing") },
-      { href: "https://drive.google.com/file/d/1xIW4Nni1rmdh1LIiR_ETocOjDJ9jX--8/view", label: t("Plano de la base", "Base drawing") },
-    ],
-    media: [{
-      src: "/images/dron-explosionado.webp",
-      fit: "contain",
-      alt: t(
-        "Vista explosionada del dron: hélices, motores, brazos del chasis, carcasa superior, PCB, carcasa inferior, uniones a presión y tren de aterrizaje",
-        "Exploded view of the drone: propellers, motors, frame arms, top shell, PCB, bottom shell, snap-fit joints and landing gear"
-      ),
-    }],
+    // El dron de Fusion, reducido para la web (tools/exportar-dron.py). Flota
+    // al lado del texto, sin recuadro, y se despieza (ver ProductViewer.jsx).
+    producto3d: {
+      model: "/models/dron.glb",
+      despiece: [
+        // Orden de salida: primero las helices y despues la tapa; al montar
+        // se invierte (vuelve la tapa y luego las helices).
+        // Las cuatro helices a la vez, en un solo turno.
+        { prefijo: "helice", y: 0.52, radial: 0.1, juntas: true },
+        { prefijo: "carcasa_superior", y: 0.34 },
+        { prefijo: "motor", y: 0.24, radial: 0.12 },
+        { prefijo: "pcb", y: 0.14 },
+        // Los 89 componentes soldados suben con la placa y despues se
+        // separan de ella: los de arriba hacia arriba y los de abajo hacia abajo.
+        { prefijo: "pcbc", y: 0.07, sigue: "pcb", juntas: true, lados: true },
+        { prefijo: "carcasa_inferior", y: -0.16 },
+      ],
+      // Fusion exporta sin metal. La placa (la parte sin material) en verde
+      // metalizado y el cuerpo de los motores en dorado metalizado.
+      colores: [
+        { prefijo: "pcb", materiales: [""], color: "#1f7a3d", metal: 0.7, rugosidad: 0.35 },
+        { prefijo: "motor", materiales: ["Steel - Satin", "Aluminum - Anodized Glossy (Blue)"], color: "#d4a53c", metal: 1, rugosidad: 0.3 },
+      ],
+    },
+    media: [],
   },
   {
     category: "design",

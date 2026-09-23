@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { gsap, prefersReducedMotion } from "../lib/anim";
 import { asset } from "../lib/asset";
 
@@ -98,5 +98,64 @@ export function RollText({ children, className = "" }) {
         ))}
       </span>
     </span>
+  );
+}
+
+/**
+ * Vídeo de YouTube que se ve y se reproduce SIN salir de la página, y que no
+ * pide nada a Google hasta que le dan al play.
+ *
+ * Un <iframe> de YouTube puesto en el HTML baja del orden de un megabyte de
+ * scripts y planta sus cookies en cuanto se pinta la página, aunque nadie lo
+ * reproduzca. Aquí lo que hay de entrada es la miniatura —descargada UNA vez y
+ * servida desde /images, no desde i.ytimg.com— con su botón de play encima; el
+ * iframe se monta al pulsarlo, ya con autoplay y contra `youtube-nocookie.com`.
+ *
+ * Mismo criterio que el resto del sitio: nada de fuera se descarga hasta que
+ * hace falta (ver el entorno de luces en Props3D.jsx).
+ */
+export function VideoEmbed({ id, src, poster, title, label, note }) {
+  const [puesto, setPuesto] = useState(false);
+
+  if (src) return (
+    <div className="video">
+      <video className="video__marco" controls playsInline preload="metadata"
+        poster={poster ? asset(poster) : undefined}
+        aria-label={title} src={asset(src) + '#t=0.1'}>
+        <a href={asset(src)}>{title}</a>
+      </video>
+    </div>
+  );
+  if (!id) return null;
+
+  return (
+    <div className="video">
+      {puesto ? (
+        <iframe
+          className="video__marco"
+          src={`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`}
+          title={title}
+          loading="lazy"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      ) : (
+        <button
+          type="button"
+          className="video__play"
+          onClick={() => setPuesto(true)}
+          aria-label={`${label} — ${title}`}
+        >
+          {poster ? (
+            <img className="video__poster" src={asset(poster)} alt="" width="960" height="540" loading="lazy" />
+          ) : null}
+          <span className="video__glifo" aria-hidden="true" />
+          <span className="video__texto">
+            <span className="video__label">{label}</span>
+            <span className="video__nota">{note}</span>
+          </span>
+        </button>
+      )}
+    </div>
   );
 }

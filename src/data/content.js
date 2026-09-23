@@ -119,6 +119,9 @@ export const ui = {
   workTogether: t("Trabajemos juntos", "Let's work together"),
   scroll: t("Scroll", "Scroll"),
   viewProject: t("Ver proyecto", "View project"),
+  // Cuando el proyecto enlaza a su repositorio, el boton lo dice: no es lo
+  // mismo prometer "el proyecto" que llevar al codigo.
+  viewRepo: t("Ver el repositorio", "View the repository"),
   send: t("Enviar", "Send"),
   formName: t("Nombre", "Name"),
   formEmail: t("Email", "Email"),
@@ -134,6 +137,15 @@ export const ui = {
   // Filtro de proyectos
   categories: t("Categorías", "Categories"),
   allProjects: t("Todos", "All"),
+
+  // Visor 3D de un proyecto
+  model3d: t("Modelo 3D", "3D model"),
+  modelDrag: t("Arrastra para girar", "Drag to rotate"),
+  playVideo: t("Ver la simulación", "Watch the simulation"),
+  tabModel: t("Montaje 3D", "3D assembly"),
+  tabVideo: t("Simulación", "Simulation"),
+  tabsLabel: t("Qué ver", "What to show"),
+  videoNote: t("Vídeo en YouTube", "Video on YouTube"),
 
   // Reproductor de música
   player: {
@@ -445,7 +457,7 @@ export const services = [
       "Modelado hard-surface y orgánico en Blender, listo para render o para motor en tiempo real. Iluminación de estudio, materiales físicamente correctos y variantes de color para catálogo o campaña.",
       "Hard-surface and organic modeling in Blender, ready for render or for a real-time engine. Studio lighting, physically correct materials, and color variants for catalog or campaign."
     ),
-    tags: ["Blender", "Look dev", "HDRI", "Retopo"],
+    tags: ["Blender", "Look dev", "HDRI", t("Retopología", "Retopology")],
   },
   {
     id: "animacion-3d",
@@ -490,7 +502,7 @@ export const services = [
       "Estructura, troquel y acabado del empaque, más el render que lo vende antes de existir físicamente. CAD y 3D trabajando sobre la misma pieza.",
       "Structure, die-cut, and finish of the package, plus the render that sells it before it physically exists. CAD and 3D working on the same piece."
     ),
-    tags: ["Fusion 360", "Inventor", "Blender", "Dieline"],
+    tags: ["Fusion 360", "Inventor", "Blender", t("Troquel", "Dieline")],
   },
   {
     id: "marca",
@@ -499,7 +511,7 @@ export const services = [
       "Identidad visual desde cero: naming, logotipo, sistema de color y tipografía, y el manual para que la marca se sostenga cuando la use otro.",
       "Visual identity from scratch: naming, logo, color and type system, and the guidelines that keep the brand consistent once someone else uses it."
     ),
-    tags: ["Identidad", "Naming", "Art direction", "Brand book"],
+    tags: [t("Identidad", "Identity"), "Naming", t("Dirección de arte", "Art direction"), t("Manual de marca", "Brand book")],
   },
   {
     id: "marketing",
@@ -508,7 +520,7 @@ export const services = [
       "Las piezas que ponen la marca a trabajar: campañas, vídeo y contenido para redes, edición y montaje incluidos.",
       "The pieces that put the brand to work: campaigns, video, and social content, editing and assembly included."
     ),
-    tags: ["CapCut", "Filmora", "Campañas", "Social"],
+    tags: ["CapCut", "Filmora", t("Campañas", "Campaigns"), t("Redes sociales", "Social media")],
   },
   {
     id: "locucion",
@@ -517,7 +529,7 @@ export const services = [
       "Locución para radio, podcast y voz en off. Guion, grabación y montaje: la voz que le pone cara a la marca.",
       "Voice work for radio, podcast, and voice-over. Script, recording, and edit: the voice that gives the brand a face."
     ),
-    tags: ["Locución", "Radio", "Podcast", "Voz en off"],
+    tags: [t("Locución", "Voice acting"), "Radio", "Podcast", t("Voz en off", "Voice-over")],
   },
   {
     id: "industrial",
@@ -535,7 +547,7 @@ export const services = [
       "Arquitecturas modulares de 6 GDL, cinemática, planificación de trayectorias y coordinación entre varios robots que comparten tarea y espacio de trabajo.",
       "Modular 6-DOF architectures, kinematics, trajectory planning, and coordination between multiple robots sharing a task and a workspace."
     ),
-    tags: ["Python", "C++", "MATLAB", "Kinematics"],
+    tags: ["Python", "C++", "MATLAB", t("Cinemática", "Kinematics")],
   },
   {
     id: "ia",
@@ -562,11 +574,12 @@ export const services = [
       "Traducir necesidad de negocio en especificación técnica, priorizar el roadmap y coordinar hardware, software y manufactura hasta la entrega.",
       "Turning business need into technical spec, prioritizing the roadmap, and coordinating hardware, software, and manufacturing through to delivery."
     ),
-    tags: ["Agile", "Scrum", "Jira", "Roadmapping"],
+    tags: ["Agile", "Scrum", "Jira", t("Hojas de ruta", "Roadmapping")],
   },
 ];
 
 export const projectCategories = [
+  { id: "design", label: t("Diseño de producto y packaging", "Product Design & Packaging") },
   { id: "robotics", label: t("Robótica y manufactura", "Robotics & Manufacturing") },
   { id: "ai", label: t("IA y automatización", "AI & Automation") },
   { id: "embedded", label: t("Embebidos e IoT", "Embedded & IoT") },
@@ -575,44 +588,99 @@ export const projectCategories = [
 
 export const projects = [
   {
-    category: "robotics",
-    name: "Autonomous Drone Manufacturing Cell",
+    category: "design",
+    name: t("Dron cuadricóptero modular", "Modular Quadcopter Drone"),
     year: "2025",
-    href: "",
     desc: t(
-      "Celda de manufactura flexible para ensamblaje, inspección, empaquetado y transporte de drones con varios brazos robóticos colaborativos. Arquitectura modular de 6 GDL, control CODESYS (IEC 61131-3), simulación completa en Unity, visión artificial, planificación de trayectorias y coordinación multi-robot para Industria 4.0.",
-      "Flexible manufacturing cell for drone assembly, inspection, packaging, and transport using multiple collaborative robotic arms. Modular 6-DOF architecture, CODESYS (IEC 61131-3) control, full Unity simulation, computer vision, trajectory planning, and multi-robot coordination for Industry 4.0."
+      "Cuadricóptero de pequeño formato diseñado desde cero, con geometría en X para repartir por igual las cargas de los cuatro motores. Diez piezas organizadas en subsistemas —propulsión, estructura, electrónica y soporte— que encajan a presión, sin tornillos ni fijaciones adicionales. La PCB gobierna los motores directamente por PWM, sin variadores externos, y está modelada componente a componente. Carcasa en ABS, placa en FR-4 y batería LiPo.",
+      "Small-format quadcopter designed from scratch, with an X geometry that spreads the load of the four motors evenly. Ten parts organized into subsystems — propulsion, structure, electronics and support — that snap together with no screws or extra fasteners. The PCB drives the motors directly over PWM, with no external speed controllers, and is modeled component by component. ABS shell, FR-4 board and LiPo battery."
     ),
-    tags: ["Unity", "C#", "CODESYS", "Python", "PLC"],
-    media: [{ palette: ["#ff8a1f", "#ff8a1f"] }, { palette: ["#ef4b23", "#0a0a0b"] }],
+    tags: ["Fusion 360", "Inventor", "CAD", t("Diseño para ensamblaje", "Design for Assembly"), "PCB"],
+    // Los planos viven en el Drive del proyecto; cada pieza es su PDF.
+    links: [
+      { href: "https://drive.google.com/file/d/1EltxCHivTzSWGPLcv4SQB_HtRVR36VPm/view", label: t("Plano de la PCB", "PCB drawing") },
+      { href: "https://drive.google.com/file/d/1I_7pa9GrhQLrT7MeBej3YFSA0SMtyjue/view", label: t("Plano de la carcasa", "Shell drawing") },
+      { href: "https://drive.google.com/file/d/1xIW4Nni1rmdh1LIiR_ETocOjDJ9jX--8/view", label: t("Plano de la base", "Base drawing") },
+    ],
+    media: [{
+      src: "/images/dron-explosionado.webp",
+      fit: "contain",
+      alt: t(
+        "Vista explosionada del dron: hélices, motores, brazos del chasis, carcasa superior, PCB, carcasa inferior, uniones a presión y tren de aterrizaje",
+        "Exploded view of the drone: propellers, motors, frame arms, top shell, PCB, bottom shell, snap-fit joints and landing gear"
+      ),
+    }],
+  },
+  {
+    category: "design",
+    name: t("Sistema de empaque protector para drones", "Protective Drone Packaging System"),
+    href: "https://uniagustiniana17.autodesk360.com/g/shares/SH90d2dQT28d5b6028117e820082acb8bb2b",
+    hrefLabel: t("Explorar modelo 3D en Autodesk", "Explore 3D model in Autodesk"),
+    desc: t(
+      "Empaque completo para el dron, presentado con dos animaciones de producto. La caja se pliega del desarrollo plano al volumen final y aloja el dron y sus accesorios en un inserto de espuma; el estuche de hélices organiza las cuatro en alojamientos individuales. El modelo compartido en Autodesk permite explorar la disposición interior.",
+      "Complete packaging for the drone, presented through two product animations. The box folds from its flat layout into the final volume and holds the drone and its accessories in a foam insert; the propeller case arranges all four in individual compartments. The shared Autodesk model lets visitors explore the interior layout."
+    ),
+    tags: [t("Empaque", "Packaging"), "Autodesk Fusion", "3D", t("Animación de producto", "Product Animation")],
+    // Dos videos propios, servidos desde /videos. Van lado a lado en
+    // escritorio y uno encima del otro en movil.
+    clips: [
+      { src: "/videos/drone-box-animation.mp4", title: t("Caja plegable con inserto de espuma", "Folding box with foam insert") },
+      { src: "/videos/packaging-box.mp4", title: t("Estuche de hélices", "Propeller case") },
+    ],
+    media: [],
   },
   {
     category: "robotics",
-    name: "Digital Twin Manufacturing System",
+    name: t("Celda autónoma de manufactura de drones", "Autonomous Drone Manufacturing Cell"),
+    year: "2025",
+    href: "https://github.com/jorgefajardom-coder/drone-packaging-simulation-unity",
+    desc: t(
+      "Celda robótica que ensambla y paletiza drones cuadricópteros, validada entera en simulación antes de invertir en hardware. Cuatro manipuladores trabajan en paralelo en un espacio de 3,5 × 3,5 m: Alpha y Beta, de 6 GDL con pinza, montan motores y hélices por pares diagonales; Omega, con ventosa, coloca la PCB y la carcasa y traslada el dron terminado; y un paletizador sobre plataforma omnidireccional con ruedas Mecanum lo deja en su caja, alternando entre dos carros de cuatro posiciones. La lógica corre en un PLC virtual de CODESYS —una secuencia de doce etapas en texto estructurado— que se comunica con Unity por TCP y con el circuito neumático de FluidSIM por OPC: una parada o una emergencia del PLC congela la celda al instante. Los brazos fijos se reparten cuadrantes de 90° para no cruzarse sin necesidad de detectar colisiones, y la celda define tres zonas de seguridad según ISO 10218-2, vigiladas con visión MediaPipe sobre una ESP32-CAM.",
+      "Robotic cell that assembles and palletizes quadcopter drones, validated entirely in simulation before investing in hardware. Four manipulators work in parallel in a 3.5 × 3.5 m space: Alpha and Beta, 6-DOF arms with grippers, fit motors and propellers in diagonal pairs; Omega, with a suction cup, places the PCB and shell and carries the finished drone; and a palletizer on an omnidirectional Mecanum-wheel platform drops it into its box, alternating between two four-slot carts. The logic runs on a CODESYS virtual PLC — a twelve-stage sequence in Structured Text — that talks to Unity over TCP and to the FluidSIM pneumatic circuit over OPC: a stop or emergency from the PLC freezes the cell instantly. The fixed arms split the space into 90° quadrants so they never cross paths without collision detection, and the cell defines three safety zones per ISO 10218-2, monitored with MediaPipe vision on an ESP32-CAM."
+    ),
+    tags: ["Unity", "C#", "CODESYS", "IEC 61131-3", "FluidSIM", "OPC", "MediaPipe", "ESP32-CAM"],
+    // La coautora del proyecto.
+    links: [
+      { href: "https://www.linkedin.com/in/laura-vanesa-castro-sierra-b35148208/", label: t("Coautora · Laura Vanesa Castro Sierra", "Co-author · Laura Vanesa Castro Sierra") },
+    ],
+    // La celda de verdad, la que se simulo en Unity. Se abre al desplegar el
+    // proyecto y no antes: son megabytes. Ver ModelViewer.jsx.
+    model: "/models/celda-pieces.glb?v=individual-3",
+    // La simulacion en marcha, del repositorio del proyecto. Solo el ID: el
+    // iframe no se monta hasta que lo piden (ver VideoEmbed en ui.jsx).
+    video: "MrMugpJ7UEQ",
+    // La miniatura, bajada una vez y servida desde aqui: asi la vista previa
+    // no le cuesta al visitante una peticion a los servidores de Google.
+    videoPoster: "/images/celda-video.webp",
+    media: [],
+  },
+  {
+    category: "robotics",
+    name: t("Gemelo digital de manufactura", "Digital Twin Manufacturing System"),
     year: "2025",
     href: "",
     desc: t(
       "Gemelo digital de una línea de producción que sincroniza el entorno virtual con los robots físicos para pruebas, monitorización y validación antes del despliegue. Comunicación en tiempo real, visualización 3D, detección de colisiones y optimización de proceso.",
       "Digital twin of a production line that syncs the virtual environment with physical robots for testing, monitoring, and validation before deployment. Real-time communication, 3D visualization, collision detection, and process optimization."
     ),
-    tags: ["Unity", "Python", "C#", "Industrial Robotics"],
+    tags: ["Unity", "Python", "C#", t("Robótica industrial", "Industrial Robotics")],
     media: [{ palette: ["#ffb52e", "#ff8a1f"] }, { palette: ["#ff8a1f", "#131316"] }],
   },
   {
     category: "robotics",
-    name: "Multi-Robot Collaborative Platform",
+    name: t("Plataforma colaborativa multirrobot", "Multi-Robot Collaborative Platform"),
     year: "2024",
     href: "",
     desc: t(
       "Sistema distribuido donde varios robots se coordinan para transportar, ensamblar y manipular objetos. Comunicación distribuida y planificación de tareas, escalable a múltiples agentes.",
       "Distributed system where multiple robots coordinate to transport, assemble, and manipulate objects. Distributed communication and task planning, scalable to multiple agents."
     ),
-    tags: ["Python", "C++", "Unity", "Robotics"],
+    tags: ["Python", "C++", "Unity", t("Robótica", "Robotics")],
     media: [{ palette: ["#ff6a00", "#ffcf70"] }, { palette: ["#ff8a1f", "#ef4b23"] }],
   },
   {
     category: "robotics",
-    name: "Mobile Robot Navigation Platform",
+    name: t("Plataforma de navegación para robot móvil", "Mobile Robot Navigation Platform"),
     year: "2024",
     href: "",
     desc: t(
@@ -624,19 +692,19 @@ export const projects = [
   },
   {
     category: "robotics",
-    name: "Robotics Control Framework",
+    name: t("Framework de control robótico", "Robotics Control Framework"),
     year: "2024",
     href: "",
     desc: t(
       "Framework modular y extensible para controlar múltiples actuadores y sensores, incluido el control sincronizado de varios drivers de servos PCA9685.",
       "Modular, extensible framework for controlling multiple actuators and sensors, including synchronized control across several PCA9685 servo drivers."
     ),
-    tags: ["Python", "Arduino", "Embedded Systems"],
+    tags: ["Python", "Arduino", t("Sistemas embebidos", "Embedded Systems")],
     media: [{ palette: ["#c93812", "#131316"] }, { palette: ["#ff8a1f", "#0a0a0b"] }],
   },
   {
     category: "robotics",
-    name: "Robotics Simulation Toolkit",
+    name: t("Herramientas de simulación robótica", "Robotics Simulation Toolkit"),
     year: "2024",
     href: "",
     desc: t(
@@ -648,7 +716,7 @@ export const projects = [
   },
   {
     category: "ai",
-    name: "AI Vision System",
+    name: t("Sistema de visión con IA", "AI Vision System"),
     year: "2025",
     href: "",
     desc: t(
@@ -660,7 +728,7 @@ export const projects = [
   },
   {
     category: "ai",
-    name: "AI Workflow Automation",
+    name: t("Automatización de flujos con IA", "AI Workflow Automation"),
     year: "2025",
     href: "",
     desc: t(
@@ -672,7 +740,7 @@ export const projects = [
   },
   {
     category: "embedded",
-    name: "ESP32 Remote Camera Network",
+    name: t("Red de cámaras remotas ESP32", "ESP32 Remote Camera Network"),
     year: "2024",
     href: "",
     desc: t(
@@ -684,7 +752,7 @@ export const projects = [
   },
   {
     category: "embedded",
-    name: "Industrial IoT Monitoring Platform",
+    name: t("Plataforma de monitorización IoT industrial", "Industrial IoT Monitoring Platform"),
     year: "2024",
     href: "",
     desc: t(
@@ -696,7 +764,7 @@ export const projects = [
   },
   {
     category: "tools",
-    name: "Engineering Design Repository",
+    name: t("Repositorio de diseño de ingeniería", "Engineering Design Repository"),
     year: "2024",
     href: "",
     desc: t(
@@ -708,7 +776,7 @@ export const projects = [
   },
   {
     category: "tools",
-    name: "Industrial Software Projects",
+    name: t("Proyectos de software industrial", "Industrial Software Projects"),
     year: "2024",
     href: "",
     desc: t(

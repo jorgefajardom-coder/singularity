@@ -49,7 +49,7 @@ export default function Services() {
                         <p className="acc__desc">{tr(s.desc)}</p>
                         <div className="acc__tags">
                           {s.tags.map((tag) => (
-                            <span key={tag}>{tag}</span>
+                            <span key={tag.en || tag}>{tr(tag)}</span>
                           ))}
                         </div>
                       </div>

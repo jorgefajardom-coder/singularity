@@ -1,32 +1,65 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useMemo, useState } from "react";
 import { projects, projectCategories, sections, ui } from "../data/content";
 import { useLang } from "../lib/i18n";
-import { GhostHeading, Placeholder, RollText } from "./ui";
-import { gsap, prefersReducedMotion } from "../lib/anim";
+import { GhostHeading, Placeholder, VideoEmbed } from "./ui";
+import { asset } from "../lib/asset";
+
+// El visor arrastra consigo el stack 3D. Se carga aparte para que no entre en
+// el bundle principal de quien nunca abre un proyecto con modelo.
+const ModelViewer = lazy(() => import("../three/ModelViewer"));
+
+/**
+ * Un proyecto con modelo Y video los junta en un solo marco con pestanas
+ * —montaje 3D o simulacion en video— y lo pone al lado de la descripcion (ver
+ * `proj__cabeza--escena`). Uno debajo de otro eran dos bloques enormes y la
+ * mitad derecha del texto se quedaba vacia.
+ *
+ * Solo se monta la pestana activa: pasar al video suelta el 3D.
+ */
+function Escena({ p, name }) {
+  const { tr } = useLang();
+  const medios = [
+    p.model ? { id: "modelo", label: ui.tabModel } : null,
+    p.video ? { id: "video", label: ui.tabVideo } : null,
+  ].filter(Boolean);
+  const [activo, setActivo] = useState(medios[0].id);
+
+  return (
+    <div className="escena">
+      <div className="escena__medios">
+        {medios.length > 1 ? (
+          <div className="escena__tabs" role="group" aria-label={tr(ui.tabsLabel)}>
+            {medios.map((m) => (
+              <button key={m.id} type="button" className="escena__tab" aria-pressed={activo === m.id}
+                onClick={() => setActivo(m.id)}>
+                {tr(m.label)}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {activo === "modelo" ? (
+          <Suspense fallback={null}>
+            <ModelViewer model={p.model} label={`${name} · ${tr(ui.model3d)}`} hint={tr(ui.modelDrag)} />
+          </Suspense>
+        ) : (
+          <VideoEmbed id={p.video} poster={p.videoPoster} title={name}
+            label={tr(ui.playVideo)} note={tr(ui.videoNote)} />
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function Projects() {
   const { tr } = useLang();
   const [filter, setFilter] = useState("all");
   const [open, setOpen] = useState(0);
-  const listRef = useRef(null);
 
   const visible = useMemo(
     () => (filter === "all" ? projects : projects.filter((p) => p.category === filter)),
     [filter]
   );
-
-  // Al cambiar de filtro, las filas entran escalonadas
-  useEffect(() => {
-    if (prefersReducedMotion() || !listRef.current) return;
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        ".proj__row",
-        { opacity: 0, y: 18 },
-        { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", stagger: 0.05, overwrite: "auto" }
-      );
-    }, listRef);
-    return () => ctx.revert();
-  }, [filter]);
 
   const categoryLabel = (id) => {
     const found = projectCategories.find((c) => c.id === id);
@@ -81,11 +114,14 @@ export default function Projects() {
           })}
         </div>
 
-        <div className="proj" ref={listRef}>
+        <div className="proj">
           {visible.map((p, i) => {
             const isOpen = open === i;
+            const name = tr(p.name);
+            const clips = p.clips || [];
+            const escena = Boolean(p.model && p.video);
             return (
-              <article className="proj__row" key={p.name} data-open={isOpen ? "true" : "false"}>
+              <article className="proj__row" key={p.name.en} data-open={isOpen ? "true" : "false"}>
                 <button
                   type="button"
                   id={`proj-btn-${i}`}
@@ -100,9 +136,7 @@ export default function Projects() {
                       {categoryLabel(p.category)}
                       {p.year ? ` · ${p.year}` : ""}
                     </span>
-                    <span className="proj__name">
-                      <RollText>{p.name}</RollText>
-                    </span>
+                    <span className="proj__name">{name}</span>
                   </span>
                   <span className="acc__sign" aria-hidden="true">
                     +
@@ -111,39 +145,85 @@ export default function Projects() {
 
                 <div className="proj__panel" id={`proj-panel-${i}`} role="region" aria-labelledby={`proj-btn-${i}`} aria-hidden={!isOpen}>
                   <div>
+                    {/* Con modelo y video, el marco va al lado del texto. */}
+                    <div className={escena ? "proj__cabeza proj__cabeza--escena" : "proj__cabeza"}>
                     <div className="proj__body">
                       <p className="proj__desc">{tr(p.desc)}</p>
 
                       <div className="proj__tags">
                         {p.tags.map((tag) => (
-                          <span key={tag}>{tag}</span>
+                          <span key={tag.en || tag}>{tr(tag)}</span>
                         ))}
                       </div>
 
-                      {p.href ? (
-                        <a
-                          className="proj__live"
-                          href={p.href}
-                          target="_blank"
-                          rel="noreferrer noopener"
-                        >
-                          {tr(ui.viewProject)}
-                        </a>
+                      {/* El enlace principal y, detras, los documentos que el
+                          proyecto tenga que ensenar (p. ej. un plano por pieza),
+                          todos en la misma fila. */}
+                      {p.href || p.links?.length ? (
+                        <div className="proj__links">
+                          {p.href ? (
+                            <a className="proj__live" href={p.href} target="_blank" rel="noreferrer noopener">
+                              {tr(p.hrefLabel || (p.href.includes("github.com") ? ui.viewRepo : ui.viewProject))}
+                            </a>
+                          ) : null}
+                          {(p.links || []).map((l) => (
+                            <a key={l.href} className="proj__live" href={asset(l.href)} target="_blank" rel="noreferrer noopener">
+                              {tr(l.label)}
+                            </a>
+                          ))}
+                        </div>
                       ) : null}
                     </div>
 
-                    <div className="proj__media">
+                    {/* El modelo se monta SOLO con el proyecto desplegado: el
+                        .glb pesa megabytes y no se le descarga a quien no lo
+                        ha pedido. Al cerrar se desmonta y suelta la memoria. */}
+                    {escena && isOpen ? <Escena p={p} name={name} /> : null}
+                    </div>
+
+                    {/* El modelo se monta SOLO con el proyecto desplegado: el
+                        .glb pesa megabytes y no se le descarga a quien no lo
+                        ha pedido. Al cerrar se desmonta y suelta la memoria. */}
+                    {!escena && isOpen && (p.model || p.video || clips.length) ? (
+                      <div className={`proj__interactive${clips.length > 1 ? " proj__interactive--pares" : ""}`}>
+                        {p.model ? (
+                          <Suspense fallback={null}>
+                            <ModelViewer
+                              model={p.model}
+                              label={`${name} · ${tr(ui.model3d)}`}
+                              hint={tr(ui.modelDrag)}
+                            />
+                          </Suspense>
+                        ) : null}
+
+                        {p.video ? (
+                          <VideoEmbed
+                            id={p.video}
+                            poster={p.videoPoster}
+                            title={name}
+                            label={tr(ui.playVideo)}
+                            note={tr(ui.videoNote)}
+                          />
+                        ) : null}
+
+                        {clips.map((c) => (
+                          <VideoEmbed key={c.src} src={c.src} title={tr(c.title)} />
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {p.media.length > 0 && <div className={`proj__media${p.media.length === 1 ? " proj__media--solo" : ""}`}>
                       {p.media.map((m, j) => (
-                        <figure key={j}>
+                        <figure key={j} className={m.fit === "contain" ? "proj__figura--entera" : undefined}>
                           <Placeholder
                             palette={m.palette}
                             seed={i * 3 + j}
                             src={m.src}
-                            alt={`${p.name} ${j + 1}`}
+                            alt={m.alt ? tr(m.alt) : `${name} ${j + 1}`}
                           />
                         </figure>
                       ))}
-                    </div>
+                    </div>}
                   </div>
                 </div>
               </article>

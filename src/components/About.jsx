@@ -92,7 +92,10 @@ export default function About({ sharedHole = false }) {
  * queda lista para repetirse. `toggleActions` con `reverse` al salir por
  * arriba es lo que lo consigue.
  */
-export function CountUp({ value, triggerSelector }) {
+// Con `play` la cuenta la manda quien la usa (true = contar desde cero tras
+// `delay` segundos, false = volver a cero) en vez de su propio disparador de
+// scroll.
+export function CountUp({ value, triggerSelector, play, delay = 0 }) {
   const ref = useRef(null);
   // "12+" -> ["", 12, "+"]. Si no hay numero, el texto se muestra sin animar.
   const parts = useMemo(() => {
@@ -120,10 +123,19 @@ export function CountUp({ value, triggerSelector }) {
     const tween = gsap.to(counter, {
       v: parts.num,
       duration: 1.1,
+      delay,
       ease: "power2.out",
       onUpdate: paint,
       paused: true,
     });
+
+    if (play !== undefined) {
+      if (play) tween.restart(true);
+      return () => {
+        tween.kill();
+        counter.v = 0;
+      };
+    }
 
     // Reversible, pero sin descontar a la vista: animar hacia atras dejaba la
     // cifra bajando en mitad de la pantalla, que se lee como un error. Al
@@ -144,7 +156,7 @@ export function CountUp({ value, triggerSelector }) {
       trigger.kill();
       tween.kill();
     };
-  }, [parts, value, triggerSelector]);
+  }, [parts, value, triggerSelector, play, delay]);
 
   if (!parts) return <b>{value}</b>;
   // El valor final va en `aria-label`: un lector de pantalla no tiene por que

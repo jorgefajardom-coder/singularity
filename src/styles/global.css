@@ -1104,16 +1104,30 @@ body.is-locked {
   /* Mas pequeno que el astronauta de Sobre mi: aqui la figura no compite con
      ningun texto, y dejarle aire alrededor es lo que hace que se lea como una
      pausa. El agujero y la aureola cuelgan de este ancho, asi que se encogen
-     con el sin tocar nada mas. */
-  width: min(38vw, 38svh);
-  /* La cintura tiene que quedar pegada a la base, y el borde de la CAJA no es
-     la cintura: por debajo hay un 8 % de alto transparente, y antes de eso el
-     busto se estrecha en punta (el torso se mantiene ancho hasta el 89 % y de
-     ahi al 92 % se cierra). Bajando la caja un 11 % de su alto, el borde de la
-     pantalla cae justo donde el torso todavia mide ancho, y tanto la punta
-     como el vacio se van por debajo. Medido sobre el alfa de la imagen con
-     tools/cutout-astronaut.py ya aplicado. */
-  transform: translateY(11%);
+     con el sin tocar nada mas.
+     Con la figura de cuerpo entero, de lo alto de la aureola a los pies hay
+     2,74 anchos de caja. A 38svh la galaxia de arriba se salia de la pantalla;
+     a 31svh cabia justo bajo la barra fija. Jorge lo quiso mas pequeno: a
+     25svh queda aire arriba y la aureola encoge con el. */
+  /* Todo el conjunto (figura, aureola, galaxias y agujero) cuelga de este
+     ancho. A 25svh Jorge lo vio pequeno; a 29 sigue cabiendo bajo la barra
+     (a 31 la galaxia de arriba quedaba justo en su borde). */
+  width: min(38vw, 31svh);
+  /* La caja conserva la forma del busto de antes (1024x1536): la aureola, el
+     agujero y el viaje desde Sobre mi estan medidos sobre ella. La figura de
+     cuerpo entero va dentro, cuadrada por la cara (ver `.meditation__image`),
+     asi que la cabeza cae donde caia la del busto y la aureola no se mueve
+     respecto a ella.
+     Las piernas sobresalen por debajo de la caja hasta el 117,3 % de su alto
+     (con la figura ya escalada). Subiendola un 19,7 %, los pies quedan justo
+     encima del borde de la pantalla en vez de cortados. Lo leen tambien
+     Stage.jsx y Halo.jsx. */
+  aspect-ratio: 1024 / 1536;
+  --retrato-y: -19.7%;
+  transform: translateY(var(--retrato-y));
+  /* La cara (ver BUST_FACE en Stage.jsx): alrededor de ella escala el busto
+     cuando viaja hacia el Stack, para caer sobre la cara del otro. */
+  transform-origin: 47% 30.7%;
   opacity: 0;
   will-change: opacity;
 }
@@ -1158,9 +1172,10 @@ body.is-locked {
   color: rgba(255, 240, 228, 0.5);
 }
 
-.meditation__frame:has(.halo[data-formed="true"]) .meditation__stat {
+/* Salen con las galaxias (ver Meditation.jsx) y con su mismo escalonado. */
+.meditation__frame[data-cuentas="true"] .meditation__stat {
   animation: meditation-stat-in 0.65s ease-out both;
-  animation-delay: calc(var(--stat-i) * 0.15s);
+  animation-delay: calc(var(--stat-i) * 0.12s);
 }
 
 @keyframes meditation-stat-in {
@@ -1176,7 +1191,7 @@ body.is-locked {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .meditation__frame:has(.halo[data-formed="true"]) .meditation__stat {
+  .meditation__frame[data-cuentas="true"] .meditation__stat {
     animation: none;
     opacity: 1;
   }
@@ -1584,9 +1599,22 @@ body.is-anchored .about__float {
   .halo[data-drawn="true"] .halo__hole::after { animation: none; }
 }
 
+/* El astronauta de cuerpo entero, cuadrado por la CARA sobre donde estaba
+   la del busto: las gafas miden el 58 % del ancho de la caja y su centro
+   cae en el (47 %, 30,7 %). En la imagen nueva miden el 51,7 % de su ancho
+   con el centro en el (46,5 %, 24,9 %). De ahi el ancho y el desplazamiento. */
 .meditation__image {
+  position: absolute;
+  /* Respecto a la aureola va a 0,931 del tamano cuadrado con el busto
+     (0,98 x 0,97 x 0,96 y luego un 2 % mas grande, cada paso pedido por
+     Jorge), escalada alrededor de la cara (48,6 %, 29,4 %) para que siga
+     centrada en ella: sin escalar era ancho 112,19 %, left -5,12 %,
+     top -0,16 %. El `top` en % es del ALTO de la caja. */
+  left: -1.39%;
+  top: 1.95%;
   display: block;
-  width: 100%;
+  width: 104.48%;
+  max-width: none;
   height: auto;
   /* Sin mascara. La imagen ya trae su alfa recortado (ver
      tools/cutout-astronaut.py), y la que habia aqui difuminaba el borde de un
@@ -1603,9 +1631,23 @@ body.is-anchored .about__float {
      caja cae justo ahi.
      La ALTURA de la caja es ademas lo que fija el tamano del agujero, porque
      `follow()` escala el lienzo por `hand.height / h` (ver Stage.jsx). */
-  left: 17%;
-  top: 50.5%;
-  width: 64%;
+  /* Recalculado para la figura de cuerpo entero: en ella el hueco esta en el
+     (50 %, 53,5 %) de la imagen, que en la caja es el (51 %, 66,1 %). */
+  /* El punto medio EXACTO entre las dos manos, medido sobre la imagen: el
+     borde de abajo de la de arriba cae en el 47 % del alto y el de arriba
+     del cuenco en el 61,5-63 %; el medio, en el (49 %, 55 %). En la caja eso
+     es el (49,83 %, 66,12 %). Antes se tomaba el 53,5 % y quedaba alto.
+     La caja va ademas 2,2 % mas abajo y 1,1 % a la izquierda: la camara del
+     agujero va un poco elevada y la SOMBRA cae 6 px por encima y 2 px a la
+     derecha del centro del lienzo (medido en 1536x639 sobre los pixeles
+     oscuros encerrados por el disco). Asi la sombra, que es lo que se ve como
+     el agujero, queda justo entre las dos manos. */
+  /* Jorge lo quiso un poco mas arriba que el medio exacto: 2,7 % del alto
+     de la caja (unos 8 px en 1536x639), y luego un 1 % mas abajo. Estaba en
+     55,01 %. */
+  left: 19.48%;
+  top: 53.3%;
+  width: 58.45%;
   aspect-ratio: 1.55;
   /* Encoge alrededor de su propio centro, que es lo que hace que baste con
      este numero para achicar el agujero sin sacarlo de entre las manos: el
@@ -2871,118 +2913,145 @@ body.is-anchored .about__float {
 .posters.is-arrastrando { cursor: grabbing; scroll-snap-type: none; user-select: none; }
 .posters:focus-visible { outline: 2px solid var(--accent-a); outline-offset: -2px; }
 
-/* El poster: del alto que quepa bajo el titulo en una pantalla baja, y en
-   proporcion de cartel (3:4 aprox.). */
+/* Laminas de exploracion: tinta plana, papel crema y arte serigrafiado. */
 .poster {
-  /* Cabe entero junto al titulo STACK: en 1536x639 son ~360 px. */
-  --alto: clamp(340px, calc(100svh - 280px), 480px);
+  --poster-paper: var(--paper);
+  --poster-ink: var(--text-ink);
+  --poster-accent: var(--ember);
   position: relative;
-  flex: none;
+  isolation: isolate;
+  flex: 0 0 clamp(290px, 26vw, 360px);
   display: flex;
   flex-direction: column;
-  width: calc(var(--alto) * 0.72);
-  height: var(--alto);
-  padding: clamp(18px, 1.6vw, 24px);
-  border: 1px solid var(--line);
-  border-radius: clamp(14px, 1.2vw, 18px);
-  background:
-    radial-gradient(90% 60% at 80% 0%, rgba(255, 106, 18, 0.16), transparent 70%),
-    linear-gradient(180deg, var(--ink-2), var(--ink));
+  padding: 10px;
+  border: 1px solid rgba(244, 240, 233, .65);
+  border-radius: 3px;
+  background: var(--poster-paper);
+  color: var(--poster-ink);
+  box-shadow: 0 12px 32px #0005;
   scroll-snap-align: start;
-  transform: rotate(-1deg);
-  transition: transform 0.5s var(--ease), border-color 0.5s var(--ease), box-shadow 0.5s var(--ease);
+  transition: transform .45s var(--ease), box-shadow .45s var(--ease);
 }
-
-.poster:nth-child(even) { transform: rotate(0.9deg); }
-.poster:nth-child(3n) { transform: rotate(-0.4deg); }
-
-.poster:hover {
-  transform: rotate(0) translateY(-8px);
-  border-color: rgba(255, 154, 60, 0.45);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 106, 18, 0.12), 0 0 40px rgba(255, 106, 18, 0.12);
-}
-
-.poster__cabeza {
-  display: grid;
-  gap: 6px;
-}
-
-.poster__num {
-  font-size: clamp(38px, 4vw, 54px);
-  font-weight: 800;
-  font-stretch: 112%;
-  line-height: 0.9;
-  -webkit-text-fill-color: transparent;
-  -webkit-text-stroke: 1.2px rgba(255, 154, 60, 0.8);
-}
-
-.poster__titulo {
-  margin: 0;
-  font-size: clamp(16px, 1.3vw, 19px);
-  /* "Electrónica, embebidos y redes" no cabe en el ancho del poster sin
-     partir palabras: mejor con guion que cortado. */
-  hyphens: auto;
-  overflow-wrap: break-word;
-  font-weight: 800;
-  font-stretch: 108%;
-  line-height: 1.05;
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
-  color: var(--text);
-}
-
-.poster__motivo {
-  flex: 1 1 auto;
-  min-height: 0;
-  width: 100%;
-  margin: clamp(10px, 1.4vw, 18px) 0;
-  color: rgba(253, 236, 224, 0.5);
-  transition: color 0.5s var(--ease);
-}
-
-.poster:hover .poster__motivo { color: rgba(253, 236, 224, 0.75); }
-
-.poster__lista {
-  display: grid;
-  gap: 5px 14px;
-  margin: 0;
-  padding: 12px 0 0;
-  border-top: 1px solid var(--line);
-  list-style: none;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: rgba(253, 247, 242, 0.88);
-}
-
-.poster__lista--dos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-
-/* Nunca se corta un nombre: si no cabe en su columna, baja de linea. */
-.poster__lista li {
+.poster:hover { box-shadow: 0 22px 42px #0008; }
+.poster__arte {
   position: relative;
-  padding-left: 12px;
-  line-height: 1.3;
+  flex: none;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--poster-ink);
+  border-radius: 12px 12px 0 0;
+  background-color: var(--poster-ink);
 }
-
-.poster__lista li::before {
+.poster__vector { display: block; width: 100%; height: 100%; pointer-events: none; }
+.poster__destellos { position: absolute; inset: 0; pointer-events: none; }
+.poster__destellos i {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  background: var(--accent-a);
+  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
+  opacity: 0;
+}
+.poster__destellos i:nth-child(1) { left: 15%; top: 22%; --twinkle-delay: .2s; }
+.poster__destellos i:nth-child(2) { left: 81%; top: 35%; --twinkle-delay: .8s; }
+.poster__destellos i:nth-child(3) { left: 70%; top: 78%; --twinkle-delay: 1.4s; }
+/* Partes independientes: ciclos cortos, solo con el arte visible. */
+.art-spin { --part-animation: stack-spin; --duration: 4s; transform-box: fill-box; transform-origin: center; }
+.art-arm { --part-animation: stack-arm; }
+.art-cube { --part-animation: stack-cube; --duration: 4s; transform-origin: 150px 152px; }
+.art-pulse { --part-animation: stack-pulse; }
+.art-flow { --part-animation: stack-flow; stroke-dasharray: 8 6; }
+.art-draw { --part-animation: stack-draw; stroke-dasharray: 1; }
+.art-bar { --part-animation: stack-bar; transform-box: fill-box; transform-origin: center bottom; }
+.art-task { --part-animation: stack-task; }
+.art-pen { --part-animation: stack-pen; transform-origin: 220px 146px; }
+.art-playhead { --part-animation: stack-playhead; }
+@keyframes stack-pen { 0%, 100% { transform: translate(0, 0) rotate(0); } 50% { transform: translate(-5px, -4px) rotate(-6deg); } }
+@keyframes stack-playhead { 0%, 100% { transform: translateX(0); } 80% { transform: translateX(137px); } }
+@keyframes stack-spin { to { transform: rotate(360deg); } }
+@keyframes stack-arm { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-10deg); } }
+@keyframes stack-cube { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-5px) rotate(3deg); } }
+@keyframes stack-pulse { 0%, 100% { opacity: 1; } 40% { opacity: .3; } 70% { opacity: 1; } }
+@keyframes stack-flow { to { stroke-dashoffset: -56; } }
+@keyframes stack-draw { 0% { stroke-dashoffset: 1; } 70%, 100% { stroke-dashoffset: 0; } }
+@keyframes stack-bar { 0%, 100% { transform: scaleY(1); } 35% { transform: scaleY(.35); } 75% { transform: scaleY(1); } }
+@keyframes stack-task { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes poster-twinkle { 0%, 100% { opacity: 0; transform: scale(.5); } 50% { opacity: .8; transform: scale(1); } }
+@media (prefers-reduced-motion: no-preference) {
+  .poster.is-art-visible [class^="art-"] {
+    animation: var(--part-animation) var(--duration, 3s) ease-in-out var(--delay, 0s);
+  }
+  .poster.is-art-visible .poster__destellos i { animation: poster-twinkle 2s ease-in-out var(--twinkle-delay); }
+  .posters.is-arrastrando [class^="art-"] { animation-play-state: paused; }
+}
+@media (prefers-reduced-motion: no-preference) and (hover: hover) {
+  .posters:not(.is-arrastrando) .poster.is-art-visible:hover [class^="art-"] {
+    animation-duration: 2.5s;
+    animation-iteration-count: 2;
+  }
+}
+.poster__arte::after {
   content: "";
   position: absolute;
-  left: 0;
-  top: 0.45em;
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  background: var(--accent-b);
+  inset: auto -1px -1px;
+  height: 25px;
+  background: var(--poster-paper);
+  clip-path: polygon(0 65%, 10% 82%, 25% 97%, 50% 100%, 75% 97%, 90% 82%, 100% 65%, 100% 100%, 0 100%);
 }
-
+.poster__cabeza { padding: 16px 12px 12px; }
+.poster__titulo {
+  margin: 0;
+  color: var(--poster-ink);
+  font-family: var(--font);
+  font-size: clamp(21px, 1.75vw, 26px);
+  font-weight: 800;
+  font-stretch: 108%;
+  line-height: 1.08;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: -.025em;
+  overflow-wrap: break-word;
+  text-wrap: balance;
+}
+.poster__lista {
+  display: grid;
+  align-content: start;
+  gap: 6px 12px;
+  flex: 1;
+  list-style: none;
+  margin: 0 10px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line-ink);
+  color: var(--poster-ink);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.poster__lista--dos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.poster__lista li { position: relative; padding-left: 10px; overflow-wrap: break-word; }
+.poster__lista li::before { content: ""; position: absolute; left: 0; top: .55em; width: 4px; height: 4px; background: var(--accent-b); transform: rotate(45deg); }
+.poster__pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 10px;
+  padding: 10px 0 3px;
+  border-top: 1px solid var(--line-ink);
+  color: var(--poster-accent);
+  font: 700 9px/1.4 var(--font);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .1em;
+}
+.poster__estrellas { letter-spacing: .2em; }
 @media (max-width: 720px) {
-  .stack__nav { display: none; }
-  /* ~78 % del ancho: asoma el siguiente y se entiende que la fila sigue. */
-  .poster { --alto: min(108vw, 64svh); }
+  .poster { flex-basis: min(82vw, 330px); }
+  .poster__titulo { font-size: 22px; }
 }
-
 @media (prefers-reduced-motion: reduce) {
-  .poster, .poster:nth-child(even), .poster:nth-child(3n) { transform: none; transition: none; }
+  .poster { transition: none; }
   .poster:hover { transform: none; }
 }
 

@@ -159,10 +159,14 @@ export default function Halo() {
       // sola tambien detecta el halo cuando el retrato sigue invisible.
       const opacity = portrait ? Number(getComputedStyle(portrait).opacity) : 1;
       const bounds = portrait?.getBoundingClientRect();
-      // La cintura esta al 89 % de la ilustracion; el 11 % restante queda
-      // bajo el viewport por el translateY del retrato. Espera a esa pose,
-      // no al fundido, que termina antes de que llegue el cuerpo completo.
-      const waist = bounds ? bounds.top + bounds.height * 0.89 : Infinity;
+      // Espera a la pose de reposo, no al fundido, que termina antes de que
+      // llegue el cuerpo completo. En reposo el borde de abajo de la caja SIN
+      // su `translateY` (`--retrato-y`, ver el CSS) toca el del viewport. Con
+      // el busto eran un 11 % hacia abajo, fijo aqui como 0.89; con la figura
+      // entera la caja va subida y ese numero ya no llegaba nunca.
+      const ty = portrait
+        ? (parseFloat(getComputedStyle(portrait).getPropertyValue("--retrato-y")) || 0) / 100 : 0;
+      const waist = bounds ? bounds.top + bounds.height * (1 - ty) : Infinity;
       const atWaist = waist <= window.innerHeight + 1 && waist >= window.innerHeight - 2;
       // La aureola permanece; los aros se despliegan de nuevo al bajar.
       if (inView && opacity >= 0.99 && atWaist) {
@@ -430,7 +434,7 @@ export default function Halo() {
           />
           {/* Al body, y no donde cae en el arbol. Un `position: fixed` deja de
               ser fijo en cuanto algun ancestro tiene `transform` —y aqui
-              `.meditation__portrait` lleva un `translateY(11%)`—, asi que el
+              `.meditation__portrait` lleva un `translateY`—, asi que el
               boton se colocaba respecto al retrato: medido, aparecia en x=312
               y 16 px por DEBAJO del borde de la pantalla, cortado. Sacandolo
               al body vuelve a tener la ventana como referencia. */}

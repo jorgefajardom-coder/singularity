@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import Halo from "./Halo";
 import { about, sections, ui } from "../data/content";
 import { CountUp } from "./About";
@@ -17,16 +18,31 @@ import { useLang } from "../lib/i18n";
  */
 export default function Meditation({ reduced }) {
   const { tr } = useLang();
+  const frame = useRef(null);
+  // Los contadores salen en cuanto aparece el astronauta que medita, y se
+  // apagan, a cero, cuando se va. Su opacidad la escribe Stage.jsx durante
+  // la transformacion desde Sobre mi: pasada la mitad, ya es el.
+  const [cuentas, setCuentas] = useState(reduced);
+  useEffect(() => {
+    const retrato = frame.current?.querySelector(".meditation__portrait");
+    if (reduced || !retrato) return undefined;
+    const mirar = () => setCuentas(Number(retrato.style.opacity || 0) >= 0.5);
+    const cambio = new MutationObserver(mirar);
+    cambio.observe(retrato, { attributes: true, attributeFilter: ["style"] });
+    mirar();
+    return () => cambio.disconnect();
+  }, [reduced]);
+
   return (
     <section className="meditation" aria-label={tr(sections.meditation.label)}>
-      <div className="meditation__frame">
+      <div className="meditation__frame" ref={frame} data-cuentas={cuentas ? "true" : "false"}>
         <div className="meditation__portrait">
           <Halo />
           <img
             className="meditation__image"
-            src={`${import.meta.env.BASE_URL}images/astronaut-meditation-v2.webp`}
-            width="1024"
-            height="1536"
+            src={`${import.meta.env.BASE_URL}images/stack-astronaut.webp`}
+            width="604"
+            height="1000"
             alt={tr(ui.a11y.meditationImage)}
             decoding="async"
           />
@@ -40,7 +56,7 @@ export default function Meditation({ reduced }) {
         <div className="meditation__stats">
           {about.stats.map((stat, i) => (
             <div className="meditation__stat" key={stat.value} style={{ "--stat-i": i }}>
-              <CountUp value={stat.value} triggerSelector=".meditation__stats" />
+              <CountUp value={stat.value} play={cuentas} delay={i * 0.12} />
               <span>{i === 1 ? tr({ es: "Áreas", en: "Areas" }) : tr(stat.label)}</span>
             </div>
           ))}

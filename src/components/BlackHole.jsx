@@ -1,6 +1,12 @@
 import { Component, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { CanvasTexture, LinearFilter, Vector2 } from "three";
+
+// El arrastre por el puntero es cosa del hero. Fuera de el el agujero tiene
+// que estar donde dice `journey`: en la orbita los aros (DOM) no saben nada
+// del puntero y el agujero se salia de su centro hacia donde estuviera el
+// raton; en las manos de los astronautas, igual.
+const QUIETO = new Vector2(0, 0);
 import { ui } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { useMusic } from "../lib/music";
@@ -723,7 +729,8 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     }
     lastFormation.current=live.uFormation.value;
     live.uPower.value += ((interaction.current.down ? 1 : 0)-live.uPower.value)*smooth;
-    live.uPointer.value.lerp(interaction.current.point,smooth);
+    const libre = !journey?.current || journey.current.p < 0.01;
+    live.uPointer.value.lerp(libre ? interaction.current.point : QUIETO, smooth);
     if (!reduced) {
       const step = dt*(1+live.uPower.value*3);
       // El reloj se envuelve en su periodo exacto y el giro se acumula en doble

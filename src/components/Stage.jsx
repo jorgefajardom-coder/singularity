@@ -33,8 +33,25 @@ const FALL = [0.6, 1.0];
 // ocupando la pantalla antes de emprender el viaje hacia la mano.
 const EXIT = [0.86, 1.0];
 
+// La cara en las dos figuras, en fraccion de su caja: centro (x, y) y ancho.
+// Medido sobre los tonos de piel de about-astronaut-gaze (caja
+// `.about__float`) y de la figura que medita dentro de `.meditation__portrait`
+// (ver `.meditation__image` en el CSS). El astronauta de Sobre mi se lleva su
+// cara hasta la del que medita y ahi se transforma en el.
+const ABOUT_FACE = { x: 0.481, y: 0.281, w: 0.341 };
+const MEDITATION_FACE = { x: 0.486, y: 0.294, w: 0.522 };
+
 // Cuanto se agranda el agujero al aterrizar en las manos. Ver el uso.
 const LANDED_SCALE = 0.42;
+// El lienzo que baja a las manos mide HAND_ROOM veces el hueco entre ellas, y
+// el disco se dibuja en proporcion mas pequeno dentro: en pantalla sale del
+// mismo tamano, pero ya no se da contra los bordes. Con el lienzo del tamano
+// justo del hueco, el disco de canto (radio vertical ~0.59 en coordenadas del
+// shader) medía 1,4 veces su alto y se cortaba arriba y abajo.
+const HAND_ROOM = 4.2;
+// En las manos del que medita el agujero va un 30 % mas grande que en las de
+// Sobre mi.
+const MEDITATION_GROWTH = 1.3;
 
 const span = ([a, b], p) => Math.min(1, Math.max(0, (p - a) / (b - a)));
 // Suaviza los extremos: sin esto cada fase arranca y frena de golpe.
@@ -85,6 +102,17 @@ export default function Stage({ entered, warm, espejo }) {
     const finalHand = stage.current.querySelector(".meditation__singularity");
     const originalFrame = stage.current.querySelector(".about__float");
     const originalPose = stage.current.querySelector(".about__pose");
+    const originalImage = stage.current.querySelector(".about__astronaut");
+    const finalImage = stage.current.querySelector(".meditation__image");
+    const finalFrame = stage.current.querySelector(".meditation__frame");
+    const finalStats = stage.current.querySelector(".meditation__stats");
+    // El texto de Sobre mi (titulo, parrafos, boton) y sus objetos 3D. No el
+    // astronauta: ese es el que se transforma.
+    const aboutParts = [
+      about.querySelector(".shell > .display"),
+      about.querySelector(".about__copy"),
+      about.querySelector(".about__view"),
+    ].filter(Boolean);
     // Los dos avances van con `scrub: true`, igual que el de la orbita, y eso
     // NO es intercambiable por un numero. Un `scrub: 0.8` no es una funcion de
     // la posicion del scroll: es un filtro que persigue al objetivo con retardo,
@@ -148,21 +176,63 @@ export default function Stage({ entered, warm, espejo }) {
       if (!w || !h) return;
       const t = ease(motion.progress);
       const closingProgress = ease(closing.progress);
-      const dissolve = ease(span([0.24, 0.78], closingProgress));
+      // Primero viaja y despues se transforma: con los dos tramos a la vez, a
+      // mitad del fundido las dos caras estaban a 400 px una de otra y se
+      // veian dos astronautas.
+      const travel = ease(span([0, 0.5], closingProgress));
+      const dissolve = ease(span([0.45, 0.9], closingProgress));
+      // Meditacion es una seccion aparte: mientras el astronauta viaja hacia
+      // ella, el resto de Sobre mi se retira. Como el que medita espera en su
+      // sitio mientras su seccion entra (ver `lift`), sin esto el boton
+      // "Trabajemos juntos" seguia asomando arriba con las galaxias ya fuera.
+      const aboutFade = ease(span([0.2, 0.55], closingProgress));
+      for (const el of aboutParts) {
+        el.style.opacity = aboutFade > 0 ? String(1 - aboutFade) : "";
+        el.style.pointerEvents = aboutFade > 0.5 ? "none" : "";
+      }
+      // El que medita espera ya en su sitio de reposo mientras su seccion
+      // entra: se le resta lo que al marco (sticky) le falta para llegar
+      // arriba. Si no, la cara de destino seguia subiendo con el scroll
+      // durante el fundido y no habia forma de que las dos coincidieran. El
+      // marco recorta, asi que mientras tanto deja ver lo que sale de el; y el
+      // retrato, aun invisible, no puede quedarse interceptando clics encima
+      // de Sobre mi.
+      const lift = Math.max(0, finalFrame.getBoundingClientRect().top);
+      portrait.style.transform = lift > 0 ? `translateY(var(--retrato-y)) translateY(${-lift}px)` : "";
+      portrait.style.pointerEvents = lift > 0 ? "none" : "";
+      // Los contadores salen con el astronauta (ver Meditation.jsx): esperan
+      // con el en su sitio, o saldrian por debajo del borde de la pantalla.
+      if (finalStats) finalStats.style.transform = lift > 0 ? `translateY(${-lift}px)` : "";
+      finalFrame.style.overflow = lift > 0 ? "visible" : "";
       const origin = originalFrame.getBoundingClientRect();
       const destination = portrait.getBoundingClientRect();
-      // Cuadra la cara segun la figura entera se acerca al busto.
-      const poseScale = 1 + (destination.width / origin.width * 0.95 - 1) * closingProgress;
-      const poseX = (destination.left + destination.width * 0.5 - origin.left - origin.width * 0.5) * closingProgress;
-      const poseY = (destination.top + destination.height * 0.33 - origin.top - origin.height * 0.27 * poseScale) * closingProgress;
+      // Lleva la cara del astronauta de Sobre mi hasta la del que medita,
+      // con su tamano, y ahi los funde: se lee como que uno se convierte en el
+      // otro. La pose escala desde arriba al centro (`transform-origin` en el
+      // CSS), asi que la cara se mide ya escalada.
+      const faceScale = (MEDITATION_FACE.w * destination.width) / (ABOUT_FACE.w * origin.width);
+      const poseScale = 1 + (faceScale - 1) * travel;
+      const faceX = origin.left + origin.width * (0.5 + (ABOUT_FACE.x - 0.5) * poseScale);
+      const faceY = origin.top + origin.height * ABOUT_FACE.y * poseScale;
+      const poseX = (destination.left + destination.width * MEDITATION_FACE.x - faceX) * travel;
+      const poseY = (destination.top + destination.height * MEDITATION_FACE.y - faceY) * travel;
       originalPose.style.transform = `translate3d(${poseX}px, ${poseY}px, 0) scale(${poseScale})`;
       originalPose.style.opacity = 1 - dissolve;
+      // En el cruce, un destello: las dos figuras se aclaran y se desenfocan
+      // un poco y vuelven a enfocarse ya convertidas. Cero en los extremos.
+      const glow = Math.sin(Math.PI * dissolve);
+      const flare = glow > 0.001 ? ` brightness(${(1 + 0.9 * glow).toFixed(3)}) blur(${(2.5 * glow).toFixed(2)}px)` : "";
+      originalImage.style.filter = flare ? flare.trim() : "";
+      // La del que medita lleva su propio `brightness(0.75)` en el CSS.
+      finalImage.style.filter = flare ? `brightness(${(0.75 * (1 + 0.9 * glow)).toFixed(3)}) blur(${(2.5 * glow).toFixed(2)}px)` : "";
       portrait.style.opacity = dissolve;
       const pose = orbitPose.current;
       Object.assign(journey.current, pose);
       const firstHand = anchor.getBoundingClientRect();
       const lastHand = finalHand.getBoundingClientRect();
-      const handMix = closingProgress;
+      // Va en las manos de Sobre mi mientras viaja (el ancla se mueve con la
+      // pose) y cambia de manos durante la transformacion.
+      const handMix = dissolve;
       const hand = {
         left: firstHand.left * (1 - handMix) + lastHand.left * handMix,
         top: firstHand.top * (1 - handMix) + lastHand.top * handMix,
@@ -174,7 +244,7 @@ export default function Stage({ entered, warm, espejo }) {
       // se ignore, es que el navegador tira la declaracion entera, asi que el
       // lienzo se quedaba SIN transformar, a pantalla completa y encima de la
       // pagina. Mas adelante en el viaje daria `scale(0)` y desapareceria.
-      const scale = hand.height > 0 ? Math.exp(Math.log(hand.height / h) * t) : 1;
+      const scale = hand.height > 0 ? Math.exp(Math.log((hand.height * HAND_ROOM) / h) * t) : 1;
       const arc = Math.sin(Math.PI * t) ** 2;
       const x = (hand.left + hand.width / 2 - w / 2) * t - w * 0.12 * arc;
       const y = (hand.top + hand.height / 2 - box.top - h / 2) * t - h * 0.16 * arc;
@@ -197,7 +267,8 @@ export default function Stage({ entered, warm, espejo }) {
       // sino en LANDED: entre las manos el agujero tiene que leerse, y a 1
       // era una chispa. El lienzo es la propia caja del hueco, asi que el
       // disco se recorta contra sus bordes y lo que queda es el aro.
-      journey.current.scale = pose.scale * (1 - t) + LANDED_SCALE * t;
+      const growth = 1 + (MEDITATION_GROWTH - 1) * handMix;
+      journey.current.scale = pose.scale * (1 - t) + (LANDED_SCALE * HAND_ROOM / growth) * t;
       journey.current.topDown = pose.topDown * (1 - t);
     };
     gsap.ticker.add(follow);
@@ -213,6 +284,13 @@ export default function Stage({ entered, warm, espejo }) {
       // por encima de la pagina, y el agujero del hero dejaba de responder.
       originalPose.style.transform = "";
       originalPose.style.opacity = "";
+      originalImage.style.filter = "";
+      finalImage.style.filter = "";
+      portrait.style.transform = "";
+      portrait.style.pointerEvents = "";
+      if (finalStats) finalStats.style.transform = "";
+      for (const el of aboutParts) { el.style.opacity = ""; el.style.pointerEvents = ""; }
+      finalFrame.style.overflow = "";
       portrait.style.opacity = "";
       traveler.current?.style.removeProperty("transform");
       traveler.current?.style.removeProperty("mask-image");

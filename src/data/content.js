@@ -298,7 +298,7 @@ export const stack = [
   },
   {
     key: "tresd",
-    group: t("3D, simulación y juego", "3D, Simulation & Games"),
+    group: t("3D, simulación y experiencias interactivas", "3D, Simulation & Interactive Experiences"),
     items: [
       { name: "Blender", color: "#ff6a00" },
       { name: "Unity", color: "#E5E7EB" },

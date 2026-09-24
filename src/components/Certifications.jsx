@@ -6,7 +6,6 @@ const PropsView = lazy(() =>
 );
 import { useLang } from "../lib/i18n";
 import { GhostHeading } from "./ui";
-import SplitText from "./SplitText";
 
 /**
  * Certificaciones y formación.
@@ -27,9 +26,6 @@ export default function Certifications() {
 
       <div className="shell" style={{ textAlign: "center" }}>
         <GhostHeading className="display display--md">{tr(sections.certifications.heading)}</GhostHeading>
-        <SplitText className="certs__note" variant="blur">
-          {tr(sections.certifications.note)}
-        </SplitText>
       </div>
 
       <div className="shell">

@@ -77,10 +77,6 @@ export const sections = {
   certifications: {
     id: "certifications",
     heading: t("Certificaciones", "Certifications"),
-    note: t(
-      "Formación y credenciales verificables.",
-      "Training and verifiable credentials."
-    ),
   },
   companies: {
     // Sin `heading`: la órbita de marcas se presenta sola, con la nota.

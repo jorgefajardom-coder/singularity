@@ -49,9 +49,12 @@ const LANDED_SCALE = 0.42;
 // justo del hueco, el disco de canto (radio vertical ~0.59 en coordenadas del
 // shader) medía 1,4 veces su alto y se cortaba arriba y abajo.
 const HAND_ROOM = 4.2;
-// En las manos del que medita el agujero va un 30 % mas grande que en las de
-// Sobre mi.
-const MEDITATION_GROWTH = 1.3;
+// Tamano del agujero en cada mano, relativo al del aterrizaje original.
+// Desde que el lienzo tiene sitio (HAND_ROOM) se ve el disco entero y no
+// solo el aro, y a 1 medía 2,2 veces el ancho de la cabeza del astronauta:
+// en produccion se veia enorme. Asi queda en ~1,1 cabezas en Sobre mi y
+// ~1,15 en el que medita (medido en 1536x639 sobre los pixeles del disco).
+const HOLE_SIZE = { about: 0.5, meditation: 0.62 };
 
 const span = ([a, b], p) => Math.min(1, Math.max(0, (p - a) / (b - a)));
 // Suaviza los extremos: sin esto cada fase arranca y frena de golpe.
@@ -267,7 +270,7 @@ export default function Stage({ entered, warm, espejo }) {
       // sino en LANDED: entre las manos el agujero tiene que leerse, y a 1
       // era una chispa. El lienzo es la propia caja del hueco, asi que el
       // disco se recorta contra sus bordes y lo que queda es el aro.
-      const growth = 1 + (MEDITATION_GROWTH - 1) * handMix;
+      const growth = HOLE_SIZE.about + (HOLE_SIZE.meditation - HOLE_SIZE.about) * handMix;
       journey.current.scale = pose.scale * (1 - t) + (LANDED_SCALE * HAND_ROOM / growth) * t;
       journey.current.topDown = pose.topDown * (1 - t);
     };

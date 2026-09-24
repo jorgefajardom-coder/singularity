@@ -17,7 +17,6 @@ import Footer from "./components/Footer";
 import Loader from "./components/Loader";
 import { LangProvider } from "./lib/i18n";
 import { MusicProvider } from "./lib/music";
-import MusicPlayer from "./components/MusicPlayer";
 import { useSmoothScroll, useReveal, ScrollTrigger } from "./lib/anim";
 
 export default function App() {
@@ -58,7 +57,6 @@ export default function App() {
   return (
     <LangProvider>
       <MusicProvider active={holeReady}>
-      {holeReady && !introGone && <MusicPlayer intro />}
       {!introGone ? <Loader espejo={espejo} onWarm={() => setWarm(true)} onEnter={() => setEntered(true)} onDone={() => setIntroGone(true)} onReady={setHoleReady} /> : null}
 
       <Starfield />

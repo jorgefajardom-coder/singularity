@@ -150,7 +150,7 @@ export default function Projects() {
             // Un producto en 3D (el dron, su empaque) va al lado del texto.
             const producto = !escena && !lado ? p.producto3d : null;
             return (
-              <article className="proj__row" key={p.name.en} data-open={isOpen ? "true" : "false"}>
+              <article className="proj__row" key={p.name.en} data-open={isOpen ? "true" : "false"} style={{ "--i": i }}>
                 <button
                   type="button"
                   id={`proj-btn-${i}`}

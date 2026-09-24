@@ -2987,7 +2987,7 @@ body.is-anchored .about__float {
 .poster--vacia:hover { --alza: 0px; box-shadow: none; }
 .poster__vacia-signo { font: 300 56px/1 var(--font); color: rgba(244, 240, 233, .4); }
 .poster__vacia-texto { font: 700 11px/1.4 var(--font); letter-spacing: .16em; text-transform: uppercase; }
-.poster--cover { min-height: 510px; }
+.poster--cover { min-height: min(510px, calc(100svh - 133px)); }
 .poster__cover-art { position: relative; flex: 1; overflow: hidden; border-radius: 12px 12px 0 0; background: var(--ink); }
 /* Solo el astronauta (hijo directo). Con `img` a secas esto se aplicaba
    tambien al agujero estampado, que con `object-fit: cover` salia recortado
@@ -3020,6 +3020,11 @@ body.is-anchored .about__float {
   flex: none;
   width: 100%;
   aspect-ratio: 1;
+  /* En pantallas bajas la carta entera no cabia: con la seccion fijada por
+     abajo, su borde de arriba quedaba metido bajo la barra de musica. La
+     lista no puede encoger, asi que cede la ilustracion: la carta deja
+     ~24 px bajo la barra (452 = barra + margen + lista + pie + hueco de abajo). */
+  max-height: max(160px, calc(100svh - 452px));
   overflow: hidden;
   border: 1px solid var(--poster-ink);
   border-radius: 12px 12px 0 0;
@@ -3239,14 +3244,65 @@ body.is-anchored .about__float {
   color: var(--ink);
 }
 
-/* El acordeón de proyectos reutiliza el signo + de servicios */
+/* El acordeón de proyectos reutiliza el signo + de servicios, pero en naranja
+   y con un latido: en gris sobre negro no se veia que las filas se abren. */
 .proj__row .acc__sign {
-  border-color: var(--line);
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border: 1.5px solid var(--accent-b);
+  color: var(--accent-a);
+  font-size: 22px;
+  font-weight: 500;
+  background: rgba(255, 106, 18, 0.1);
+  box-shadow: 0 0 18px rgba(255, 106, 18, 0.28);
+  transition: transform 0.5s var(--ease), background 0.4s var(--ease), color 0.4s var(--ease), box-shadow 0.4s var(--ease);
 }
 
-.proj__row[data-open="true"] .acc__sign {
-  background: var(--text);
+/* La onda que sale del + mientras la fila esta cerrada. Cada fila a su compas
+   (--i en Projects.jsx) para que no latan todas a la vez. */
+.proj__row .acc__sign::after {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border: 1.5px solid var(--accent-b);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .proj__row[data-open="false"] .acc__sign::after {
+    animation: proj-latido 2.4s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
+    animation-delay: calc(var(--i, 0) * 0.35s);
+  }
+  .proj__row[data-open="false"] .acc__sign {
+    animation: proj-brillo 2.4s ease-in-out infinite;
+    animation-delay: calc(var(--i, 0) * 0.35s);
+  }
+}
+@keyframes proj-latido {
+  0% { opacity: 0.8; transform: scale(1); }
+  70%, 100% { opacity: 0; transform: scale(1.75); }
+}
+@keyframes proj-brillo {
+  0%, 100% { box-shadow: 0 0 14px rgba(255, 106, 18, 0.22); }
+  20% { box-shadow: 0 0 26px rgba(255, 106, 18, 0.6); }
+}
+
+/* Al pasar por la fila, el + se enciende y gira un cuarto: invita al clic. */
+.proj__btn:hover .acc__sign,
+.proj__btn:focus-visible .acc__sign {
+  background: var(--accent-b);
   color: var(--ink);
+  transform: rotate(90deg) scale(1.08);
+  box-shadow: 0 0 30px rgba(255, 106, 18, 0.65);
+}
+
+.proj__row[data-open="true"] .acc__sign,
+.proj__row[data-open="true"] .proj__btn:hover .acc__sign {
+  background: var(--accent-b);
+  color: var(--ink);
+  transform: rotate(45deg);
 }
 
 /* ============================================================

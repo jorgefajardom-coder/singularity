@@ -2911,16 +2911,29 @@ body.is-anchored .about__float {
   padding: 18px var(--arranque) 26px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
+  /* Sin imanes: al soltar la barra la fila se iba sola a otra carta (o de
+     vuelta al principio), y eso era lo que hacia la barra tan molesta. Las
+     flechas avanzan de carta en carta por su cuenta. */
   scroll-padding-inline: var(--arranque);
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 154, 60, 0.45) transparent;
+  /* Barra de grosor normal: la fina costaba atinarle. */
+  scrollbar-width: auto;
+  scrollbar-color: rgba(255, 154, 60, 0.55) rgba(255, 154, 60, 0.08);
   cursor: grab;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 2.5%, #000 94%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 2.5%, #000 94%, transparent);
+  /* El desvanecido de los lados es para las cartas, no para la barra: con una
+     sola capa la barra tambien se desvanecia en las puntas. La franja de
+     abajo (donde va la barra) queda fuera del degradado. */
+  --barra: 18px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 2.5%, #000 94%, transparent), linear-gradient(#000, #000);
+  mask-image: linear-gradient(90deg, transparent, #000 2.5%, #000 94%, transparent), linear-gradient(#000, #000);
+  -webkit-mask-size: 100% calc(100% - var(--barra)), 100% var(--barra);
+  mask-size: 100% calc(100% - var(--barra)), 100% var(--barra);
+  -webkit-mask-position: top, bottom;
+  mask-position: top, bottom;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 }
 
-.posters.is-arrastrando { cursor: grabbing; scroll-snap-type: none; user-select: none; }
+.posters.is-arrastrando { cursor: grabbing; user-select: none; }
 .posters:focus-visible { outline: 2px solid var(--accent-a); outline-offset: -2px; }
 
 /* Las cartas se inclinan hacia el puntero y flotan: variables registradas

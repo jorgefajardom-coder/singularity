@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { sections, stack, ui } from "../data/content";
 import { useLang } from "../lib/i18n";
-import { ScrollTrigger, gsap, prefersReducedMotion } from "../lib/anim";
+import { ScrollTrigger, gsap, prefersReducedMotion, scroller } from "../lib/anim";
 import StackArt from "./StackArt";
 
 /**
@@ -57,15 +57,44 @@ export default function Stack({ sequence }) {
     };
     const reparto = { d: 0, meta: 0 };
     let tween = null;
+    // Mientras se reparten, la pagina no se mueve: que se vea la baraja
+    // abrirse entera antes de seguir. Mismo cerrojo que el de la aureola
+    // (Halo.jsx): se para Lenis y ademas se devuelve a su sitio cualquier
+    // desplazamiento por codigo (un enlace del menu), porque la seccion esta
+    // fijada y si la pagina se corre las cartas se irian de la pantalla.
+    let anclaje = null;
+    const sujetar = () => { if (anclaje !== null && Math.abs(window.scrollY - anclaje) > 1) window.scrollTo(0, anclaje); };
+    // Solo con la barra de la fila ya entera en pantalla: bloquear antes
+    // dejaba la pagina parada con la barra todavia entrando por abajo.
+    const barraVisible = () => el.getBoundingClientRect().bottom <= window.innerHeight + 1;
+    const bloquear = () => {
+      if (anclaje !== null || !barraVisible()) return;
+      anclaje = window.scrollY;
+      scroller.current?.stop();
+      window.addEventListener("scroll", sujetar, { passive: true });
+    };
+    const soltar = () => {
+      if (anclaje === null) return;
+      anclaje = null;
+      window.removeEventListener("scroll", sujetar);
+      scroller.current?.start();
+    };
     const ir = (meta) => {
       if (reparto.meta === meta) return;
       reparto.meta = meta;
       tween?.kill();
+      if (meta) bloquear();
+      else soltar();
       tween = gsap.to(reparto, {
         d: meta,
         duration: meta ? 1.4 : 0.8,
         ease: meta ? "power2.out" : "power2.inOut",
-        onUpdate: () => repartir(reparto.d),
+        onUpdate: () => {
+          repartir(reparto.d);
+          // Si arranco con la barra aun entrando, se bloquea en cuanto asome.
+          if (meta && reparto.d < 0.9) bloquear();
+        },
+        onComplete: soltar,
       });
     };
     // El fijado solo cubre ya el estampado. `sequence` (que lee Stage.jsx
@@ -87,12 +116,15 @@ export default function Stack({ sequence }) {
       anticipatePin: 1,
       scrub: true,
       onUpdate: (self) => pasar(self.progress),
-      onRefresh: (self) => pasar(self.progress),
+      // Al cambiar el tamano de la ventana las posiciones de la baraja (en px)
+      // se quedaban viejas y las cartas apiladas salian desalineadas.
+      onRefresh: (self) => { pasar(self.progress); repartir(reparto.d); },
     });
     repartir(0);
     pasar(st.progress);
     return () => {
       tween?.kill();
+      soltar();
       st.kill();
       cartas.forEach((c) => { c.style.translate = c.style.rotate = c.style.scale = c.style.zIndex = ""; });
     };
@@ -157,6 +189,11 @@ export default function Stack({ sequence }) {
     let x0 = 0, s0 = 0, arrastrando = false;
     const abajo = (e) => {
       if (e.pointerType !== "mouse" || e.button !== 0) return;
+      // Sobre la barra de desplazamiento manda la barra. Si no, las dos
+      // movian la fila a la vez y en sentidos contrarios (arrastrar la barra a
+      // la derecha empujaba las cartas a la izquierda) y la barra "saltaba".
+      const caja = el.getBoundingClientRect();
+      if (e.clientY > caja.top + el.clientTop + el.clientHeight) return;
       arrastrando = true;
       x0 = e.clientX;
       s0 = el.scrollLeft;

@@ -7,9 +7,17 @@ import { CanvasTexture, LinearFilter, Vector2 } from "three";
 // del puntero y el agujero se salia de su centro hacia donde estuviera el
 // raton; en las manos de los astronautas, igual.
 const QUIETO = new Vector2(0, 0);
+// El trazado del ∞ de los idiomas, para que la cinta del shader lo tape.
+const CURVA = (() => {
+  const plana = curvaParaShader();
+  const out = [];
+  for (let i = 0; i < plana.length; i += 2) out.push(new Vector2(plana[i], plana[i + 1]));
+  return out;
+})();
 import { ui } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { useMusic } from "../lib/music";
+import { curvaParaShader } from "../lib/curvaInfinito";
 
 const vertexShader = `
   varying vec2 vUv;
@@ -34,6 +42,10 @@ uniform float uDisk, uWhite;
 uniform float uScale, uTopDown, uIsolation, uFaceOn;
 uniform vec2 uPointer, uCenter;
 uniform sampler2D uText, uCopy;
+// El ∞ de los idiomas, el MISMO trazado del SVG del cargador, muestreado (ver
+// curvaInfinito.js): x a la derecha, y arriba, en unidades de LEM_A.
+const int CURVA_N = 96;
+uniform vec2 uCurva[CURVA_N];
 
 const float DISK_IN  = 2.05;   // borde interno, junto a la última órbita estable
 const float DISK_OUT = 15.0;
@@ -129,7 +141,90 @@ vec3 starField(vec3 d) {
 // es una lemniscata de Bernoulli (el ∞) sobre un plano que mira a la cámara, y
 // al final es el anillo del disco sobre el plano ecuatorial. No hay dos objetos
 // ni dos motores: hay un conjunto de nivel que se transforma.
-vec3 diskSample(vec3 hit, vec3 dir, vec3 e1, vec3 e2, vec3 nrm, float open, float morph, out float opacity) {
+// Distancia (en unidades de LEM_A) del punto p al trazado del ∞ de los idiomas.
+float distCurva(vec2 p) {
+  float d = 1e3;
+  for (int k = 0; k < CURVA_N - 1; k++) {
+    vec2 a = uCurva[k], ab = uCurva[k + 1] - a, pa = p - a;
+    d = min(d, length(pa - ab * clamp(dot(pa, ab) / dot(ab, ab), 0.0, 1.0)));
+  }
+  vec2 a = uCurva[CURVA_N - 1], ab = uCurva[0] - a, pa = p - a;
+  return min(d, length(pa - ab * clamp(dot(pa, ab) / dot(ab, ab), 0.0, 1.0)));
+}
+
+// Lo contrario del tono de mas abajo (Reinhard con WHITE 1.85 y la curva de
+// 0.92): que color hay que emitir para que en pantalla salga el color c.
+vec3 sinTono(vec3 c) {
+  const float W2 = 1.85 * 1.85;
+  vec3 t = pow(max(c, 0.0), vec3(1.0 / 0.92));
+  float m = max(t.r, max(t.g, t.b));
+  if (m <= 0.0) return vec3(0.0);
+  m = min(m, 0.999);
+  float p = (-(1.0 - m) + sqrt((1.0 - m) * (1.0 - m) + 4.0 * m / W2)) * W2 * 0.5;
+  return t * (p / m);
+}
+
+/*
+ * El ACABADO del ∞ del SVG del cargador, capa por capa y en el mismo orden:
+ * tres capas de grosor bajadas 7, 5 y 3 (degradado #loaderEdge), el borde
+ * (--ember, 18 de ancho), la cara (#loaderFace, 16) y la luz del bisel
+ * (#loaderLight, 14, subida 0.8). Es lo que la cinta del shader lleva puesto
+ * al principio, para que el SVG se retire sobre una copia identica y el
+ * cambio no se vea (Jorge: "no debe notarse el cambio a simple vista").
+ * Devuelve el color en pantalla (rgb) y la cobertura (a).
+ */
+vec4 esmalteSVG(vec2 P0) {
+  const float S = 85.35;               // unidades del viewBox por unidad de LEM_A
+  const float AA = 0.0035;
+  vec2 vb = vec2(99.55 + P0.x * S, 47.05 - P0.y * S);
+  bool es = vb.x < 100.0;
+  // Caja de cada mitad (las de objectBoundingBox de #loaderEdge y #loaderLight).
+  vec2 c0 = es ? vec2(14.2, 17.0) : vec2(100.0, 13.8);
+  vec2 c1 = es ? vec2(100.0, 80.3) : vec2(184.9, 80.3);
+  vec4 o = vec4(0.0);
+
+  // Grosor: tres capas desplazadas hacia abajo.
+  for (int k = 0; k < 3; k++) {
+    float bajada = k == 0 ? 7.0 : (k == 1 ? 5.0 : 3.0);
+    vec2 q = vb - vec2(0.0, bajada);
+    float cob = smoothstep(8.5 / S + AA, 8.5 / S - AA, distCurva(P0 + vec2(0.0, bajada / S)));
+    vec2 b = (q - c0) / (c1 - c0);
+    float t = clamp((0.3 * b.x + b.y) / 1.09, 0.0, 1.0);
+    vec3 col = mix(vec3(1.0, 0.416, 0.071), vec3(0.227, 0.047, 0.008), t);
+    o.rgb = mix(o.rgb, col, cob); o.a = cob + o.a * (1.0 - cob);
+  }
+  float d = distCurva(P0);
+  // Borde.
+  float cob = smoothstep(9.0 / S + AA, 9.0 / S - AA, d);
+  o.rgb = mix(o.rgb, vec3(0.49, 0.11, 0.016), cob); o.a = cob + o.a * (1.0 - cob);
+  // Cara: degradado de (15, 20) a (190, 80) en el viewBox.
+  cob = smoothstep(8.0 / S + AA, 8.0 / S - AA, d);
+  float t = clamp(dot(vb - vec2(15.0, 20.0), vec2(175.0, 60.0)) / (175.0 * 175.0 + 60.0 * 60.0), 0.0, 1.0);
+  vec3 cara = t < 0.55
+    ? mix(vec3(1.0, 0.604, 0.235), vec3(1.0, 0.416, 0.071), t / 0.55)
+    : mix(vec3(1.0, 0.416, 0.071), vec3(0.859, 0.196, 0.031), (t - 0.55) / 0.45);
+  o.rgb = mix(o.rgb, cara, cob); o.a = cob + o.a * (1.0 - cob);
+  // Luz del bisel: blanco arriba, nada a la mitad, sombra abajo.
+  vec2 ql = vb + vec2(0.0, 0.8);
+  cob = smoothstep(7.0 / S + AA, 7.0 / S - AA, distCurva(P0 + vec2(0.0, -0.8 / S)));
+  vec2 b = (ql - c0) / (c1 - c0);
+  float tl = clamp((0.2 * b.x + b.y) / 1.04, 0.0, 1.0);
+  vec4 luz = tl < 0.48 ? vec4(1.0, 1.0, 1.0, 0.55 * (1.0 - tl / 0.48))
+                       : vec4(0.169, 0.031, 0.008, 0.35 * (tl - 0.48) / 0.52);
+  o.rgb = mix(o.rgb, luz.rgb, cob * luz.a);
+
+  // El resplandor de las dos mitades en la pantalla de eleccion (un
+  // drop-shadow naranja en global.css, que se suma al de la animacion de
+  // entrada). Va DEBAJO de la figura. Ancho e intensidad medidos contra el
+  // SVG a 1536x639; en otras pantallas es el mismo halo difuso.
+  float fuera = max(d - 9.0 / S, 0.0);
+  float halo = 0.21 * exp(-0.5 * fuera * fuera / (0.056 * 0.056));
+  float a = o.a + halo * (1.0 - o.a);
+  vec3 premul = o.rgb * o.a + vec3(1.0, 0.416, 0.071) * halo * (1.0 - o.a);
+  return vec4(a > 0.0 ? premul / a : vec3(0.0), a);
+}
+
+vec3 diskSample(vec3 hit, vec3 dir, vec3 e1, vec3 e2, vec3 nrm, float morph, out float opacity) {
   float u = dot(hit, e1), v = dot(hit, e2);
   float r = sqrt(u * u + v * v);
   float t = (r - DISK_IN) / (gOut - DISK_IN);
@@ -137,74 +232,48 @@ vec3 diskSample(vec3 hit, vec3 dir, vec3 e1, vec3 e2, vec3 nrm, float open, floa
   // Mientras es una cinta el perfil radial del disco todavía no manda.
   edge = mix(1.0, edge, morph);
 
-  // El contorno es UNA familia de curvas que se abre, los óvalos de Cassini:
-  //
-  //     (U²+V²)² − 2b²(U²−V²) + b⁴ − a⁴ = 0
-  //
-  // Con a = b es exactamente la lemniscata de Bernoulli —el ∞ del cargador—.
-  // Bajando b la cintura se despega del centro, los dos bucles se funden en un
-  // óvalo y, con b = 0, queda la circunferencia del disco. Una sola figura que
-  // se abre, no dos mezcladas: por el camino no aparece ni desaparece nada, y
-  // en cada fotograma lo que se ve es una curva cerrada de verdad.
-  float U = u / LEM_A, V = v / LEM_A;
-  float Q  = U * U + V * V;
-  float rn = sqrt(Q);
-  // cos 2θ y sin 2θ sin llamar a atan: en el centro la dirección da igual
-  // porque allí la banda ya está apagada.
-  float c2 = Q > 1e-7 ? (U * U - V * V) / Q : 1.0;
-  float s2 = Q > 1e-7 ? (2.0 * U * V) / Q : 0.0;
+  // ∞   →   anillo  R = RMID.
+  // Se interpolan las DISTANCIAS a uno y a otro: mezclar dos campos de
+  // distancia transforma un contorno en el otro sin que nada aparezca ni
+  // desaparezca por el camino. (Es la transformacion de la primera version de
+  // la intro, b515bf3: la que Jorge eligio el 24-09-2026.)
+  // La distancia al ∞ es la distancia al TRAZADO DEL SVG, segmento a
+  // segmento: la cinta de plasma tapa asi al ∞ de los idiomas punto por
+  // punto, con su forma original (Jorge: ni engordarla ni achicarla). Con el
+  // disco ya formado no se usa, y el agujero del hero no paga el recorrido.
+  float toEight = morph < 0.999 ? distCurva(vec2(u, v) / LEM_A) : 1e3;
 
   const float R_IN  = DISK_IN / LEM_A;
   const float R_OUT = DISK_OUT / LEM_A;
   const float RMID  = (R_IN + R_OUT) * 0.5;
-  // La ecuación es bicuadrada en r, así que el radio del contorno tiene forma
-  // cerrada para cada ángulo:  rc² = b²·cos2θ + √(a⁴ − b⁴·sin²2θ).
-  // De ahí salen sus dos medidas visibles —el radio de la punta y la mitad de
-  // la cintura— y, despejando, los parámetros de la curva:
-  //
-  //     rpunta² = a² + b²      (θ = 0)        rcintura² = a² − b²   (θ = 90°)
-  //
-  // La transformación se escribe con ESAS dos, no con a y b. Es la diferencia
-  // entre que la cintura se abra a ojo y que se abra parejo: con b lineal, el
-  // hueco del centro pega un salto en los dos primeros fotogramas y el resto
-  // de la apertura no se ve.
-  float waist = RMID * open;                  // 0 = ∞ cerrado, RMID = anillo
-  float tip   = mix(1.0, RMID, open);         // la punta se recoge hasta el anillo
-  float a2 = (tip * tip + waist * waist) * 0.5;
-  float b2 = (tip * tip - waist * waist) * 0.5;
+  // El anillo con las coordenadas SIN aplanar: el disco es redondo.
+  float toRing = abs(r / LEM_A - RMID);
 
-  float root = sqrt(max(a2 * a2 - b2 * b2 * s2 * s2, 0.0));
-  float P    = b2 * c2 + root;
-  float rc   = sqrt(max(P, 0.0));
-  // Derivada del mismo radio respecto al ángulo: dice cuánto se inclina el
-  // contorno sobre el radio, para proyectar la distancia radial sobre su
-  // normal. Sin esa proyección la cinta se hincha justo en el cruce del ∞,
-  // que es donde la curva va casi a 45°.
-  float dP = -2.0 * b2 * s2 - (root > 1e-4 ? 2.0 * b2 * b2 * s2 * c2 / root : 0.0);
-  float slope = P > 1e-4 ? dP / (2.0 * P) : 0.0;
-  float radial = abs(rn - rc);
-  // La proyección solo vale cerca del contorno: más lejos, el punto más próximo
-  // ya no está en el mismo ángulo. Junto al cruce del ∞ la pendiente no tiene
-  // cota —ahí la curva pasa por el origen— y aplicarla sin más dibujaba dos
-  // rayas rectas a 45° que salían del ∞ y cruzaban la pantalla entera. Van dos
-  // frenos, y hacen falta los dos: la corrección se apaga con la distancia, y
-  // por mucha pendiente que haya, la distancia proyectada nunca baja de una
-  // fracción de la radial.
-  float bend = clamp(slope * exp(-radial * 9.0), -60.0, 60.0);
-  float dist = max(radial * inversesqrt(1.0 + bend * bend), radial * 0.12);
+  float dist = mix(toEight, toRing, morph);
 
   // La meseta de la banda (el 80 % interior) tiene que cubrir exactamente el
   // anillo DISK_IN..DISK_OUT; si no, se come la parte interna, que es la más
   // caliente y brillante del disco.
   // 0.088 ≈ el mismo grosor de trazo que el ∞ del SVG del cargador: la cinta
   // del shader releva a la del SVG sin cambiar de grosor.
-  float width = mix(0.088, (R_OUT - R_IN) / 1.6, morph);
+  // 0.125: medido contra la CARA del ∞ del SVG, que ya es la misma curva y es
+  // lo unico que queda de el en el relevo (el borde y el grosor se apagan
+  // antes). Con 0.088 la cinta de plasma se quedaba corta y en el fundido
+  // asomaba el borde interior del SVG como un filo oscuro (24-09-2026).
+  float width = mix(0.125, (R_OUT - R_IN) / 1.6, morph);
   edge *= smoothstep(width, width * 0.80, dist);
 
   // Salida temprana: la geometría es barata y el ruido no. Cuando el cruce cae
   // fuera de la figura —lo habitual durante la fase de ∞ y en todo el exterior
   // del disco— se ahorran las tres octavas de fbm y el resto del sombreado.
-  if (edge < 0.004) { opacity = 0.0; return vec3(0.0); }
+  // Al principio la cinta lleva el acabado del SVG (ver esmalteSVG), y el
+  // plasma la invade mientras la figura ya se transforma.
+  float esmalte = 1.0 - smoothstep(0.02, 0.34, uFormation);
+  vec4 lamina = esmalte > 0.0 ? esmalteSVG(vec2(u, v) / LEM_A) : vec4(0.0);
+  if (edge < 0.004) {
+    opacity = lamina.a * esmalte;
+    return sinTono(lamina.rgb) * lamina.a * esmalte;
+  }
 
   // Rotación diferencial: el interior se adelanta al exterior y cizalla la
   // materia. El exponente es más suave que el kepleriano real (1.5) a
@@ -220,7 +289,9 @@ vec3 diskSample(vec3 hit, vec3 dir, vec3 e1, vec3 e2, vec3 nrm, float open, floa
   //    espiral se convertiría en ruido: el disco parecía quieto porque su
   //    textura ya no se resolvía, no porque hubiera dejado de girar.
   float shear = pow(DISK_IN / r, 0.95);
-  float spin = (uRigid + uWind * (shear - 1.0)) * morph;
+  // El plasma fluye desde el primer instante: con el giro a cero mientras
+  // la figura era un ∞, la cinta parecia una imagen congelada.
+  float spin = (uRigid + uWind * (shear - 1.0)) * mix(0.45, 1.0, morph);
   float a = atan(v, u) + spin;
   vec2 ring = vec2(cos(a), sin(a));
 
@@ -244,7 +315,10 @@ vec3 diskSample(vec3 hit, vec3 dir, vec3 e1, vec3 e2, vec3 nrm, float open, floa
 
   opacity = clamp(edge * filament * 0.82, 0.0, 1.0);
   float glow = edge * filament * falloff * boost * (9.8 + uBass * 5.4 + uTreble * 1.6 + uPower * 4.4);
-  return ember(heat) * glow;
+  vec3 plasma = ember(heat) * glow;
+  if (esmalte <= 0.0) return plasma;
+  opacity = mix(opacity, lamina.a, esmalte);
+  return mix(plasma, sinTono(lamina.rgb) * lamina.a, esmalte);
 }
 
 void main() {
@@ -268,36 +342,27 @@ void main() {
   vec2 uv = (screen * (1.0 - uBass * 0.021) - shift - center) * uScale;
 
   float grow     = smoothstep(0.0, 1.0, uFormation);
-  // La formación va en tres tiempos, y el orden es lo que la hace leerse como
-  // una transformación y no como un cambiazo. Nunca hay dos cosas ocurriendo
-  // a la vez: cada fase termina de contarse antes de que empiece la siguiente.
-  //
-  //   RELEVO   0.00–0.06  la cinta del shader aparece plana, sin gravedad y
-  //                       del grosor y el tamaño exactos del ∞ del SVG, que
-  //                       todavía se está apagando encima. Solo cambia el
-  //                       material: la figura es la misma.
-  //   APERTURA 0.18–0.58  la cintura del ∞ se despega del centro y los dos
-  //                       bucles se funden en un anillo. Sigue plano y sin
-  //                       gravedad: lo único que pasa en pantalla es que la
-  //                       figura se abre.
-  //   COLAPSO  0.50–1.00  ya hay anillo, así que ahora sí: se tumba hasta el
-  //                       ecuador, entra la curvatura —que es la que dobla la
-  //                       imagen de atrás por encima— y el horizonte crece en
-  //                       el centro, con el anillo ya alrededor. El horizonte
-  //                       entra el último a propósito: antes de que hubiera
-  //                       anillo era un punto negro saliendo de la nada.
-  float open     = smoothstep(0.18, 0.58, uFormation);
-  float morph    = smoothstep(0.50, 0.94, uFormation);
-  float lens     = smoothstep(0.54, 1.00, uFormation);
+  // Los tiempos de la primera version de la intro (b515bf3), la elegida: el
+  // ∞ empieza plano y sin gravedad, y el HORIZONTE se abre pronto, en el cruce
+  // del ∞, mientras la figura todavia es un ∞. Despues se cierra en anillo, se
+  // tumba y la curvatura lo termina de doblar.
+  float lens     = smoothstep(0.38, 0.96, uFormation);
+  float morph    = smoothstep(0.26, 0.88, uFormation);
   // Repartir el cambio de perspectiva y suavizar también su aceleración.
-  float tiltProgress = clamp((uFormation - 0.50) / 0.50, 0.0, 1.0);
+  float tiltProgress = clamp((uFormation - 0.12) / 0.84, 0.0, 1.0);
   float tiltAmt = tiltProgress * tiltProgress * tiltProgress
                 * (tiltProgress * (tiltProgress * 6.0 - 15.0) + 10.0);
   // El horizonte de sucesos se mueve con la música: los graves lo hinchan y
   // los agudos rizan su silueta, así que la sombra late en vez de estar quieta.
   float pulse    = 0.065 * uBass + 0.07 * uTreble * sin(atan(uv.y, uv.x) * 5.0 - uTime * 6.0);
-  float horizon  = mix(0.04, 1.0, smoothstep(0.58, 0.96, uFormation)) * (1.0 + pulse);
-  float diskFade = smoothstep(0.0, 0.06, uFormation);
+  // Desde 0: con 0.04 al principio quedaba un punto negro en el cruce del ∞
+  // que el SVG no tiene, y delataba el relevo.
+  float horizon  = mix(0.0, 1.0, smoothstep(0.02, 0.70, uFormation)) * (1.0 + pulse);
+  // En la version original valia 0 con la formacion a 0, y mientras el SVG se
+  // quemaba (con la formacion todavia en 0) la pantalla se quedaba en negro:
+  // el hueco que se veia a los 0,75 s. La cinta de plasma tiene que estar ya
+  // debajo cuando el SVG se apaga; mientras no toca verla, la tapa el cargador.
+  float diskFade = 1.0;
 
   // Elevacion de la camara sobre el plano ecuatorial. De canto (5 grados) es
   // como se ve el disco toda la vida; uTopDown la sube a 80, que es donde se
@@ -378,7 +443,7 @@ void main() {
         // Cubre tanto el ∞ como el borde exterior del disco, el mayor de los dos.
         if (rr < max(gOut, LEM_A) + 1.0) {
           float op;
-          vec3 e = diskSample(hit, normalize(vel), e1, e2, nrm, open, morph, op);
+          vec3 e = diskSample(hit, normalize(vel), e1, e2, nrm, morph, op);
           // Los rayos que pasan rozando la esfera de fotones dan vueltas
           // enteras alrededor del agujero y vuelven a cruzar el disco una y
           // otra vez. Todos esos cruces caen en la misma franja de pantalla
@@ -420,7 +485,12 @@ void main() {
     // al cielo de forma que se pueda muestrear, asi que se funde en vez de
     // aliasear. El fondo normal —que llega girando casi nada— no se toca.
     float clear = 1.0 - smoothstep(2.0, 3.6, swept);
-    col += starField(away) * trans * (2.15 + uTreble * 1.15) * (1.0 - uIsolation) * clear;
+    // El cielo entra despacio mientras el ∞ se transforma: el fondo del
+    // cargador es liso, y aparecer de golpe delataba el relevo.
+    float cielo = smoothstep(0.08, 0.55, uFormation);
+    col += starField(away) * trans * (2.15 + uTreble * 1.15) * (1.0 - uIsolation) * clear * cielo;
+    // Mientras tanto, el fondo es el del cargador (--ink, #08070a), no negro.
+    col += sinTono(vec3(0.031, 0.027, 0.039)) * trans * (1.0 - cielo) * (1.0 - uIsolation);
     // El titular es el fondo por el que pasan los fotones. Se vuelve a
     // proyectar la dirección de SALIDA del rayo: sin curvatura cae exactamente
     // donde lo pone el DOM, y cerca del horizonte se estira y desaparece.
@@ -487,7 +557,8 @@ void main() {
 
   // Bruma cálida muy tenue: el halo que el disco deja en la óptica.
   float d = length(uv);
-  col += vec3(1.0, 0.29, 0.04) * exp(-max(d - 0.17, 0.0) * 6.5) * 0.022 * diskFade * (0.55 + uBass * 0.9);
+  col += vec3(1.0, 0.29, 0.04) * exp(-max(d - 0.17, 0.0) * 6.5) * 0.022 * diskFade * (0.55 + uBass * 0.9)
+       * smoothstep(0.08, 0.55, uFormation);
 
 
   // Reinhard extendido sobre el canal más alto: comprime el brillo sin que el
@@ -647,6 +718,7 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     // que altura se mira. Lo escribe el scroll (ver Stage.jsx).
     uCenter: { value: new Vector2() }, uScale: { value: 1 }, uTopDown: { value: 0 }, uIsolation: { value: 0 }, uFaceOn: { value: 0 },
     uHue: { value: hue }, uDisk: { value: disk }, uWhite: { value: white },
+    uCurva: { value: CURVA },
   }), []);
   // Pueden cambiar sin volver a montar el lienzo (el idioma, por ejemplo,
   // re-renderiza el arbol entero).
@@ -775,6 +847,7 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
 
     if (espejoModo === "publica" && espejo) {
       espejo.current = {
+        cubre: !!trip?.cubre,
         time: elapsed.current, rigid: rigid.current, wound: wound.current,
         wind: live.uWind.value, formation: live.uFormation.value,
         bass: live.uBass.value, mid: live.uMid.value, treble: live.uTreble.value,
@@ -786,6 +859,30 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
       };
     }
   });
+  /**
+   * No pintar lo que nadie ve. Mientras el cargador es opaco (hasta que empieza
+   * a fundirse, `cubre` en el espejo), el lienzo del hero queda debajo y
+   * pintarlo era trabajo tirado: los dos lienzos a pantalla completa, con 180
+   * pasos por pixel, justo en el colapso del ∞, que es cuando el shader se
+   * vuelve caro. Ahi caian tareas de 64-122 ms (ver intro-y-titular).
+   *
+   * Sigue COPIANDO el espejo cada fotograma (el useFrame de arriba); solo se
+   * salta el `render`. Antes pinta un par de fotogramas para tener el shader
+   * compilado: compilarlo al reanudar seria meter el tiron en el fundido. Y el
+   * cargador levanta `cubre` unos fotogramas antes de empezar a irse, asi que
+   * cuando este lienzo asoma ya lleva la imagen al dia.
+   *
+   * Con prioridad 1 r3f deja de pintar solo y lo hace este callback; por eso
+   * solo el lienzo que sigue la toma (el resto pinta como siempre).
+   */
+  const pintados = useRef(0);
+  useFrame(({ gl, scene, camera }) => {
+    if (espejoModo !== "sigue") return;
+    if (espejo?.current?.cubre && pintados.current > 1) return;
+    pintados.current++;
+    gl.render(scene, camera);
+  }, espejoModo === "sigue" ? 1 : 0);
+
   return <mesh frustumCulled={false}><planeGeometry args={[2,2]} /><shaderMaterial
     ref={material} uniforms={uniforms} vertexShader={vertexShader} fragmentShader={fragmentShader}
     transparent depthTest={false} depthWrite={false} toneMapped={false}

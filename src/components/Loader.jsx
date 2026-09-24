@@ -2,18 +2,17 @@ import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState }
 import { useLang } from "../lib/i18n";
 import { gsap, prefersReducedMotion } from "../lib/anim";
 import { heroBase } from "../lib/stagePose";
+import { MITADES } from "../lib/curvaInfinito";
 import { useMusic } from "../lib/music";
 
 // El infinito es SVG y se dibuja sin tocar WebGL. El agujero negro llega
 // despues, mientras el contador sube, para no bloquear el primer pintado.
 const BlackHole = lazy(() => import("./BlackHole"));
 
-// Dos cintas con extremos coincidentes: la junta se ilumina, nunca se abre.
+// El ∞ de los idiomas: el trazado original, compartido con el shader (que lo
+// usa para que su cinta tape a esta punto por punto). Ver curvaInfinito.js.
 // Las capas desplazadas hacia abajo dan espesor sin cargar otra escena WebGL.
-const HALVES = [
-  { code: "es", label: "ES", d: "M100 50 C77 35 58 17 37 19 C6 22 7 79 38 80 C59 81 79 64 100 50", cx: 44 },
-  { code: "en", label: "EN", d: "M100 50 C122 34 145 8 165 15 C195 25 188 79 164 80 C144 83 122 64 100 50", cx: 157 },
-];
+const HALVES = MITADES;
 
 const LAYERS = [
   { name: "edge", offset: 7 },
@@ -218,6 +217,9 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
     const hole = root.current.querySelector(".loader__singularity");
     formation.current=0;
     travel.current.cy = 0;
+    // Mientras el cargador sea opaco tapa al lienzo del hero, que entonces no
+    // se pinta (ver `cubre` en BlackHole.jsx). Se baja antes de irse.
+    travel.current.cubre = true;
     // A la escala a la que se esta viendo el ∞, que en pantallas estrechas no
     // es 1 (ver `encajar`). Arrancando siempre en 1, la cinta del shader salia
     // mas grande que el SVG justo en el fotograma del relevo.
@@ -225,40 +227,54 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
     travel.current.scale = salida;
     const ctx = gsap.context(() => {
       gsap.set(hole,{opacity:1});
-      gsap.set(".loader__label, .loader__seams",{opacity:0});
+      // Las etiquetas y la junta se desvanecen: quitarlas de golpe era un
+      // salto a la vista en el primer fotograma.
       const motion = {p:0};
 
-      // La cinta del shader ENTRA MIENTRAS la del SVG se apaga, no despues.
-      // Antes habia un hueco de un cuarto de segundo entre las dos en el que
-      // no se veia nada: el ∞ se quemaba, la pantalla se quedaba en negro y
-      // aparecia otro ∞ de la nada. Aqui las dos figuras se solapan medio
-      // segundo, con el mismo tamano y el mismo grosor de trazo, asi que lo
-      // que se ve es una sola cinta cambiando de material.
-      const MORPH_AT = 0.26;
-      const MORPH_DUR = 1.72;
+      /**
+       * La transformacion de la primera version de la intro (b515bf3), la que
+       * Jorge eligio el 24-09-2026 como base. Va en tres tiempos, y el orden
+       * es lo que la hace leerse como una transformacion y no como un cambiazo:
+       *
+       *   RELEVO  el ∞ del SVG se apaga. Debajo, en el mismo sitio y con la
+       *           misma forma, ya esta el ∞ del shader: la figura parece
+       *           cambiar de material, no ser sustituida.
+       *   MORPH   el horizonte se abre en el cruce del ∞ y la figura se
+       *           cierra en anillo, se tumba y se hace el agujero del hero.
+       */
+      // Sin respiro quieto entre el quemado y el morfo (Jorge: "no me dejes
+      // frames congelados"): la figura empieza a transformarse en cuanto el
+      // SVG empieza a apagarse encima.
+      const MORPH_DUR = 1.8;
+      const MORPH_AT = 0;
       // El cargador se retira con la figura ya practicamente formada y ya
       // colocada en la pose del hero (ver `travel`): lo de debajo es la misma
       // imagen, asi que el fundido no se nota.
       const LEAVE_AT = MORPH_AT + MORPH_DUR * 0.93;
 
       const timeline = gsap.timeline();
+      // En desarrollo, para poder llevar la intro a un instante concreto:
+      //   window.__intro.pause().time(1.2)
+      if (import.meta.env.DEV) window.__intro = timeline;
 
-      // El SVG se va ardiendo, no desvaneciendose sin mas.
-      timeline.fromTo(mark,
-        { filter: "brightness(1) drop-shadow(0 0 0 rgba(255, 106, 18, 0))" },
-        { filter: "brightness(2.6) drop-shadow(0 0 46px rgba(255, 120, 30, 0.95))",
-          duration: 0.46, ease: "power2.in" },
-        0);
-      timeline.to(mark, { opacity: 0, duration: 0.34, ease: "power2.inOut" }, 0.30);
+      // Sin quemado: el SVG ya no se aclara ni echa resplandor antes del
+      // relevo (Jorge, 24-09-2026: "quitale el brillo antes del shader").
+      // Debajo esta la misma cinta con la misma forma, asi que basta con que
+      // se apague encima.
+      // La cinta del shader arranca con el mismo acabado que este SVG, capa
+      // por capa (esmalteSVG en BlackHole.jsx): el SVG se retira enseguida
+      // sobre una copia identica, y el cambio no se ve.
+      timeline.to(".loader__label, .loader__seams", { opacity: 0, duration: 0.28, ease: "power1.out" }, 0);
+      timeline.to(mark, { opacity: 0, duration: 0.15, ease: "none" }, 0.05);
 
       const rest = heroBase();
       timeline.to(motion,{
         p:1, duration:MORPH_DUR, ease:"none",
         onUpdate() {
           formation.current = motion.p;
-          // El viaje al sitio del hero empieza cuando la figura ya es un
-          // anillo y termina antes que el fundido: si se movieran a la vez,
-          // lo que se cruzaria son dos agujeros en distinto sitio.
+          // El viaje al sitio del hero va en la segunda mitad del morfo y
+          // termina antes que el fundido: si se movieran a la vez, lo que se
+          // cruzaria son dos agujeros en distinto sitio.
           const settle = Math.min(1, Math.max(0, (motion.p - 0.44) / 0.41));
           const k = settle * settle * (3 - 2 * settle);
           travel.current.cy = rest.cy * k;
@@ -274,10 +290,13 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
       // Preparar el portafolio desde el inicio y revelarlo durante el giro:
       // el fondo ya debe verse cuando el agujero termine de formarse.
       timeline.call(() => enter.current(), null, 0);
+      // Unos fotogramas antes del fundido el hero vuelve a pintar, para que al
+      // asomar tenga ya la imagen de este instante y no la de hace un segundo.
+      timeline.call(() => { travel.current.cubre = false; }, null, LEAVE_AT - 0.12);
       timeline.to(root.current,{opacity:0,duration:0.34,ease:"power2.inOut",
         onComplete:() => done.current()}, LEAVE_AT);
     },root);
-    return () => { ctx.kill(); formation.current=1; };
+    return () => { ctx.kill(); formation.current=1; travel.current.cubre = false; };
   },[phase]);
 
   useEffect(() => {

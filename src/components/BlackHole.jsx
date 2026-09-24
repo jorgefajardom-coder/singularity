@@ -561,7 +561,13 @@ function paintLensText(source, box, group) {
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(box.width * dpr);
   canvas.height = Math.round(box.height * dpr);
-  const ctx = canvas.getContext("2d");
+  // En memoria y no en la GPU, a proposito. Un lienzo 2D acelerado se BORRA
+  // cuando la GPU se reinicia (pantalla que se apaga, ahorro de energia, un
+  // driver que se recupera), y eso pasa con la pagina quieta un rato. three
+  // recupera su contexto y vuelve a subir las texturas desde estos lienzos,
+  // asi que el agujero volvia entero pero el titular subia en blanco: con
+  // `uReveal` a 1 y el <h1> transparente, el nombre desaparecia para siempre.
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
   ctx.scale(dpr, dpr);
   ctx.textBaseline = "alphabetic";
   const theme = getComputedStyle(document.documentElement);
@@ -886,8 +892,14 @@ export default function BlackHole({ bare = false, className = "", formation, jou
     const observer = new ResizeObserver(repaint);
     observer.observe(root.current);
     observer.observe(target);
+    // Si la GPU se reinicia, se rasteriza de nuevo al recuperar el contexto en
+    // vez de fiarse de lo que quede en los lienzos (ver paintLensText). El
+    // evento no burbujea: se escucha en captura desde la caja.
+    const holder = root.current;
+    holder.addEventListener("webglcontextrestored", repaint, true);
     return () => {
       alive = false; observer.disconnect();
+      holder.removeEventListener("webglcontextrestored", repaint, true);
       if (esperando) cancelAnimationFrame(esperando);
       lens.current.title?.dispose(); lens.current.copy?.dispose();
       lens.current.title = null; lens.current.copy = null;

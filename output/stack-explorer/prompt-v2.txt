@@ -1,0 +1,14 @@
+Create ONE production illustration atlas for a technical portfolio: exact 5 columns by 2 rows of equal square tiles, no gaps, no borders, no outer margins, overall aspect ratio 5:2. Match the vintage space exploration screenprint style of the prior illustrated atlas: warm cream #ffdaa9, midnight navy #102530, rust red #ac453e, petrol teal. Fine printing grain, bold clear forms and elegant cream outlines. Every tile needs ONE large unmistakable field-specific icon, immediately recognizable at 200px. Space is only a subtle starry background, never the main subject. Avoid vague spacecraft metaphors. Strict reading order:
+Row 1:
+1 DEVELOPMENT: large open laptop with very clear cream code brackets </> on its dark screen, a few structured code lines, small terminal cursor, centered heroic composition.
+2 ARTIFICIAL INTELLIGENCE: large human brain silhouette composed of circuit traces and connected neuron nodes, half organic brain half circuitry, very readable.
+3 AUTOMATION AND INTEGRATION: large clear workflow diagram of connected app blocks with directional arrows, central gear, branching into three nodes, substantial flat graphical forms.
+4 INDUSTRIAL AUTOMATION: unmistakable large articulated factory robot arm with claw manipulating a cube above conveyor belt, small PLC control cabinet.
+5 ELECTRONICS EMBEDDED AND NETWORKS: large detailed circuit board with central microcontroller chip, visible pins and copper traces, small wireless signal arcs.
+Row 2:
+6 3D SIMULATION AND GAMES: large shaded isometric cube transitioning from wireframe to solid, small recognizable game controller in foreground.
+7 DESIGN VIDEO AND CONTENT: large classic movie camera with two circular reels combined with a fountain pen nib and three bold color swatches.
+8 CAD AND PRODUCT DESIGN: large technical drawing of a mechanical gear with dimension arrows, drafting compass and ruler; clear cream blueprint lines.
+9 DATA AND COMPUTING: large bar chart with rising plotted line over coordinate axes, a few matrix cells and calculator keys.
+10 PRODUCT MANAGEMENT: large kanban board with three columns of task cards, checkmarks and small roadmap timeline below.
+Keep all ten subjects distinct, dominant, composed within the central 85% of each tile, same scale and visual weight. No words, labels, letters, brand names, logos, numbers or typography except the code bracket glyphs in tile 1. No photorealism, no neon, no UI chrome. Restrained stars and orbit arcs behind the strong subject in each tile. Exact regular 5x2 grid, preferably 2500x1000 or larger.

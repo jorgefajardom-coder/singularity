@@ -18,10 +18,13 @@ function Subject({ area }) {
       <path d="M48 212 L27 235 Q150 251 273 235 L252 212Z" fill={paper} /><path d="M121 224 H179" stroke={ink} />
       <path d="M64 85 H235 M70 96 V190" stroke={paper} strokeOpacity=".25" strokeWidth="1" />
       {[75,84,93].map(x => <circle key={x} cx={x} cy="79" r="2" fill={ember} stroke="none" />)}
-      <g transform="translate(207 159) rotate(8)">
-        <rect width="65" height="62" rx="6" fill={ink} stroke={orange} />
-        <path d="M12 17 L22 25 L12 33 M30 34 H47" strokeWidth="3" />
-        <path className="art-draw" pathLength="1" d="M12 46 H49" stroke={ember} />
+      {/* Clawd pixelado, sin el marco de la segunda pantalla. */}
+      <g transform="translate(201 170)">
+        <g className="art-task" stroke="none" shapeRendering="crispEdges">
+          <path d="M10 6 H54 V12 H60 V18 H66 V34 H58 V28 H54 V42 H48 V54 H40 V42 H24 V54 H16 V42 H10 V28 H6 V34 H-2 V18 H4 V12 H10Z" fill={orange} />
+          <path d="M10 36 H54 V42 H48 V48 H40 V42 H24 V48 H16 V42 H10Z" fill={ember} />
+          <path d="M18 18 H24 V29 H18Z M40 18 H46 V29 H40Z" fill={ink} />
+        </g>
       </g>
       <path d="M41 46 H89 M41 41 V51 M89 41 V51" stroke={orange} strokeWidth="1" />
     </>;
@@ -29,7 +32,7 @@ function Subject({ area }) {
       <path d="M145 65 C113 41 79 62 82 88 C50 96 53 125 64 139 C40 166 63 199 84 199 C85 230 117 242 145 225Z" fill={ember} />
       <path d="M155 65 C187 41 221 62 218 88 C250 96 247 125 236 139 C260 166 237 199 216 199 C215 230 183 242 155 225Z" fill={orange} />
       <path d="M103 88 Q130 82 126 111 Q92 104 87 132 M75 157 Q115 137 129 162 L124 207 M96 182 Q76 209 112 221" />
-      {[85, 120, 155, 190].map((y, i) => <g key={y}><path d={`M156 ${y + 17} H${181 + i * 5} V${y} H212`} /><circle className="art-pulse" style={{ "--delay": `${i * .3}s` }} cx="212" cy={y} r="6" fill={paper} /></g>)}
+      {[90, 123, 156, 189].map((y, i) => <g key={y} strokeWidth="1.8"><path d={`M169 ${y + 16} H${181 + i * 3} V${y} H201`} /><circle className="art-pulse" style={{ "--delay": `${i * .3}s` }} cx="201" cy={y} r="5" fill={paper} stroke="none" /></g>)}
       <path d="M92 109 Q107 122 99 142 M108 64 Q97 79 111 91 M73 177 Q93 163 104 177 M117 189 Q140 193 135 217" stroke={ink} strokeOpacity=".55" />
       <path className="art-flow" d="M150 234 V253 M150 253 H98 M150 253 H202" stroke={orange} />
       {[98,150,202].map((x,i) => <g key={x}><rect x={x-12} y="251" width="24" height="17" rx="3" fill={ink} stroke={orange} /><circle className="art-pulse" style={{"--delay":`${i*.25}s`}} cx={x} cy="259" r="3" fill={orange} /></g>)}

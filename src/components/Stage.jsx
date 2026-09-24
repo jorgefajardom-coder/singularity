@@ -6,6 +6,7 @@ import Orbit from "./Orbit";
 import Companies from "./Companies";
 import About from "./About";
 import Meditation from "./Meditation";
+import Stack from "./Stack";
 import { companies, sections } from "../data/content";
 import { gsap, ScrollTrigger, prefersReducedMotion } from "../lib/anim";
 import { heroBase } from "../lib/stagePose";
@@ -62,6 +63,7 @@ const ease = (x) => x * x * (3 - 2 * x);
 
 export default function Stage({ entered, warm, espejo }) {
   const stage = useRef(null);
+  const stackSequence = useRef(0);
   const copy = useRef(null);
   const carrier = useRef(null);
   const traveler = useRef(null);
@@ -109,6 +111,11 @@ export default function Stage({ entered, warm, espejo }) {
     const finalImage = stage.current.querySelector(".meditation__image");
     const finalFrame = stage.current.querySelector(".meditation__frame");
     const finalStats = stage.current.querySelector(".meditation__stats");
+    const coverHole = stage.current.querySelector(".poster__cover-hole");
+    const coverCard = stage.current.querySelector(".poster--cover");
+    const stackRow = stage.current.querySelector(".posters");
+    const stackSection = stage.current.querySelector("#stack");
+    const impact = { fired: false };
     // El texto de Sobre mi (titulo, parrafos, boton) y sus objetos 3D. No el
     // astronauta: ese es el que se transforma.
     const aboutParts = [
@@ -242,6 +249,41 @@ export default function Stage({ entered, warm, espejo }) {
         width: firstHand.width * (1 - handMix) + lastHand.width * handMix,
         height: firstHand.height * (1 - handMix) + lastHand.height * handMix,
       };
+      // El mismo lienzo termina en la portada y sigue su desplazamiento lateral.
+      const stackBox = stackSection.getBoundingClientRect();
+      const coverMix = ease(Math.max(0, Math.min(1, (innerHeight * .85 - stackBox.top) / Math.max(1, stackBox.height - innerHeight * .15))));
+      const sequence = stackSequence.current;
+      const stamp = ease(span([.115, .20], sequence));
+      const recoilProgress = span([.115, .29], sequence);
+      const recoil = Math.sin(recoilProgress * Math.PI * 3) * (1 - recoilProgress) ** 2;
+      const windup = ease(span([0, .065], sequence)) * (1 - ease(span([.065, .115], sequence)));
+      coverCard?.style.setProperty("--impact-y", `${recoil * 9}px`);
+      coverCard?.style.setProperty("--impact-scale", String(1 - recoil * .018));
+      // La onda del impacto va por tiempo, no por scroll: atada al scroll,
+      // si se paraba a mitad de la onda el aro se quedaba congelado en la
+      // carta. Se lanza una vez al estamparse y se rearma al deshacerlo.
+      if (coverHole) {
+        if (stamp >= 0.95 && !impact.fired) {
+          impact.fired = true;
+          coverHole.classList.remove("is-impacto");
+          void coverHole.offsetWidth;
+          coverHole.classList.add("is-impacto");
+        } else if (stamp < 0.05 && impact.fired) {
+          impact.fired = false;
+          coverHole.classList.remove("is-impacto");
+        }
+      }
+      coverHole?.style.setProperty("--stamp", String(stamp));
+      if (coverHole && coverMix > 0) {
+        const target = coverHole.getBoundingClientRect();
+        for (const key of ["left", "top", "width", "height"]) hand[key] += (target[key] - hand[key]) * coverMix;
+        const row = stackRow.getBoundingClientRect();
+        const cx = target.left + target.width / 2;
+        const visibility = Math.min(1, Math.max(0, (cx - row.left) / target.width), Math.max(0, (row.right - cx) / target.width));
+        layer.style.opacity = String((1 - coverMix + coverMix * visibility) * (1 - stamp));
+      } else {
+        layer.style.opacity = "";
+      }
       // Con altura cero no hay logaritmo que valga: log(0) es -Infinito y, en
       // el arranque (t = 0), -Infinito * 0 da NaN. Un `scale(NaN)` no es que
       // se ignore, es que el navegador tira la declaracion entera, asi que el
@@ -251,7 +293,7 @@ export default function Stage({ entered, warm, espejo }) {
       const arc = Math.sin(Math.PI * t) ** 2;
       const x = (hand.left + hand.width / 2 - w / 2) * t - w * 0.12 * arc;
       const y = (hand.top + hand.height / 2 - box.top - h / 2) * t - h * 0.16 * arc;
-      layer.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+      layer.style.transform = `translate3d(${x}px, ${y - windup * 24}px, 0) scale(${scale * (1 + windup * .24)}) scaleY(${1 - stamp * 0.22})`;
       // Vacia el shader mientras el lienzo todavia cubre el viewport, antes de
       // que ninguna traslacion ni escala ensenen sus bordes.
       journey.current.isolation = t > 0 ? 1 : ease(span([0.92, 1], pose.p));
@@ -262,7 +304,7 @@ export default function Stage({ entered, warm, espejo }) {
       const mask = `radial-gradient(ellipse 50% 50% at 50% 50%, #000 35%, rgba(0,0,0,${edgeAlpha}) 100%)`;
       layer.style.maskImage = mask;
       layer.style.webkitMaskImage = mask;
-      holder.style.zIndex = t > 0 ? "2" : "0";
+      holder.style.zIndex = coverMix > 0 ? "20" : t > 0 ? "2" : "0";
       holder.style.pointerEvents = t > 0 ? "none" : "auto";
       journey.current.cy = pose.cy * (1 - t);
       // `uScale` multiplica las coordenadas del shader, asi que un valor MENOR
@@ -281,6 +323,9 @@ export default function Stage({ entered, warm, espejo }) {
       tween.kill();
       closeTween.scrollTrigger.kill();
       closeTween.kill();
+      coverHole?.style.removeProperty("--stamp");
+      coverHole?.classList.remove("is-impacto");
+      for (const key of ["--impact-y", "--impact-scale"]) coverCard?.style.removeProperty(key);
       // Se devuelve TODO lo que escribio `follow`, no solo la mitad. Si algun
       // dia la limpieza corre sin que se vuelva a enganchar el ticker, el
       // lienzo se quedaba encogido en la mano, con `pointer-events: none` y
@@ -296,6 +341,7 @@ export default function Stage({ entered, warm, espejo }) {
       finalFrame.style.overflow = "";
       portrait.style.opacity = "";
       traveler.current?.style.removeProperty("transform");
+      traveler.current?.style.removeProperty("opacity");
       traveler.current?.style.removeProperty("mask-image");
       traveler.current?.style.removeProperty("-webkit-mask-image");
       carrier.current?.style.removeProperty("z-index");
@@ -391,6 +437,7 @@ export default function Stage({ entered, warm, espejo }) {
       )}
       <About sharedHole={!reduced} />
       <Meditation reduced={reduced} />
+      <Stack sequence={stackSequence} />
     </div>
   );
 }

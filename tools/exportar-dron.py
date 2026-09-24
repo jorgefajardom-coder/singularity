@@ -3,7 +3,9 @@
 dos .glb del sitio:
 
   dron.glb   solo el dron montado, una pieza por grupo para el despiece:
-             carcasas, PCB, cuatro motores y cuatro helices. La PCB va
+             carcasas, PCB, cuatro motores y cuatro helices. Cada motor va
+             partido en sus componentes (`motor_N_eje`, `_campana`,
+             `_imanes`, `_bobinado`, `_base`, `_rodamiento`, `_anillo`). La PCB va
              partida: la placa (con sus capas de cobre y serigrafia) es
              `pcb`, y cada componente soldado es su propia pieza `pcbc_NN`,
              para que se despiecen de la placa.
@@ -159,8 +161,40 @@ def tapar_huecos(m, max_hueco=12.0, afilado=math.radians(30)):
     return n
 
 
+# Cada motor sale partido en sus componentes, por el subconjunto de Fusion
+# del que cuelga cada malla. Las bobinas van con los brazos del estator (van
+# enrolladas en ellos) y los imanes juntos: 12 bobinas y 14 imanes sueltos
+# no se leerian como un motor despiezado. El orden de las claves importa:
+# "stator_arms" tiene que mirarse antes que "stator".
+PARTES_MOTOR = [
+    ("shaft", "eje"),
+    ("c-ring", "anillo"),
+    ("stator_arms", "bobinado"),
+    ("coil", "bobinado"),
+    ("stator", "base"),
+    ("ballbearing", "rodamiento"),
+    ("rotor", "campana"),
+    ("magnet", "imanes"),
+]
+
+
+def partir_motor(fuente, destino):
+    """Mallas de un motor -> `motor_N_<parte>`."""
+    salida = {}
+    for m in mallas_de(bpy.data.objects[fuente]):
+        padre = (m.parent.name if m.parent else "").lower()
+        parte = next((p for clave, p in PARTES_MOTOR if clave in padre), "base")
+        salida[m] = "%s_%s" % (destino, parte)
+    return salida
+
+
 def presupuesto_de(destino):
-    return "pcb_componentes" if destino.startswith("pcbc_") else destino
+    if destino.startswith("pcbc_"):
+        return "pcb_componentes"
+    if destino.startswith("motor_"):
+        # El presupuesto sigue siendo por motor, repartido entre sus partes.
+        return "_".join(destino.split("_")[:2])
+    return destino
 
 
 def triangulos(o):
@@ -174,6 +208,9 @@ def construir(grupos, nombre_raiz):
     for fuente, destino in grupos.items():
         if destino == "pcb":
             asignacion.update(partir_pcb(fuente))
+            continue
+        if destino.startswith("motor_"):
+            asignacion.update(partir_motor(fuente, destino))
             continue
         for m in mallas_de(bpy.data.objects[fuente]):
             asignacion[m] = destino

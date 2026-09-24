@@ -9,7 +9,6 @@ const ViewCanvas = lazy(() => import("./three/ViewCanvas"));
 import Nav from "./components/Nav";
 import Stage from "./components/Stage";
 import Starfield from "./components/Starfield";
-import Stack from "./components/Stack";
 import Services from "./components/Services";
 import Projects from "./components/Projects";
 import Certifications from "./components/Certifications";
@@ -71,7 +70,6 @@ export default function App() {
           {/* Hero y orbita comparten un solo agujero negro, que viaja de uno
               a otra con el scroll. */}
           <Stage entered={entered} warm={warm} espejo={espejo} />
-          <Stack />
           <Services />
           <Projects />
           <Certifications />

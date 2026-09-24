@@ -607,9 +607,15 @@ export const projects = [
         // Orden de salida: primero las helices y despues la tapa; al montar
         // se invierte (vuelve la tapa y luego las helices).
         // Las cuatro helices a la vez, en un solo turno.
-        { prefijo: "helice", y: 0.52, radial: 0.1, juntas: true },
+        { prefijo: "helice", y: 0.62, radial: 0.1, juntas: true },
         { prefijo: "carcasa_superior", y: 0.34 },
-        { prefijo: "motor", y: 0.24, radial: 0.12 },
+        // Cada motor se abre en sus componentes, de abajo arriba: anillo,
+        // rodamientos, base, bobinado, imanes, campana y eje (ver
+        // tools/exportar-dron.py). Un motor por turno.
+        {
+          prefijo: "motor", y: 0.12, radial: 0.12, porGrupo: true,
+          partes: { anillo: -0.05, rodamiento: -0.025, base: 0, bobinado: 0.06, imanes: 0.13, campana: 0.2, eje: 0.3 },
+        },
         { prefijo: "pcb", y: 0.14 },
         // Los 89 componentes soldados suben con la placa y despues se
         // separan de ella: los de arriba hacia arriba y los de abajo hacia abajo.

@@ -26,6 +26,11 @@ import { prefersReducedMotion } from "../lib/anim";
  * les da un solo turno a todas (89 turnos no acabarian nunca); `lados`
  * manda hacia abajo las que van por debajo de la pieza que siguen.
  *
+ * Para piezas que son a su vez un conjunto (cada motor, partido en eje,
+ * campana, imanes...): `partes` suma a `y` lo de cada una segun el final
+ * de su nombre (`motor_2_campana` -> `campana`), y `porGrupo` hace que las
+ * partes de un mismo conjunto salgan en el mismo turno.
+ *
  * `colores` repinta materiales del .glb (Fusion los exporta planos, sin
  * metal): { prefijo: "pcb", materiales: ["..."], color, metal, rugosidad }.
  * "" es la parte sin material, que three pinta blanca.
@@ -119,15 +124,20 @@ function Modelo({ url, despiece, colores, abierto, onReady, giro, vaiven, alzado
       // padre de la pieza (la raiz del .glb puede venir escalada).
       const escala = o.parent.getWorldScale(new Vector3());
       const lado = regla.lados && mundo.y < centroDe(regla.sigue).y ? -1 : 1;
-      const delta = new Vector3(fuera.x, (regla.y || 0) * lado, fuera.z).divide(escala);
-      piezas.push({ o, reposo, delta, regla, sube: Math.max(0, (regla.y || 0) * lado), orden: despiece.indexOf(regla) });
+      const extra = regla.partes?.[o.name.split("_").pop()] ?? 0;
+      const sube = ((regla.y || 0) + extra) * lado;
+      const delta = new Vector3(fuera.x, sube, fuera.z).divide(escala);
+      const grupo = regla.porGrupo ? o.name.split("_").slice(0, -1).join("_") : o.name;
+      piezas.push({ o, reposo, delta, regla, grupo, sube: Math.max(0, sube), orden: despiece.indexOf(regla) });
     });
     // Orden de salida: el de `despiece`, y dentro de cada regla por nombre.
     piezas.sort((a, b) => a.orden - b.orden || a.o.name.localeCompare(b.o.name));
     // Un turno por pieza, salvo las reglas `juntas`, que comparten uno.
     let turnos = 0;
     piezas.forEach((p, i) => {
-      if (!(p.regla.juntas && i > 0 && piezas[i - 1].regla === p.regla)) turnos++;
+      const previa = piezas[i - 1];
+      const junta = previa && previa.regla === p.regla && (p.regla.juntas || (p.regla.porGrupo && previa.grupo === p.grupo));
+      if (!junta) turnos++;
       p.turno = turnos - 1;
     });
     // Las que siguen a otra pieza se llevan tambien su recorrido.
@@ -152,7 +162,7 @@ function Modelo({ url, despiece, colores, abierto, onReady, giro, vaiven, alzado
   // modelo montado salia pequeño en medio de un hueco vacio. Al despiezar,
   // la vista se aleja lo justo; al montar, vuelve a acercarse. El 1.35 cubre
   // la inclinacion hacia la camara.
-  const subida = Math.max(0, ...despiece.map((r) => r.y || 0));
+  const subida = Math.max(0, ...despiece.map((r) => (r.y || 0) + Math.max(0, ...Object.values(r.partes || {}))));
   const bajada = Math.min(0, ...despiece.map((r) => r.y || 0));
   // Lo que ocupa DE VERDAD en pantalla: ancho y fondo proyectados en todos
   // los angulos que puede alcanzar (vuelta entera, o el vaiven), y el alto con

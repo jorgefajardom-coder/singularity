@@ -2862,8 +2862,9 @@ body.is-anchored .about__float {
    ============================================================ */
 .stack__head {
   display: flex;
+  /* Sin el titulo grande, las flechas se quedan a la derecha. */
+  justify-content: flex-end;
   align-items: flex-end;
-  justify-content: space-between;
   gap: 24px;
 }
 
@@ -2913,6 +2914,17 @@ body.is-anchored .about__float {
 .posters.is-arrastrando { cursor: grabbing; scroll-snap-type: none; user-select: none; }
 .posters:focus-visible { outline: 2px solid var(--accent-a); outline-offset: -2px; }
 
+/* Las cartas se inclinan hacia el puntero y flotan: variables registradas
+   para poder animarlas y transicionarlas sin tocar `transform` cada vez. */
+@property --rx { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@property --ry { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@property --alza { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --flota { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@keyframes poster-flota {
+  0%, 100% { --flota: 0px; }
+  50% { --flota: -6px; }
+}
+
 /* Laminas de exploracion: tinta plana, papel crema y arte serigrafiado. */
 .poster {
   --poster-paper: var(--paper);
@@ -2930,9 +2942,57 @@ body.is-anchored .about__float {
   color: var(--poster-ink);
   box-shadow: 0 12px 32px #0005;
   scroll-snap-align: start;
-  transition: transform .45s var(--ease), box-shadow .45s var(--ease);
+  /* El reparto (Stack.jsx) va por `translate`/`rotate`/`scale`; esto es lo
+     de cada carta: flotar, levantarse e inclinarse hacia el puntero. */
+  transform: perspective(1000px) translateY(calc(var(--alza) + var(--flota))) rotateX(var(--rx)) rotateY(var(--ry));
+  transition: --rx .35s var(--ease), --ry .35s var(--ease), --alza .45s var(--ease), box-shadow .45s var(--ease);
 }
-.poster:hover { box-shadow: 0 22px 42px #0008; }
+.poster:hover { --alza: -10px; box-shadow: 0 26px 46px #0009; }
+@media (prefers-reduced-motion: no-preference) {
+  /* Cada carta a su compas, como si flotaran sueltas. */
+  .poster { animation: poster-flota 5.5s ease-in-out infinite; animation-delay: calc(var(--i, 0) * -0.8s); }
+}
+/* El hueco para la siguiente carta: solo el contorno. */
+.poster--vacia {
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1.5px dashed rgba(244, 240, 233, .32);
+  background: rgba(244, 240, 233, .03);
+  box-shadow: none;
+  color: var(--text-dim);
+}
+.poster--vacia:hover { --alza: 0px; box-shadow: none; }
+.poster__vacia-signo { font: 300 56px/1 var(--font); color: rgba(244, 240, 233, .4); }
+.poster__vacia-texto { font: 700 11px/1.4 var(--font); letter-spacing: .16em; text-transform: uppercase; }
+.poster--cover { min-height: 510px; }
+.poster__cover-art { position: relative; flex: 1; overflow: hidden; border-radius: 12px 12px 0 0; background: var(--ink); }
+/* Solo el astronauta (hijo directo). Con `img` a secas esto se aplicaba
+   tambien al agujero estampado, que con `object-fit: cover` salia recortado
+   en las puntas del disco. */
+.poster__cover-art > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+.poster__cover-title { position: absolute; inset: auto 0 15%; margin: 0; text-align: center; font: 800 clamp(34px, 3.7vw, 52px)/1 var(--font); font-stretch: 112%; letter-spacing: .08em; color: var(--accent-a); }
+.poster__cover-hole { position: absolute; left: 35%; top: 86%; width: 30%; height: 10%; }
+.poster__cover-hole::before, .poster__cover-hole::after { content: ""; position: absolute; top: 50%; width: 68%; height: 2px; border-radius: 2px; background: var(--accent-a); }
+.poster__cover-hole::before { right: 119%; }
+.poster__cover-hole::after { left: 119%; }
+/* Lo mas grande que cabe entre las dos rayas sin tocarlas: el disco ocupa
+   del 4 al 96 % de la imagen y las rayas acaban a un 19 % del hueco por cada
+   lado. A 88 % se quedaba pequeno. `max-width: none` porque el reinicio
+   global topa las imagenes al 100 % y no dejaba pasar del ancho del hueco. */
+.poster__stamp { position: absolute; width: 136%; max-width: none; height: 100%; left: -18%; top: 0; object-fit: contain; opacity: var(--stamp, 0); transform: scale(calc(1.08 - var(--stamp, 0) * .08)); }
+.poster--cover, .poster--cover:hover { animation: none; transform: translateY(var(--impact-y, 0px)) scale(var(--impact-scale, 1)); --alza: 0px; }
+/* La onda del impacto: se reproduce una vez al estamparse el agujero (clase
+   que pone Stage.jsx) y se desvanece sola, se pare donde se pare el scroll. */
+.poster__impact-ring { position: absolute; inset: -16% -25%; border: 1px solid var(--accent-a); border-radius: 50%; opacity: 0; pointer-events: none; }
+.poster__cover-hole.is-impacto .poster__impact-ring { animation: poster-impacto .9s cubic-bezier(.2, .7, .3, 1) both; }
+@keyframes poster-impacto {
+  from { opacity: .65; transform: scale(1); }
+  to { opacity: 0; transform: scale(2.6); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .poster__cover-hole.is-impacto .poster__impact-ring { animation: none; }
+}
 .poster__arte {
   position: relative;
   flex: none;
@@ -3051,7 +3111,7 @@ body.is-anchored .about__float {
   .poster__titulo { font-size: 22px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .poster { transition: none; }
+  .poster { transition: none; transform: none; }
   .poster:hover { transform: none; }
 }
 

@@ -3332,12 +3332,54 @@ body.is-anchored .about__float {
 
 /* Una sola constelacion: cada titulo es una estrella. El alto manda tanto
    como el ancho (min con svh) para que quepa en una pantalla baja. */
+/* Dos constelaciones en el mismo cielo, cada una con su rotulo. En ancho
+   van lado a lado y cada una ocupa segun cuantas estrellas tiene; el hueco
+   entre ellas deja sitio a las etiquetas de los extremos. */
+.constels {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  gap: clamp(64px, 9vw, 150px);
+  max-width: 1240px;
+  margin: clamp(24px, 3.4vw, 48px) auto 0;
+}
+
+.constels[data-vertical="true"] {
+  flex-direction: column;
+  gap: 40px;
+}
+
+.constel-group {
+  flex: var(--n) 1 0;
+  min-width: 0;
+}
+
+.constel__name {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--accent-a);
+  opacity: 0;
+  transition: opacity 0.8s var(--ease);
+}
+
+.constels[data-vertical="true"] .constel__name {
+  text-align: left;
+}
+
+.constel__name[data-lit="true"] {
+  opacity: 1;
+}
+
 .constel {
   position: relative;
   z-index: 4;
-  height: min(46vw, 62svh, 560px);
-  margin: clamp(28px, 4vw, 56px) auto 0;
-  max-width: 1180px;
+  height: min(40vw, 56svh, 520px);
+  /* Aire para las etiquetas altas, que si no pisan el rotulo. */
+  margin-top: 44px;
 }
 
 .constel[data-vertical="true"] {
@@ -3539,6 +3581,7 @@ a.star__hit:hover .star__title {
 
 @media (prefers-reduced-motion: reduce) {
   .constel__lines line,
+  .constel__name,
   .star__dot,
   .star__label {
     transition: none;

@@ -8,9 +8,10 @@ import { useLang } from "../lib/i18n";
 import { GhostHeading } from "./ui";
 
 /**
- * Certificaciones y formación, dibujadas como una sola constelación: cada
- * título es una estrella y el trazo las une en el orden de la lista.
- * La lista vive en `certifications.items` dentro de src/data/content.js.
+ * Certificaciones y formación, dibujadas en un mismo cielo como dos
+ * constelaciones: títulos y diplomas por un lado, certificaciones por otro.
+ * Cada título es una estrella y el trazo las une en el orden de la lista.
+ * Los grupos viven en `certifications.groups` dentro de src/data/content.js.
  * Si un item trae `href`, la estrella se vuelve un enlace al certificado, y si
  * trae `detail`, la descripción aparece al pasar por encima (o al tocarla).
  * Si trae `star: [x, y]` (0-1), esa es su posición; si no, se reparte sola.
@@ -35,12 +36,7 @@ function posiciones(items, vertical) {
 
 export default function Certifications() {
   const { tr } = useLang();
-  const items = certifications.items ?? [];
-  const ref = useRef(null);
-  const [lit, setLit] = useState(false);
-  // El trazo se dibuja en píxeles reales del bloque: con un viewBox estirado
-  // el `pathLength` se deforma y las líneas salen a trozos.
-  const [size, setSize] = useState({ w: 0, h: 0 });
+  const groups = (certifications.groups ?? []).filter((g) => g.items?.length);
   const [vertical, setVertical] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches
   );
@@ -51,6 +47,37 @@ export default function Certifications() {
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
+
+  if (!groups.length) return null;
+
+  return (
+    <section id="certifications" className="section certs">
+      <Suspense fallback={null}>
+        <PropsView className="certs__view" items={props3d.certs} parallax={-0.4} />
+      </Suspense>
+
+      <div className="shell" style={{ textAlign: "center" }}>
+        <GhostHeading className="display display--md">{tr(sections.certifications.heading)}</GhostHeading>
+      </div>
+
+      <div className="shell">
+        <div className="constels" data-vertical={vertical}>
+          {groups.map((g, i) => (
+            <Constelacion key={i} label={tr(g.label)} items={g.items} vertical={vertical} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Constelacion({ label, items, vertical }) {
+  const { tr } = useLang();
+  const ref = useRef(null);
+  const [lit, setLit] = useState(false);
+  // El trazo se dibuja en píxeles reales del bloque: con un viewBox estirado
+  // el `pathLength` se deforma y las líneas salen a trozos.
+  const [size, setSize] = useState({ w: 0, h: 0 });
 
   useEffect(() => {
     const el = ref.current;
@@ -79,88 +106,77 @@ export default function Certifications() {
     return () => io.disconnect();
   }, []);
 
-  if (!items.length) return null;
-
   const pts = posiciones(items, vertical);
 
   return (
-    <section id="certifications" className="section certs">
-      <Suspense fallback={null}>
-        <PropsView className="certs__view" items={props3d.certs} parallax={-0.4} />
-      </Suspense>
+    <div className="constel-group" style={{ "--n": items.length }}>
+      <h3 className="constel__name" data-lit={lit}>{label}</h3>
+      <div
+        ref={ref}
+        className="constel"
+        data-lit={lit}
+        data-vertical={vertical}
+        style={{ "--n": items.length }}
+      >
+        <svg className="constel__lines" viewBox={`0 0 ${size.w || 1} ${size.h || 1}`} aria-hidden="true">
+          {pts.slice(1).map(([x, y], i) => (
+            <line
+              key={i}
+              x1={pts[i][0] * size.w}
+              y1={pts[i][1] * size.h}
+              x2={x * size.w}
+              y2={y * size.h}
+              pathLength="1"
+              style={{ "--i": i }}
+            />
+          ))}
+        </svg>
 
-      <div className="shell" style={{ textAlign: "center" }}>
-        <GhostHeading className="display display--md">{tr(sections.certifications.heading)}</GhostHeading>
-      </div>
+        <ul className="constel__stars">
+          {items.map((c, i) => {
+            const title = tr(c.title);
+            const [x, y] = pts[i];
+            const detail = c.detail ? tr(c.detail) : "";
+            const Tag = c.href ? "a" : "div";
+            // La etiqueta va hacia donde no hay trazo: en horizontal, encima
+            // de las estrellas que quedan por arriba de sus vecinas y debajo
+            // de las que quedan por abajo; en vertical, a la derecha.
+            const vecinas = [pts[i - 1], pts[i + 1]].filter(Boolean);
+            const media = vecinas.length
+              ? vecinas.reduce((acc, p) => acc + p[1], 0) / vecinas.length
+              : 1;
+            const side = vertical ? "right" : y <= media ? "top" : "bottom";
 
-      <div className="shell">
-        <div
-          ref={ref}
-          className="constel"
-          data-lit={lit}
-          data-vertical={vertical}
-          style={{ "--n": items.length }}
-        >
-          <svg className="constel__lines" viewBox={`0 0 ${size.w || 1} ${size.h || 1}`} aria-hidden="true">
-            {pts.slice(1).map(([x, y], i) => (
-              <line
-                key={i}
-                x1={pts[i][0] * size.w}
-                y1={pts[i][1] * size.h}
-                x2={x * size.w}
-                y2={y * size.h}
-                pathLength="1"
-                style={{ "--i": i }}
-              />
-            ))}
-          </svg>
-
-          <ul className="constel__stars">
-            {items.map((c, i) => {
-              const title = tr(c.title);
-              const [x, y] = pts[i];
-              const detail = c.detail ? tr(c.detail) : "";
-              const Tag = c.href ? "a" : "div";
-              // La etiqueta va hacia donde no hay trazo: en horizontal, encima
-              // de las estrellas que quedan por arriba de sus vecinas y debajo
-              // de las que quedan por abajo; en vertical, a la derecha.
-              const vecinas = [pts[i - 1], pts[i + 1]].filter(Boolean);
-              const media = vecinas.length
-                ? vecinas.reduce((acc, p) => acc + p[1], 0) / vecinas.length
-                : 1;
-              const side = vertical ? "right" : y <= media ? "top" : "bottom";
-
-              return (
-                <li
-                  key={`${title}-${i}`}
-                  className="star"
-                  data-side={side}
-                  style={{ left: `${x * 100}%`, top: `${y * 100}%`, "--i": i }}
+            return (
+              <li
+                key={`${title}-${i}`}
+                className="star"
+                data-side={side}
+                style={{ left: `${x * 100}%`, top: `${y * 100}%`, "--i": i }}
+              >
+                <Tag
+                  className="star__hit"
+                  {...(c.href
+                    ? { href: c.href, target: "_blank", rel: "noreferrer noopener" }
+                    : detail
+                      ? { tabIndex: 0 }
+                      : {})}
                 >
-                  <Tag
-                    className="star__hit"
-                    {...(c.href
-                      ? { href: c.href, target: "_blank", rel: "noreferrer noopener" }
-                      : detail
-                        ? { tabIndex: 0 }
-                        : {})}
-                  >
-                    <span className="star__dot" aria-hidden="true" />
-                    <span className="star__label">
-                      <span className="star__title">
-                        {title}
-                        {c.href ? <span className="star__link" aria-hidden="true"> ↗</span> : null}
-                      </span>
-                      <span className="star__meta">{tr(c.issuer)}</span>
+                  <span className="star__dot" aria-hidden="true" />
+                  <span className="star__label">
+                    <span className="star__title">
+                      {title}
+                      {c.href ? <span className="star__link" aria-hidden="true"> ↗</span> : null}
                     </span>
-                    {detail ? <span className="star__detail">{detail}</span> : null}
-                  </Tag>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+                    <span className="star__meta">{tr(c.issuer)}</span>
+                  </span>
+                  {detail ? <span className="star__detail">{detail}</span> : null}
+                </Tag>
+              </li>
+            );
+          })}
+        </ul>
       </div>
-    </section>
+    </div>
   );
 }

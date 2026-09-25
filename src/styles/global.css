@@ -2508,7 +2508,9 @@ body.is-anchored .about__float {
 }
 
 .footer__name {
-  line-height: 0.82;
+  /* Mas pequeno que el resto de titulares grandes: aqui es una firma. */
+  font-size: clamp(34px, 5.2vw, 76px);
+  line-height: 0.88;
   max-width: 14ch;
   color: #fff;
 }
@@ -2517,12 +2519,15 @@ body.is-anchored .about__float {
 .footer__firma {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: clamp(28px, 5vw, 80px);
+  gap: clamp(24px, 3.5vw, 56px);
 }
 
+/* Regla propia de esta carta: las del Stack miden 290-360 px y aqui, junto
+   a una firma, sobraba. Mas estrecha, con menos relleno y la foto contenida. */
 .poster.footer__carta {
-  flex: 0 0 clamp(180px, 15vw, 230px);
+  flex: 0 0 clamp(132px, 10.5vw, 168px);
+  padding: 7px;
+  box-shadow: 0 8px 22px #0006;
   /* Solo para mirar: nada de seleccionar, arrastrar ni el menu de guardar
      en el movil (Footer.jsx bloquea el menu contextual). */
   user-select: none;
@@ -2535,7 +2540,21 @@ body.is-anchored .about__float {
 }
 
 .poster.footer__carta .poster__titulo {
-  font-size: clamp(17px, 1.4vw, 21px);
+  font-size: clamp(13px, 1vw, 15px);
+}
+
+.poster.footer__carta .poster__cabeza {
+  padding: 9px 6px 7px;
+}
+
+.poster.footer__carta .poster__pie {
+  margin: 0 4px;
+  padding: 6px 0 1px;
+  font-size: 7.5px;
+}
+
+.poster.footer__carta .poster__arte::after {
+  height: 14px;
 }
 
 .footer__foto canvas {
@@ -2554,7 +2573,7 @@ body.is-anchored .about__float {
   /* En columna, flex-basis mide el alto: aqui el ancho va aparte. */
   .poster.footer__carta {
     flex: none;
-    width: min(230px, 64vw);
+    width: min(170px, 48vw);
   }
 }
 
@@ -3389,8 +3408,10 @@ body.is-anchored .about__float {
   margin: clamp(20px, 3vw, 40px) auto 0;
 }
 
+/* Las dos del mismo tamano: el mismo ancho de grupo y la misma figura,
+   tengan cuatro titulos o cinco. */
 .constel-group {
-  flex: var(--n) 1 0;
+  flex: 1 1 0;
   min-width: 0;
 }
 
@@ -3400,6 +3421,7 @@ body.is-anchored .about__float {
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
+  text-align: center;
   color: var(--accent-a);
   opacity: 0;
   transition: opacity 0.8s var(--ease);
@@ -3410,8 +3432,10 @@ body.is-anchored .about__float {
 }
 
 .constel {
+  --figura: clamp(200px, 17vw, 270px);
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  grid-template-columns: var(--figura) minmax(0, 1fr);
+  justify-content: center;
   gap: clamp(16px, 2vw, 32px);
   align-items: center;
   margin-top: 14px;
@@ -3440,9 +3464,19 @@ body.is-anchored .about__float {
 .constel__chart {
   display: block;
   width: 100%;
-  /* Que la figura no crezca mas que la pantalla baja: manda el alto. */
-  max-height: min(56svh, 400px);
   overflow: visible;
+}
+
+/* La estrella de la medalla, rellena. Entra cuando ya estan las lineas. */
+.constel__relleno {
+  fill: rgba(255, 154, 60, 0.42);
+  stroke: none;
+  opacity: 0;
+  transition: opacity 0.9s var(--ease) 2.6s;
+}
+
+.constel-group[data-lit="true"] .constel__relleno {
+  opacity: 1;
 }
 
 /* Los trazos de la figura se dibujan uno tras otro al entrar. */
@@ -3473,7 +3507,7 @@ body.is-anchored .about__float {
    dispersan otra vez, para volver a formarse al entrar. */
 .constel__vuela {
   opacity: 0;
-  transform: translate(var(--dx), var(--dy)) scale(0.4);
+  transform: translate(var(--dx), var(--dy)) scale(0.6);
   transition:
     transform 1.3s cubic-bezier(0.2, 0.75, 0.15, 1),
     opacity 0.5s var(--ease);
@@ -3562,7 +3596,7 @@ body.is-anchored .about__float {
   opacity: 1;
 }
 
-/* El cometa salta de estrella en estrella en el sentido del tiempo. */
+/* Los cometas corren por los trazos de la figura, con estela. */
 .constel__comet {
   fill: #fff6ee;
   filter: drop-shadow(0 0 1.4px rgba(255, 154, 60, 0.95)) drop-shadow(0 0 3.5px rgba(255, 106, 18, 0.6));
@@ -3758,13 +3792,17 @@ body.is-anchored .about__float {
   }
 
   .constel {
-    grid-template-columns: 1fr;
+    --figura: min(320px, 80vw);
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
   }
 
-  .constel__chart {
-    max-width: 420px;
-    margin: 0 auto;
-    max-height: none;
+  .constel__legend {
+    justify-self: stretch;
+  }
+
+  .constel__cielo {
+    width: var(--figura);
   }
 }
 

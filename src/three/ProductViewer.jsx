@@ -38,8 +38,24 @@ import { prefersReducedMotion } from "../lib/anim";
 
 const DRACO = () => asset("/draco/");
 
+/**
+ * Lanza la descarga y devuelve una promesa que se cumple cuando el .glb ya
+ * llego. `useGLTF.preload` no devuelve nada, asi que se mira en el resource
+ * timing del navegador; con un tope de 20 s para no dejar colgado a quien
+ * espera detras (la celda).
+ */
 export function preloadProducto(model) {
-  useGLTF.preload(asset(model), DRACO());
+  const url = asset(model);
+  useGLTF.preload(url, DRACO());
+  const absoluta = new URL(url, location.href).href;
+  const llego = () => performance.getEntriesByName(absoluta).length > 0;
+  if (llego() || typeof PerformanceObserver !== "function") return Promise.resolve();
+  return new Promise((resolve) => {
+    const fin = () => { obs.disconnect(); clearTimeout(tope); resolve(); };
+    const obs = new PerformanceObserver(() => { if (llego()) fin(); });
+    const tope = setTimeout(fin, 20000);
+    obs.observe({ type: "resource" });
+  });
 }
 
 function Luces() {

@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
-import { certifications, props3d, sections } from "../data/content";
+import { certifications, props3d, sections, socials } from "../data/content";
 
 const PropsView = lazy(() =>
   import("../three/Props3D").then((m) => ({ default: m.PropsView }))
@@ -148,6 +148,7 @@ export default function Certifications() {
   const groups = (certifications.groups ?? []).filter((g) => g.items?.length);
 
   if (!groups.length) return null;
+  const linkedin = socials.find((s) => s.label === "LinkedIn")?.href;
 
   return (
     <section id="certifications" className="section certs">
@@ -165,6 +166,13 @@ export default function Certifications() {
             <Constelacion key={i} label={tr(g.label)} figura={FIGURAS[g.figure] ?? FIGURAS.birrete} items={g.items} />
           ))}
         </div>
+        {linkedin ? (
+          <div className="certs__mas">
+            <a className="proj__live" href={linkedin} target="_blank" rel="noreferrer noopener">
+              {tr(sections.certifications.more)}
+            </a>
+          </div>
+        ) : null}
       </div>
     </section>
   );

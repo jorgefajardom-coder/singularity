@@ -59,24 +59,38 @@ export default function Projects() {
   const seccion = useRef(null);
 
   /**
-   * Los modelos 3D se bajan en segundo plano cuando el visitante se ACERCA a
-   * la seccion, no cuando abre el proyecto: son megabytes, y esperar a que
-   * los pida era ver "Preparando la celda 3D" cada vez. Quien tiene activado
-   * el ahorro de datos o va por 2G no se lleva la descarga sin pedirla.
+   * Los modelos 3D se bajan en segundo plano en cuanto aparece Areas (la
+   * seccion de encima), no cuando abre el proyecto: son megabytes, y esperar a
+   * que los pida era ver "Preparando la celda 3D" cada vez. Antes arrancaba a
+   * 1500 px de Proyectos; desde Areas se gana todo el rato que se pasa
+   * leyendolas. Si alguien salta directo a Proyectos por el menu, el
+   * observador de la propia seccion lo cubre.
+   *
+   * Primero los productos (dron y empaque, ~4 MB) y DESPUES la celda (~15 MB):
+   * a la vez se reparten la conexion y el dron, que es el primero de la
+   * lista, tardaria lo que tarda la celda. Quien tiene activado el ahorro de
+   * datos o va por 2G no se lleva la descarga sin pedirla.
    */
   useEffect(() => {
     const el = seccion.current;
     const modelos = projects.map((p) => p.model).filter(Boolean);
     const productos = projects.map((p) => p.producto3d?.model).filter(Boolean);
-    if (!el || !modelos.length || typeof IntersectionObserver !== "function") return undefined;
+    if (!el || !(modelos.length || productos.length) || typeof IntersectionObserver !== "function") return undefined;
     const red = navigator.connection;
     if (red && (red.saveData || /2g/.test(red.effectiveType || ""))) return undefined;
-    const obs = new IntersectionObserver(([e]) => {
-      if (!e.isIntersecting) return;
+    const precargar = () => {
       obs.disconnect();
-      import("../three/ModelViewer").then(({ preloadModel }) => modelos.forEach(preloadModel));
-      import("../three/ProductViewer").then(({ preloadProducto }) => productos.forEach(preloadProducto));
-    }, { rootMargin: "1500px 0px" });
+      import("../three/ProductViewer")
+        .then(({ preloadProducto }) => Promise.all(productos.map(preloadProducto)))
+        .catch(() => {})
+        .then(() => import("../three/ModelViewer"))
+        .then(({ preloadModel }) => modelos.forEach(preloadModel));
+    };
+    const obs = new IntersectionObserver((entradas) => {
+      if (entradas.some((e) => e.isIntersecting)) precargar();
+    }, { rootMargin: "0px 0px 1500px 0px" });
+    const areas = document.getElementById("services");
+    if (areas) obs.observe(areas);
     obs.observe(el);
     return () => obs.disconnect();
   }, []);

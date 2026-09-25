@@ -3405,6 +3405,21 @@ body.is-anchored .about__float {
 /* Carta celeste: dos constelaciones lado a lado, cada una con su figura
    (las estrellas SON el dibujo) y su leyenda en orden cronologico. En el
    movil van una debajo de otra, con la leyenda bajo la figura. */
+/* La burbuja de LinkedIn al pie de Formacion: la misma pastilla naranja de
+   los enlaces de Proyectos, centrada bajo las constelaciones. */
+.certs__mas {
+  display: flex;
+  justify-content: center;
+  margin-top: clamp(28px, 5svh, 56px);
+  position: relative;
+  z-index: 2;
+}
+
+.certs__mas .proj__live {
+  font-size: 11px;
+  padding: 12px 24px;
+}
+
 .constels {
   position: relative;
   z-index: 4;

@@ -80,6 +80,8 @@ export const sections = {
   certifications: {
     id: "certifications",
     heading: t("Formación", "Education"),
+    // Burbuja al pie de las constelaciones: lleva al LinkedIn de `socials`.
+    more: t("¿Quieres profundizar más?", "Want to dig deeper?"),
   },
   companies: {
     // Sin `heading`: la órbita de marcas se presenta sola, con la nota.

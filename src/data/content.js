@@ -25,9 +25,11 @@ export const site = {
   name: "Jorge Andres Fajardo Mora",
   // Version corta para la barra superior, donde el nombre completo ocupa demasiado
   short: t("Ing. J.A.F.M", "Eng. J.A.F.M"),
+  // La pagina va enfocada a la gestion de proyectos (Jorge, 25-09-2026): la
+  // ingenieria es la base, no el protagonista. El "Hola, soy Jorge" NO se toca.
   role: t(
-    "Technical Product Manager · Ingeniero mecatrónico",
-    "Technical Product Manager · Mechatronics Engineer"
+    "Project Manager · Technical Product Manager",
+    "Project Manager · Technical Product Manager"
   ),
   email: "j.andres.f.mora@gmail.com",
   // TODO: confirma o cambia la ciudad; la puse yo, no venía en tu README.
@@ -37,8 +39,8 @@ export const site = {
     line1: t("Hola,", "Hi,"),
     line2: t("soy Jorge", "I'm Jorge"),
     lede: t(
-      "Llevo productos de la idea a la planta, y de la planta a la pantalla: ingeniería, 3D y marca en el mismo sitio.",
-      "I take products from idea to factory floor, and from the floor to the screen: engineering, 3D, and brand in one place."
+      "He pasado por todas las fases de un proyecto: lo inicio, lo planifico, lo ejecuto, lo controlo y lo cierro.",
+      "I've been through every phase of a project: I start it, plan it, run it, track it and close it."
     ),
   },
 };
@@ -66,8 +68,8 @@ export const sections = {
     id: "services",
     heading: t("Qué hago", "What I do"),
     note: t(
-      "Del PLC en planta al agente que integra las herramientas del negocio.",
-      "From the PLC on the floor to the agent that wires your business tools together."
+      "Gestiono el proyecto de principio a fin, y cuando hace falta también ejecuto la parte técnica.",
+      "I manage the project end to end, and when it's needed I build the technical side too."
     ),
   },
   projects: {
@@ -96,8 +98,8 @@ export const sections = {
     nav: t("Contacto", "Contact"),
     heading: t("Hablemos", "Let's talk"),
     note: t(
-      "Abierto a colaborar en robótica, automatización industrial e IA aplicada. LinkedIn o correo es la vía más rápida.",
-      "Open to collaboration on robotics, industrial automation, and applied AI projects. LinkedIn or email is the fastest way to reach me."
+      "Abierto a liderar proyectos de principio a fin: robótica, automatización industrial, IA aplicada y producto digital. LinkedIn o correo es la vía más rápida.",
+      "Open to leading projects end to end: robotics, industrial automation, applied AI and digital product. LinkedIn or email is the fastest way to reach me."
     ),
   },
 };
@@ -201,14 +203,13 @@ export const about = {
   // Un elemento por párrafo. Añade o quita los que quieras.
   body: [
     t(
-      "Ingeniero mecatrónico convertido en Technical Product Manager. Diseño y llevo a producción sistemas donde se cruzan la robótica, la automatización industrial y la IA: del PLC que gobierna una celda al pipeline de visión que la inspecciona.",
-      "Mechatronics engineer turned Technical Product Manager. I design and ship systems where robotics, industrial automation and AI meet: from the PLC that runs a cell to the vision pipeline that inspects it."
+      "Project manager con base en ingeniería mecatrónica. He llevado proyectos por todas sus fases (inicio, planificación, ejecución, seguimiento y cierre) en robótica, automatización industrial, IA, 3D y marca, y sé lo que exige cada etapa porque las he trabajado desde dentro.",
+      "Project manager with a background in mechatronics engineering. I've taken projects through every phase (initiation, planning, execution, monitoring and closing) in robotics, industrial automation, AI, 3D and branding, and I know what each stage demands because I've worked them from the inside."
     ),
-    // Antes esto empezaba disculpandose ("no me quedo en lo tecnico"). Es la
-    // ventaja, no una nota al pie: va afirmada.
+    // La ingenieria es la ventaja del gestor, no una nota al pie: va afirmada.
     t(
-      "Y sigo con el producto hasta su cara visible: el render, el prototipo, la marca con la que sale al mercado. Cómo funciona y cómo se entiende son la misma pieza de diseño.",
-      "And I stay with the product through to its visible side: the render, the prototype, the brand it goes to market with. How it works and how it reads are one design problem."
+      "Por eso coordino equipos técnicos y creativos hablando su idioma: traduzco la necesidad del negocio en alcance, cronograma y entregables, y acompaño el proyecto hasta que llega a producción y al mercado.",
+      "That's why I lead technical and creative teams speaking their language: I turn business needs into scope, schedule and deliverables, and I see the project through to production and to market."
     ),
   ],
   // TODO: estas cifras las puse yo de relleno. Ajústalas o bórralas.
@@ -220,6 +221,16 @@ export const about = {
 };
 
 export const stack = [
+  // La primera tras la portada: la pagina va enfocada a la gestion.
+  {
+    key: "producto",
+    group: t("Producto", "Product"),
+    items: [
+      { name: "Jira", color: "#ff6a00" },
+      { name: "Obsidian", color: "#ffcf70" },
+      { name: "Agile · Scrum · Kanban", color: "#8B95A7" },
+    ],
+  },
   {
     key: "dev",
     group: t("Desarrollo", "Development"),
@@ -325,15 +336,6 @@ export const stack = [
       { name: "MATLAB", color: "#ef4b23" },
       { name: "NumPy", color: "#ffb52e" },
       { name: "Pandas", color: "#c93812" },
-    ],
-  },
-  {
-    key: "producto",
-    group: t("Producto", "Product"),
-    items: [
-      { name: "Jira", color: "#ff6a00" },
-      { name: "Obsidian", color: "#ffcf70" },
-      { name: "Agile · Scrum · Kanban", color: "#8B95A7" },
     ],
   },
 ];
@@ -446,6 +448,24 @@ export const workAreas = [
 ];
 
 export const services = [
+  // Primera y abierta por defecto: es el foco de la pagina.
+  {
+    id: "producto",
+    title: t("Gestión de proyectos y producto", "Project & Product Management"),
+    desc: t(
+      "Llevo el proyecto por todas sus fases: defino el alcance con el negocio, planifico cronograma y recursos, coordino a los equipos de hardware, software, 3D y marca, controlo avance y riesgos, y cierro con la entrega.",
+      "I take the project through every phase: I define scope with the business, plan schedule and resources, coordinate hardware, software, 3D and brand teams, track progress and risk, and close with delivery."
+    ),
+    tags: [
+      t("Inicio", "Initiation"),
+      t("Planificación", "Planning"),
+      t("Ejecución", "Execution"),
+      t("Seguimiento", "Monitoring"),
+      t("Cierre", "Closing"),
+      "Agile · Scrum",
+      "Jira",
+    ],
+  },
   {
     id: "modelado-3d",
     title: t("Modelado y visualización 3D", "3D Modeling & Visualization"),
@@ -562,15 +582,6 @@ export const services = [
       "Agents and integrations that connect business tools over APIs: CRM, databases, and internal processes that stop being done by hand."
     ),
     tags: ["n8n", "Make", "HubSpot", "Airtable"],
-  },
-  {
-    id: "producto",
-    title: t("Gestión técnica de producto", "Technical Product Management"),
-    desc: t(
-      "Traducir necesidad de negocio en especificación técnica, priorizar el roadmap y coordinar hardware, software y manufactura hasta la entrega.",
-      "Turning business need into technical spec, prioritizing the roadmap, and coordinating hardware, software, and manufacturing through to delivery."
-    ),
-    tags: ["Agile", "Scrum", "Jira", t("Hojas de ruta", "Roadmapping")],
   },
 ];
 

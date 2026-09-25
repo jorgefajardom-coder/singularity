@@ -822,8 +822,9 @@ export const companies = {
 /* ============================================================
    Certificaciones y formación
    Una estrella por título, unidas en este orden. Sin fechas (lo
-   decidió Jorge). `detail` sale al pasar por la estrella; `href`
-   la vuelve enlace al certificado; `tags` van a la vista bajo el título.
+   decidió Jorge). `lead` + `points` salen en una tarjeta al pasar
+   por la línea; `href` la vuelve enlace al certificado; `tags` van a
+   la vista bajo el título.
    ============================================================ */
 export const certifications = {
   // El titular está en `sections.certifications`. Dos constelaciones en el
@@ -849,10 +850,12 @@ export const certifications = {
         {
           title: t("Diplomado en Programación en Java", "Diploma in Java Programming"),
           issuer: t("Politécnico de Colombia", "Politécnico de Colombia"),
-          detail: t(
-            "Lógica de programación, programación orientada a objetos y estructuras de datos básicas en Java, aplicadas a resolver problemas algorítmicos.",
-            "Programming logic, object-oriented programming, and basic data structures in Java, applied to solving algorithmic problems."
-          ),
+          // Puntos clave: `k` va resaltado y `v` completa la frase.
+          points: [
+            { k: t("Lógica de programación", "Programming logic"), v: t("y resolución de problemas algorítmicos", "and algorithmic problem solving") },
+            { k: t("Programación orientada a objetos", "Object-oriented programming"), v: t("en Java", "in Java") },
+            { k: t("Estructuras de datos", "Data structures"), v: t("básicas y fundamentos de desarrollo", "and software fundamentals") },
+          ],
         },
         {
           title: t(
@@ -861,10 +864,15 @@ export const certifications = {
           ),
           issuer: t("Universitaria Agustiniana", "Universitaria Agustiniana"),
           tags: [t("Metodologías ágiles", "Agile methodologies")],
-          detail: t(
-            "Diseño, implementación y optimización de sistemas automatizados: programación avanzada de PLC, sensores inteligentes y SCADA; IoT, IA y analítica de datos; redes industriales (WiFi, Bluetooth, Zigbee, LoRa, NB-IoT, Modbus/TCP); celdas flexibles, robótica colaborativa y gemelos digitales en realidad virtual; proyectos gestionados con metodologías ágiles.",
-            "Design, implementation, and optimization of automated systems: advanced PLC programming, smart sensors, and SCADA; IoT, AI, and data analytics; industrial networks (WiFi, Bluetooth, Zigbee, LoRa, NB-IoT, Modbus/TCP); flexible cells, collaborative robotics, and digital twins in virtual reality; projects run with agile methodologies."
-          ),
+          lead: t("Diseño, implementación y optimización de sistemas automatizados.", "Design, implementation and optimization of automated systems."),
+          points: [
+            { k: t("PLC avanzado,", "Advanced PLC,"), v: t("sensores inteligentes y SCADA", "smart sensors and SCADA") },
+            { k: t("IoT, IA", "IoT, AI"), v: t("y analítica de datos para la automatización", "and data analytics for automation") },
+            { k: t("Redes industriales:", "Industrial networks:"), v: t("WiFi, Bluetooth, Zigbee, LoRa, NB-IoT y Modbus/TCP", "WiFi, Bluetooth, Zigbee, LoRa, NB-IoT and Modbus/TCP") },
+            { k: t("Celdas flexibles", "Flexible cells"), v: t("y robótica colaborativa", "and collaborative robotics") },
+            { k: t("Gemelos digitales", "Digital twins"), v: t("en realidad virtual", "in virtual reality") },
+            { k: t("Metodologías ágiles", "Agile methodologies"), v: t("en proyectos reales", "on real projects") },
+          ],
         },
         {
           title: t(
@@ -887,10 +895,15 @@ export const certifications = {
           title: t("Certificación FESTO FACT", "FESTO FACT Center Certification"),
           issuer: t("Festo Didactic · Uniagustiniana", "Festo Didactic · Uniagustiniana"),
           tags: [t("Metodologías ágiles", "Agile methodologies")],
-          detail: t(
-            "Formación técnica integral en neumática y electroneumática industrial, automatización industrial y programación avanzada de PLC dentro del FACT Center de Festo Didactic. Enfocada en sistemas de manufactura flexible y celdas de producción automatizadas, integrando Industria 4.0, IIoT y redes industriales inalámbricas, con un enfoque práctico en escenarios industriales reales, integración de sistemas, diagnóstico, optimización y metodologías ágiles.",
-            "Comprehensive technical training in industrial pneumatics and electro-pneumatics, industrial automation, and advanced PLC programming within the Festo Didactic FACT Center. Focused on flexible manufacturing systems and automated production cells, integrating Industry 4.0, IIoT, and industrial wireless networks, with a strong hands-on approach to real industrial scenarios, system integration, diagnostics, optimization, and agile methodologies."
-          ),
+          lead: t("Formación práctica en el FACT Center de Festo Didactic, sobre escenarios industriales reales.", "Hands-on training at the Festo Didactic FACT Center, on real industrial scenarios."),
+          points: [
+            { k: t("Neumática y electroneumática", "Pneumatics and electro-pneumatics"), v: t("industrial", "for industry") },
+            { k: t("Automatización industrial", "Industrial automation"), v: t("y programación avanzada de PLC", "and advanced PLC programming") },
+            { k: t("Manufactura flexible", "Flexible manufacturing"), v: t("y celdas de producción automatizadas", "and automated production cells") },
+            { k: t("Industria 4.0 e IIoT,", "Industry 4.0 and IIoT,"), v: t("con redes industriales inalámbricas", "with industrial wireless networks") },
+            { k: t("Integración, diagnóstico", "System integration, diagnostics"), v: t("y optimización de sistemas", "and optimization") },
+            { k: t("Metodologías ágiles", "Agile methodologies"), v: t("aplicadas al proyecto", "applied to the project") },
+          ],
         },
         {
           title: t("Aptis General · Inglés C1", "Aptis General · English C1"),

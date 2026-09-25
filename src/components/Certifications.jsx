@@ -20,8 +20,9 @@ import { GhostHeading } from "./ui";
  * Al entrar en pantalla la figura SE FORMA: las estrellas llegan desde puntos
  * dispersos del cielo hasta su sitio y solo entonces se trazan las lineas.
  * Pasar por una línea de la leyenda enciende su estrella y al revés. Si un
- * item trae `href`, la línea enlaza al certificado; si trae `detail`, la
- * descripción se despliega debajo al pasar (o al tocarla).
+ * item trae `href`, la línea enlaza al certificado; si trae `points` (y un
+ * `lead` opcional), sus puntos clave salen en una tarjeta flotante al pasar
+ * o al tocarla, sin mover nada de la página.
  */
 
 const ROMANOS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
@@ -78,6 +79,23 @@ function vuelo(k) {
     "--dy": `${(Math.sin(a) * d).toFixed(1)}px`,
     "--v": `${(k * 0.07).toFixed(2)}s`,
   };
+}
+
+/**
+ * La ficha se abre hacia abajo si cabe en pantalla y, si no, hacia arriba
+ * (descontando la barra fija de arriba). Se decide al abrirla, mirando donde
+ * esta la linea en ese momento.
+ */
+function orientar(item) {
+  const li = item.closest("li");
+  const ficha = item.querySelector(".constel__ficha");
+  if (!li || !ficha) return;
+  const r = li.getBoundingClientRect();
+  const alto = ficha.offsetHeight + 16;
+  const barra = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--nav-h")) || 78;
+  const abajo = innerHeight - r.bottom;
+  const arriba = r.top - barra;
+  li.toggleAttribute("data-arriba", abajo < alto && arriba > abajo);
 }
 
 export default function Certifications() {
@@ -196,19 +214,23 @@ function Constelacion({ label, items, figura }) {
         <ol className="constel__legend">
           {lista.map((c, i) => {
             const title = tr(c.title);
-            const detail = c.detail ? tr(c.detail) : "";
+            const ficha = c.points?.length > 0;
             const Tag = c.href ? "a" : "div";
             return (
-              <li key={`${title}-${i}`} style={{ "--i": i }} data-activo={activo === i || undefined}>
+              <li
+                key={`${title}-${i}`}
+                style={{ "--i": i }}
+                data-activo={activo === i || undefined}
+              >
                 <Tag
                   className="constel__item"
-                  onPointerEnter={() => setActivo(i)}
+                  onPointerEnter={(e) => { setActivo(i); if (ficha) orientar(e.currentTarget); }}
                   onPointerLeave={() => setActivo(-1)}
-                  onFocus={() => setActivo(i)}
+                  onFocus={(e) => { setActivo(i); if (ficha) orientar(e.currentTarget); }}
                   onBlur={() => setActivo(-1)}
                   {...(c.href
                     ? { href: c.href, target: "_blank", rel: "noreferrer noopener" }
-                    : detail
+                    : ficha
                       ? { tabIndex: 0 }
                       : {})}
                 >
@@ -224,8 +246,21 @@ function Constelacion({ label, items, figura }) {
                         {c.tags.map((tag) => <span key={tr(tag)}>{tr(tag)}</span>)}
                       </span>
                     ) : null}
-                    {detail ? <span className="constel__detail">{detail}</span> : null}
                   </span>
+                  {ficha ? (
+                    // Flota encima de la leyenda: no ocupa sitio, asi que al
+                    // abrirse no mueve la figura ni el resto de la pagina.
+                    <span className="constel__ficha" role="tooltip">
+                      {c.lead ? <span className="constel__lead">{tr(c.lead)}</span> : null}
+                      <span className="constel__puntos">
+                        {c.points.map((p, k) => (
+                          <span className="constel__punto" key={k}>
+                            <strong>{tr(p.k)}</strong> {tr(p.v)}
+                          </span>
+                        ))}
+                      </span>
+                    </span>
+                  ) : null}
                 </Tag>
               </li>
             );

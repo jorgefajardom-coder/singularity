@@ -16,6 +16,7 @@ import { services, workAreas } from "../data/content";
 const BlackHole = lazy(() => import("./BlackHole"));
 import { useLang } from "../lib/i18n";
 import { prefersReducedMotion, scroller } from "../lib/anim";
+import { EnSuTurno } from "../lib/arranque";
 
 /**
  * El sistema que orbita al personaje que medita.
@@ -355,7 +356,7 @@ export default function Halo() {
           ))}
         </svg>
 
-        {AREAS.map((b) => (
+        {AREAS.map((b, i) => (
           <div
             key={b.id}
             className="halo__orbit"
@@ -390,6 +391,11 @@ export default function Halo() {
                     fotones y lente— con el tono girado sobre el eje de los
                     grises, que es lo unico que cambia de uno a otro. */}
                 <span className="halo__hole">
+                  {/* Seis lienzos WebGL que estan varias pantallas mas abajo:
+                      entran despues de la intro y de uno en uno (ver
+                      lib/arranque.js). Montados al arrancar, se compilaban
+                      encima del ∞ dibujandose. */}
+                  <EnSuTurno turno={3 + i} fallback={<span className="blackhole__fallback" />}>
                   <Suspense fallback={<span className="blackhole__fallback" />}>
                     <BlackHole
                       bare
@@ -400,6 +406,7 @@ export default function Halo() {
                       dpr={focus === b.id ? Math.min(Math.max(zoom, 1), DPR_MAX) : undefined}
                     />
                   </Suspense>
+                  </EnSuTurno>
                 </span>
 
                 {/* El nombre sigue el arco interior del disco. El boton ya

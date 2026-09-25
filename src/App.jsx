@@ -17,6 +17,7 @@ import Footer from "./components/Footer";
 import Loader from "./components/Loader";
 import { LangProvider } from "./lib/i18n";
 import { MusicProvider } from "./lib/music";
+import { marcarIntroTerminada, useTrasIntro } from "./lib/arranque";
 import { useSmoothScroll, useReveal, ScrollTrigger } from "./lib/anim";
 
 export default function App() {
@@ -35,6 +36,10 @@ export default function App() {
   // Aqui el del cargador publica su estado y el del hero lo copia, para que el
   // relevo no cruce dos imagenes distintas (ver BlackHole.jsx).
   const espejo = useRef(null);
+  // El lienzo 3D global solo pinta secciones de mas abajo (Sobre mi,
+  // Certificaciones, Contacto): entra despues de la intro, no detras del
+  // cargador, donde sus ~500 ms de compilacion paraban las etiquetas.
+  const vista3d = useTrasIntro(2);
 
   useSmoothScroll();
   useReveal(root);
@@ -52,6 +57,8 @@ export default function App() {
     if (!introGone) return;
     window.scrollTo({ top: 0, behavior: "instant" });
     ScrollTrigger.refresh();
+    // Da paso a los lienzos de mas abajo (ver lib/arranque.js).
+    marcarIntroTerminada();
   }, [introGone]);
 
   return (
@@ -79,7 +86,7 @@ export default function App() {
 
       {/* Canvas único para todas las vistas 3D. Va al final para que
           `root.current` ya exista cuando se monte. */}
-      {warm && <Suspense fallback={null}><ViewCanvas eventSource={root} /></Suspense>}
+      {vista3d && <Suspense fallback={null}><ViewCanvas eventSource={root} /></Suspense>}
       </MusicProvider>
     </LangProvider>
   );

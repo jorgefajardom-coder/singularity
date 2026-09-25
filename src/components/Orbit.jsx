@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { gsap } from "../lib/anim";
 import { useLang } from "../lib/i18n";
 import CompanyMark from "./CompanyMark";
+import { useTrasIntro } from "../lib/arranque";
 
 /**
  * Las marcas en órbita alrededor del agujero negro, cada una en su anillo.
@@ -46,31 +47,43 @@ export default function Orbit({ journey, items, note }) {
   const nodes = useRef([]);
   const rings = useRef([]);
   const sphereLayer = useRef(null);
+  // Las esferas crean su propio contexto WebGL: ~180 ms parados en una grafica
+  // integrada. Al montar caian encima del ∞ dibujandose; la orbita no se ve
+  // hasta despues del hero, asi que entran tras la intro (lib/arranque.js).
+  const listo = useTrasIntro(1);
 
   useEffect(() => {
     const layer = hud.current;
-    if (!layer || !items.length) return;
+    if (!listo || !layer || !items.length) return;
     const n = items.length;
     // Las esferas son lo unico de esta seccion que necesita three.js, y la
     // seccion esta fuera de la primera pantalla. Cargarlo aparte evita que
     // 688 kB bloqueen el pintado del cargador.
     let spheres = null;
     let cancelled = false;
+    let vivaAntes = null;
 
     const tick = (time) => {
       if (!spheres) return;
       const j = journey.current;
       const t = time; // El ticker de GSAP entrega segundos.
+
+      // Fuera del viaje la capa no existe: ni se ve ni intercepta el puntero.
+      // Se decide ANTES de tocar el DOM y solo se escribe al cambiar: leer el
+      // tamano y reescribir estilos en cada fotograma, con la orbita oculta,
+      // obligaba a rehacer el layout de la pagina entera en cada fotograma
+      // (~40 % del tiempo de CPU durante el cargador en la Intel).
+      const live = j.p > 0.001 && j.p < 0.999;
+      if (live !== vivaAntes) {
+        vivaAntes = live;
+        layer.style.setProperty("--hud", live ? "1" : "0");
+        layer.style.visibility = live ? "visible" : "hidden";
+      }
+      if (!live) return;
       // La capa es `fixed`: su caja ES el viewport, igual que la del lienzo.
       const W = layer.clientWidth;
       const H = layer.clientHeight;
       if (!W || !H) return;
-
-      // Fuera del viaje la capa no existe: ni se ve ni intercepta el puntero.
-      const live = j.p > 0.001 && j.p < 0.999;
-      layer.style.setProperty("--hud", live ? "1" : "0");
-      layer.style.visibility = live ? "visible" : "hidden";
-      if (!live) return;
       spheres.resize(W, H);
       // El rotulo no aparece hasta que el hero ha salido del todo (si no, se
       // solapa con su pie) y se retira en cuanto empiezan a caer.
@@ -185,7 +198,7 @@ export default function Orbit({ journey, items, note }) {
       gsap.ticker.remove(tick);
       spheres?.dispose();
     };
-  }, [journey, items.length]);
+  }, [journey, items.length, listo]);
 
   if (!items.length) return null;
 

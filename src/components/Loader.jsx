@@ -63,7 +63,10 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
   // Misma forma que el `journey` de Stage: el agujero del cargador termina de
   // formarse ya colocado donde esta el del hero, para que el fundido entre los
   // dos lienzos cruce dos imagenes identicas.
-  const travel = useRef({ cx: 0, cy: 0, scale: 1, topDown: 0, fall: 0, lens: 1, p: 0 });
+  // `oculto`: en el selector este lienzo es invisible y no pinta (solo compila
+  // y deja dos fotogramas hechos). `cubre`: el cargador, opaco, tapa al hero,
+  // que tampoco pinta. Ver el ultimo useFrame de BlackHole.jsx.
+  const travel = useRef({ cx: 0, cy: 0, scale: 1, topDown: 0, fall: 0, lens: 1, p: 0, oculto: true, cubre: true });
   const [phase, setPhase] = useState("loading");
   // A que escala arranca el agujero del cargador. Es 1 salvo cuando el ∞ no
   // cabe a su tamaño natural y hay que encogerlo: entonces la cinta del shader
@@ -217,6 +220,7 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
     const hole = root.current.querySelector(".loader__singularity");
     formation.current=0;
     travel.current.cy = 0;
+    travel.current.oculto = false;
     // Mientras el cargador sea opaco tapa al lienzo del hero, que entonces no
     // se pinta (ver `cubre` en BlackHole.jsx). Se baja antes de irse.
     travel.current.cubre = true;

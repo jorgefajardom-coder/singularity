@@ -2,8 +2,14 @@ import { useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
+import { introTerminada } from "./arranque";
 
 gsap.registerPlugin(ScrollTrigger);
+// Sin el refresco automatico al evento `load`: caia en plena intro, con el ∞
+// dibujandose, y medir la pagina entera ahi eran ~250 ms parados en una
+// grafica integrada. Con el scroll bloqueado ademas mide mal; App refresca al
+// terminar la intro (ver App.jsx), que es cuando las posiciones valen.
+ScrollTrigger.config({ autoRefreshEvents: "visibilitychange,DOMContentLoaded,resize" });
 
 export { gsap, ScrollTrigger };
 
@@ -111,8 +117,9 @@ export function useReveal(scope) {
       });
     }, root);
 
-    // Recalcular cuando las fuentes web cambian la altura del layout
-    document.fonts?.ready.then(() => ScrollTrigger.refresh());
+    // Recalcular cuando las fuentes web cambian la altura del layout. Si
+    // llegan durante la intro no hace falta: App refresca al terminarla.
+    document.fonts?.ready.then(() => { if (introTerminada()) ScrollTrigger.refresh(); });
 
     return () => ctx.revert();
   }, [scope]);

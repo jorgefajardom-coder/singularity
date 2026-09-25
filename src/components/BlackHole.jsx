@@ -1,5 +1,5 @@
 import { Component, useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { CanvasTexture, ClampToEdgeWrapping, DataTexture, DataUtils, HalfFloatType, LinearFilter, RedFormat, Vector2 } from "three";
 
 // El arrastre por el puntero es cosa del hero. Fuera de el el agujero tiene
@@ -887,17 +887,42 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
    * compilado: compilarlo al reanudar seria meter el tiron en el fundido. Y el
    * cargador levanta `cubre` unos fotogramas antes de empezar a irse, asi que
    * cuando este lienzo asoma ya lleva la imagen al dia.
-   *
-   * Con prioridad 1 r3f deja de pintar solo y lo hace este callback; por eso
-   * solo el lienzo que sigue la toma (el resto pinta como siempre).
    */
   const pintados = useRef(0);
+
+  /**
+   * Compilar sin congelar la pagina. Este shader tarda 0,5-3 s en compilar en
+   * una grafica integrada, y el primer `render` lo hace de forma SINCRONA: el
+   * hilo principal se quedaba parado todo ese rato, justo cuando entraban las
+   * etiquetas del selector (medido en la Intel UHD, 25-09-2026). `compileAsync`
+   * lo manda compilar en paralelo (KHR_parallel_shader_compile) y avisa al
+   * terminar; hasta entonces el lienzo no pinta. Sin la extension resuelve en
+   * el acto y todo queda como antes.
+   */
+  const { gl: renderer, scene: escena, camera: camara } = useThree();
+  const listo = useRef(false);
+  useEffect(() => {
+    let vivo = true;
+    const hecho = () => { if (vivo) listo.current = true; };
+    if (renderer.compileAsync) renderer.compileAsync(escena, camara).then(hecho, hecho);
+    else hecho();
+    return () => { vivo = false; };
+  }, [renderer, escena, camara]);
+
+  // Con prioridad 1 r3f deja de pintar solo: pinta este callback, en todos
+  // los lienzos del agujero. Ademas de esperar al shader, se salta el render
+  // de lo que nadie ve, tras dos fotogramas para dejarlo caliente:
+  //   - el del hero mientras el cargador lo tapa (`cubre`);
+  //   - el del cargador en el selector (`oculto`), donde es invisible.
+  // Los dos pintaban a pantalla completa cada fotograma del selector: en una
+  // grafica integrada lo dejaban en ~10 fps.
   useFrame(({ gl, scene, camera }) => {
-    if (espejoModo !== "sigue") return;
-    if (espejo?.current?.cubre && pintados.current > 1) return;
+    if (!listo.current) return;
+    const tapado = espejoModo === "sigue" ? espejo?.current?.cubre : journey?.current?.oculto;
+    if (tapado && pintados.current > 1) return;
     pintados.current++;
     gl.render(scene, camera);
-  }, espejoModo === "sigue" ? 1 : 0);
+  }, 1);
 
   return <mesh frustumCulled={false}><planeGeometry args={[2,2]} /><shaderMaterial
     ref={material} uniforms={uniforms} vertexShader={vertexShader} fragmentShader={fragmentShader}

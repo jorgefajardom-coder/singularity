@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Una sola pagina: el sitio entero vive en ella (las secciones son anclas).
+     Pages no deja poner robots.txt en la raiz del dominio, asi que este mapa
+     se entrega a mano en Google Search Console:
+     https://jorgefajardom-coder.github.io/singularity/sitemap.xml -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://jorgefajardom-coder.github.io/singularity/</loc>
+    <lastmod>2026-09-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

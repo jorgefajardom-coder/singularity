@@ -31,6 +31,49 @@
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Astronauta que sostiene un agujero negro en la mano" />
+    <!-- La direccion buena de la pagina, para que Google no cuente variantes
+         (con ?, con index.html…) como paginas distintas. -->
+    <link rel="canonical" href="https://jorgefajardom-coder.github.io/singularity/" />
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+    <!-- Datos estructurados: quien es la persona de esta web y sus perfiles,
+         para que el buscador la asocie a su nombre y a LinkedIn/GitHub/YouTube.
+         Sin correo ni foto a proposito (ver src/lib/fotoProtegida.js). Si
+         cambian los perfiles en content.js (`socials`), cambiarlos aqui. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Person",
+            "@id": "https://jorgefajardom-coder.github.io/singularity/#jorge",
+            "name": "Jorge Andres Fajardo Mora",
+            "alternateName": ["Jorge Andrés Fajardo Mora", "Jorge Fajardo"],
+            "url": "https://jorgefajardom-coder.github.io/singularity/",
+            "jobTitle": ["Technical Product Manager", "Mechatronics Engineer"],
+            "description": "Mechatronics engineer turned Technical Product Manager: robotics, industrial automation and applied AI.",
+            "address": { "@type": "PostalAddress", "addressLocality": "Bogotá", "addressCountry": "CO" },
+            "alumniOf": { "@type": "CollegeOrUniversity", "name": "Universitaria Agustiniana" },
+            "knowsAbout": [
+              "Mechatronics", "Robotics", "Industrial automation", "PLC programming", "Industry 4.0",
+              "IIoT", "Applied AI", "Product management", "3D modeling", "Agile methodologies"
+            ],
+            "sameAs": [
+              "https://www.linkedin.com/in/jorge-andres-fajardo-mora-486912267",
+              "https://github.com/jorgefajardom-coder",
+              "https://www.youtube.com/@JorgeAndr%C3%A9sFajardoMora"
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://jorgefajardom-coder.github.io/singularity/#web",
+            "url": "https://jorgefajardom-coder.github.io/singularity/",
+            "name": "Jorge Andres Fajardo Mora",
+            "inLanguage": ["es", "en"],
+            "author": { "@id": "https://jorgefajardom-coder.github.io/singularity/#jorge" }
+          }
+        ]
+      }
+    </script>
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="https://jorgefajardom-coder.github.io/singularity/og.jpg?v=3" />
 

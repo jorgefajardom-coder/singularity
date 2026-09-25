@@ -224,7 +224,10 @@ export default function Stage({ entered, warm, espejo }) {
       const poseScale = 1 + (faceScale - 1) * travel;
       const faceX = origin.left + origin.width * (0.5 + (ABOUT_FACE.x - 0.5) * poseScale);
       const faceY = origin.top + origin.height * ABOUT_FACE.y * poseScale;
-      const poseX = (destination.left + destination.width * MEDITATION_FACE.x - faceX) * travel;
+      // La figura va desplazada dentro de su caja (`--astronauta-x`): la cara
+      // de destino, con ella.
+      const figuraX = parseFloat(getComputedStyle(finalImage).translate) || 0;
+      const poseX = (destination.left + destination.width * MEDITATION_FACE.x + figuraX - faceX) * travel;
       const poseY = (destination.top + destination.height * MEDITATION_FACE.y - faceY) * travel;
       originalPose.style.transform = `translate3d(${poseX}px, ${poseY}px, 0) scale(${poseScale})`;
       originalPose.style.opacity = 1 - dissolve;

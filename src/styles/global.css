@@ -1124,6 +1124,8 @@ body.is-locked {
      Stage.jsx y Halo.jsx. */
   aspect-ratio: 1024 / 1536;
   --retrato-y: -19.7%;
+  /* Cuanto va la figura (y el agujero de sus manos) a la derecha de la caja. */
+  --astronauta-x: 1vw;
   transform: translateY(var(--retrato-y));
   /* La cara (ver BUST_FACE en Stage.jsx): alrededor de ella escala el busto
      cuando viaja hacia el Stack, para caer sobre la cara del otro. */
@@ -1612,6 +1614,11 @@ body.is-anchored .about__float {
      top -0,16 %. El `top` en % es del ALTO de la caja. */
   left: -1.39%;
   top: 1.95%;
+  /* Un 1 % del ancho de pantalla a la derecha (Jorge, 24-09-2026), solo la
+     figura: la aureola y las galaxias se quedan. El agujero de las manos se
+     mueve con ella (`.meditation__singularity`), y Stage.jsx suma este
+     desplazamiento al destino de la cara en la transformacion desde Sobre mi. */
+  translate: var(--astronauta-x) 0;
   display: block;
   width: 104.48%;
   max-width: none;
@@ -1625,6 +1632,8 @@ body.is-anchored .about__float {
 }
 .meditation__singularity {
   position: absolute;
+  /* Va con la figura: el agujero sigue en el punto medio de las manos. */
+  translate: var(--astronauta-x) 0;
   /* El hueco entre las dos manos, medido sobre la ilustracion: la de arriba
      termina en el 57.5 % del alto y el cuenco de la de abajo empieza en el
      71 %, con el centro de las dos en el 49 % del ancho. El centro de esta

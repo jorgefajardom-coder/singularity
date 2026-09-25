@@ -425,7 +425,7 @@ export default function Stage({ entered, warm, espejo }) {
         <div className="stage__void" ref={carrier}>
           <div className="stage__traveler" ref={traveler}>
           <Suspense fallback={null}>
-            <BlackHole bare lensSource={copy} journey={journey} onLensReady={setLensed} espejo={espejo} espejoModo="sigue" />
+            <BlackHole bare lensSource={copy} lensFrame={stage} journey={journey} onLensReady={setLensed} espejo={espejo} espejoModo="sigue" />
           </Suspense>
           </div>
         </div>

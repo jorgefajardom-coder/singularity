@@ -996,7 +996,7 @@ function hueOf(hex) {
  * dpr a la misma proporcion, el lienzo se repinta a tamano real y queda
  * nitido. Ver `entrar()` en Halo.jsx.
  */
-export default function BlackHole({ bare = false, className = "", formation, journey, lensSource, onLensReady, tint, dpr = [1, 1.25], disk = 1, white = 0, espejo, espejoModo }) {
+export default function BlackHole({ bare = false, className = "", formation, journey, lensSource, lensFrame, onLensReady, tint, dpr = [1, 1.25], disk = 1, white = 0, espejo, espejoModo }) {
   const { lang, tr } = useLang();
   const { sample } = useMusic();
   const root = useRef(null);
@@ -1040,6 +1040,25 @@ export default function BlackHole({ bare = false, className = "", formation, jou
         && Math.abs(caja.height - el.offsetHeight) <= 1;
     };
 
+    /**
+     * Donde queda el lienzo con la pagina ARRIBA, que es donde se lee el
+     * titular. El lienzo del hero es `sticky`: bajando se queda pegado arriba
+     * mientras el <h1> sube con el scroll. Medir el texto contra la caja de
+     * ese momento lo dejaba FUERA del lienzo: textura vacia, `uReveal` a 1 y
+     * el <h1> transparente, o sea sin nombre y para siempre. Lo disparaba
+     * cualquier repintado a media pagina, y el mas comun es la GPU que se
+     * reinicia con la pagina quieta un rato (webglcontextrestored). Con
+     * `lensFrame` (el bloque en cuyo borde superior descansa el lienzo) la
+     * caja se mide en su sitio de reposo, pinte cuando pinte.
+     */
+    const cajaEnReposo = () => {
+      const box = root.current.getBoundingClientRect();
+      const frame = lensFrame?.current;
+      if (!frame) return box;
+      const top = frame.getBoundingClientRect().top;
+      return { left: box.left, right: box.right, width: box.width, height: box.height, top, bottom: top + box.height };
+    };
+
     // Mientras siga encogido se conserva la textura buena y se vuelve a mirar
     // en el fotograma siguiente. El sondeo se apaga solo en cuanto pinta.
     const reintentar = () => {
@@ -1050,7 +1069,7 @@ export default function BlackHole({ bare = false, className = "", formation, jou
     const repaint = () => {
       if(!alive || !root.current) return;
       if(!enReposo()) { reintentar(); return; }
-      const box = root.current.getBoundingClientRect();
+      const box = cajaEnReposo();
       if(!target.querySelector('[data-lens-line][data-lens-group="title"]')) return;
       const title = paintLensText(target, box, "title");
       const copy = paintLensText(target, box, "copy");
@@ -1081,7 +1100,7 @@ export default function BlackHole({ bare = false, className = "", formation, jou
   // `lang` entra en las dependencias a propósito: al cambiar de idioma el
   // titular no cambia de tamaño, así que el ResizeObserver no se entera y la
   // textura se quedaría con el texto del idioma anterior.
-  },[lensSource,onLensReady,lang]);
+  },[lensSource,lensFrame,onLensReady,lang]);
 
   const reset = () => { interaction.current.down = false; interaction.current.point.set(0,0); };
   return <div ref={root} className={`blackhole ${bare ? "blackhole--bare" : ""} ${className}`}>

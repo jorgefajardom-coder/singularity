@@ -11,6 +11,11 @@
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#08070a" />
+    <!-- Que no se use el contenido (ni la foto del pie) para entrenar IA. Lo
+         respetan solo los rastreadores que quieren; la foto ademas va cifrada
+         y en un <canvas> (ver src/lib/fotoProtegida.js). robots.txt no sirve
+         aqui: Pages solo lo lee en la raiz del dominio, no en /singularity/. -->
+    <meta name="robots" content="noai, noimageai" />
     <title>Jorge Andres Fajardo Mora: Technical Product Manager & Mechatronics Engineer</title>
     <!-- El primer parrafo de Sobre mi en ingles (content.js, `about.body`). Si cambia alli, cambiarlo aqui. -->
     <meta name="description" content="Mechatronics engineer turned Technical Product Manager. I design and ship systems where robotics, industrial automation and AI meet: from the PLC that runs a cell to the vision pipeline that inspects it." />

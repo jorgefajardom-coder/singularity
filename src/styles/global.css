@@ -3289,28 +3289,31 @@ body.is-anchored .about__float {
   gap: 8px;
 }
 
+/* Las burbujas de proyectos van del mismo naranja que el boton Contactame
+   (`--grad`, ver `.btn`), con el texto en blanco. */
 .proj__tags span {
   padding: 6px 12px;
-  border: 1px solid var(--line);
   border-radius: 999px;
+  background: var(--grad);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--text);
 }
 
 .proj__live {
   justify-self: start;
   padding: 10px 20px;
-  border: 1px solid var(--line);
   border-radius: 999px;
+  background: var(--grad);
+  color: var(--text);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   white-space: nowrap;
-  transition: background 0.4s var(--ease), color 0.4s var(--ease);
+  transition: filter 0.3s var(--ease);
 }
 
 .proj__links {
@@ -3320,8 +3323,7 @@ body.is-anchored .about__float {
 }
 
 .proj__live:hover {
-  background: var(--text);
-  color: var(--ink);
+  filter: brightness(1.18);
 }
 
 /* El acordeón de proyectos reutiliza el signo + de servicios, pero en naranja

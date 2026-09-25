@@ -196,6 +196,11 @@ function Constelacion({ label, items, figura }) {
                       {c.href ? <span className="constel__link" aria-hidden="true"> ↗</span> : null}
                     </span>
                     <span className="constel__meta">{tr(c.issuer)}</span>
+                    {c.tags?.length ? (
+                      <span className="constel__tags">
+                        {c.tags.map((tag) => <span key={tr(tag)}>{tr(tag)}</span>)}
+                      </span>
+                    ) : null}
                     {detail ? <span className="constel__detail">{detail}</span> : null}
                   </span>
                 </Tag>

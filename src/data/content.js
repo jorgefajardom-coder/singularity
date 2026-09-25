@@ -823,7 +823,7 @@ export const companies = {
    Certificaciones y formación
    Una estrella por título, unidas en este orden. Sin fechas (lo
    decidió Jorge). `detail` sale al pasar por la estrella; `href`
-   la vuelve enlace al certificado.
+   la vuelve enlace al certificado; `tags` van a la vista bajo el título.
    ============================================================ */
 export const certifications = {
   // El titular está en `sections.certifications`. Dos constelaciones en el
@@ -860,9 +860,10 @@ export const certifications = {
             "Diploma in Industrial Automation with a focus on Industry 4.0"
           ),
           issuer: t("Universitaria Agustiniana", "Universitaria Agustiniana"),
+          tags: [t("Metodologías ágiles", "Agile methodologies")],
           detail: t(
-            "Diseño, implementación y optimización de sistemas automatizados: programación avanzada de PLC, sensores inteligentes y SCADA; IoT, IA y analítica de datos; redes industriales (WiFi, Bluetooth, Zigbee, LoRa, NB-IoT, Modbus/TCP); celdas flexibles, robótica colaborativa y gemelos digitales en realidad virtual.",
-            "Design, implementation, and optimization of automated systems: advanced PLC programming, smart sensors, and SCADA; IoT, AI, and data analytics; industrial networks (WiFi, Bluetooth, Zigbee, LoRa, NB-IoT, Modbus/TCP); flexible cells, collaborative robotics, and digital twins in virtual reality."
+            "Diseño, implementación y optimización de sistemas automatizados: programación avanzada de PLC, sensores inteligentes y SCADA; IoT, IA y analítica de datos; redes industriales (WiFi, Bluetooth, Zigbee, LoRa, NB-IoT, Modbus/TCP); celdas flexibles, robótica colaborativa y gemelos digitales en realidad virtual; proyectos gestionados con metodologías ágiles.",
+            "Design, implementation, and optimization of automated systems: advanced PLC programming, smart sensors, and SCADA; IoT, AI, and data analytics; industrial networks (WiFi, Bluetooth, Zigbee, LoRa, NB-IoT, Modbus/TCP); flexible cells, collaborative robotics, and digital twins in virtual reality; projects run with agile methodologies."
           ),
         },
         {
@@ -885,6 +886,7 @@ export const certifications = {
         {
           title: t("Certificación FESTO FACT", "FESTO FACT Center Certification"),
           issuer: t("Festo Didactic · Uniagustiniana", "Festo Didactic · Uniagustiniana"),
+          tags: [t("Metodologías ágiles", "Agile methodologies")],
           detail: t(
             "Formación técnica integral en neumática y electroneumática industrial, automatización industrial y programación avanzada de PLC dentro del FACT Center de Festo Didactic. Enfocada en sistemas de manufactura flexible y celdas de producción automatizadas, integrando Industria 4.0, IIoT y redes industriales inalámbricas, con un enfoque práctico en escenarios industriales reales, integración de sistemas, diagnóstico, optimización y metodologías ágiles.",
             "Comprehensive technical training in industrial pneumatics and electro-pneumatics, industrial automation, and advanced PLC programming within the Festo Didactic FACT Center. Focused on flexible manufacturing systems and automated production cells, integrating Industry 4.0, IIoT, and industrial wireless networks, with a strong hands-on approach to real industrial scenarios, system integration, diagnostics, optimization, and agile methodologies."

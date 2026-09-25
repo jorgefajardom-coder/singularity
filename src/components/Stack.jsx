@@ -57,6 +57,7 @@ export default function Stack({ sequence }) {
     };
     const reparto = { d: 0, meta: 0 };
     let tween = null;
+    let vuelta = null;
     // Mientras se reparten, la pagina no se mueve: que se vea la baraja
     // abrirse entera antes de seguir. Mismo cerrojo que el de la aureola
     // (Halo.jsx): se para Lenis y ademas se devuelve a su sitio cualquier
@@ -83,6 +84,13 @@ export default function Stack({ sequence }) {
       if (reparto.meta === meta) return;
       reparto.meta = meta;
       tween?.kill();
+      vuelta?.kill();
+      // La baraja se recoge y se reparte desde la PRIMERA carta. Si la fila se
+      // habia corrido, al volver a subir se recogia fuera de la pantalla y al
+      // bajar la fila aparecia vacia. Al recogerse, la fila vuelve al
+      // principio a la vez que las cartas; al repartir, se asegura.
+      if (meta) el.scrollLeft = 0;
+      else if (el.scrollLeft > 0) vuelta = gsap.to(el, { scrollLeft: 0, duration: 0.8, ease: "power2.inOut" });
       if (meta) bloquear();
       else soltar();
       tween = gsap.to(reparto, {
@@ -124,6 +132,7 @@ export default function Stack({ sequence }) {
     pasar(st.progress);
     return () => {
       tween?.kill();
+      vuelta?.kill();
       soltar();
       st.kill();
       cartas.forEach((c) => { c.style.translate = c.style.rotate = c.style.scale = c.style.zIndex = ""; });
@@ -237,7 +246,7 @@ export default function Stack({ sequence }) {
           lleva el navegador sobre la fila; el vertical sigue siendo de Lenis
           y mueve la pagina, no se lo come la fila. */}
       <div className="posters" ref={fila} tabIndex={0} role="region" aria-label={tr(sections.stack.heading)}
-        data-lenis-prevent-horizontal="">
+        data-lenis-prevent-horizontal="" data-fin={bordes.fin ? "true" : "false"}>
         <article className="poster poster--cover" style={{ "--i": 0 }} aria-label={tr({ es: "Portada del stack", en: "Stack cover" })}>
           <div className="poster__cover-art">
             <img src={`${import.meta.env.BASE_URL}images/stack-astronaut-cover.webp`} alt={tr({ es: "Astronauta de traje blanco y naranja entre órbitas", en: "Astronaut in a white and orange suit surrounded by orbits" })} width="1024" height="1536" decoding="async" />

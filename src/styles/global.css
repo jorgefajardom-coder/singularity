@@ -2988,7 +2988,9 @@ body.is-anchored .about__float {
   display: flex;
   gap: clamp(14px, 1.6vw, 24px);
   margin-top: clamp(20px, 3vw, 40px);
-  padding: 18px var(--arranque) 26px;
+  /* Sin relleno al final: la ultima carta termina justo en el borde y la
+     fila no se puede correr hasta dejar una franja vacia a la derecha. */
+  padding: 18px 0 26px var(--arranque);
   overflow-x: auto;
   overscroll-behavior-x: contain;
   /* Sin imanes: al soltar la barra la fila se iba sola a otra carta (o de
@@ -3011,6 +3013,13 @@ body.is-anchored .about__float {
   mask-position: top, bottom;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
+}
+
+/* Al final ya no hay nada detras: sin desvanecido a la derecha, que se
+   comia el borde de la ultima carta ahora que llega hasta el filo. */
+.posters[data-fin="true"] {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 2.5%), linear-gradient(#000, #000);
+  mask-image: linear-gradient(90deg, transparent, #000 2.5%), linear-gradient(#000, #000);
 }
 
 .posters.is-arrastrando { cursor: grabbing; user-select: none; }

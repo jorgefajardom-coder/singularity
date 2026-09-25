@@ -17,6 +17,8 @@ import { GhostHeading } from "./ui";
  *    ese orden;
  *  - las estrellas brillan más cuanto más recientes son y la última late;
  *  - un cometa salta de una a otra en el sentido del tiempo.
+ * Al entrar en pantalla la figura SE FORMA: las estrellas llegan desde puntos
+ * dispersos del cielo hasta su sitio y solo entonces se trazan las lineas.
  * Pasar por una línea de la leyenda enciende su estrella y al revés. Si un
  * item trae `href`, la línea enlaza al certificado; si trae `detail`, la
  * descripción se despliega debajo al pasar (o al tocarla).
@@ -62,6 +64,21 @@ const FIGURAS = {
     ],
   },
 };
+
+/**
+ * De donde llega cada estrella al formarse la figura: un punto disperso del
+ * cielo, siempre el mismo (angulo aureo, distancia variable). `k` es el orden
+ * de llegada; las con nombre llegan primero, en orden cronologico.
+ */
+function vuelo(k) {
+  const a = k * 2.39996;
+  const d = 26 + ((k * 37) % 23);
+  return {
+    "--dx": `${(Math.cos(a) * d).toFixed(1)}px`,
+    "--dy": `${(Math.sin(a) * d).toFixed(1)}px`,
+    "--v": `${(k * 0.07).toFixed(2)}s`,
+  };
+}
 
 export default function Certifications() {
   const { tr } = useLang();
@@ -136,7 +153,11 @@ function Constelacion({ label, items, figura }) {
             />
           ))}
           {menores.map(([x, y], i) => (
-            <circle key={`m${i}`} className="constel__minor" cx={x} cy={y} r="1.05" />
+            <g key={`m${i}`} transform={`translate(${x} ${y})`}>
+              <g className="constel__vuela" style={vuelo(n + i)}>
+                <circle className="constel__minor" r="1.05" />
+              </g>
+            </g>
           ))}
           {lista.map((c, i) => {
             // El numeral va arriba, salvo en las estrellas del borde superior
@@ -154,11 +175,13 @@ function Constelacion({ label, items, figura }) {
                 onPointerEnter={() => setActivo(i)}
                 onPointerLeave={() => setActivo(-1)}
               >
-                <circle className="constel__halo" r="5" />
-                <circle className="constel__core" r={1.5 + mag * 1.1} />
-                <text className="constel__num" x={nx} y={ny}>
-                  {ROMANOS[i] ?? i + 1}
-                </text>
+                <g className="constel__vuela" style={vuelo(i)}>
+                  <circle className="constel__halo" r="5" />
+                  <circle className="constel__core" r={1.5 + mag * 1.1} />
+                  <text className="constel__num" x={nx} y={ny}>
+                    {ROMANOS[i] ?? i + 1}
+                  </text>
+                </g>
               </g>
             );
           })}

@@ -3455,7 +3455,7 @@ body.is-anchored .about__float {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
   transition: stroke-dashoffset 0.7s var(--ease);
-  transition-delay: calc(0.2s + var(--i) * 0.09s);
+  transition-delay: calc(1.5s + var(--i) * 0.08s);
 }
 
 .constel-group[data-lit="true"] .constel__chart line {
@@ -3464,12 +3464,25 @@ body.is-anchored .about__float {
 
 .constel__minor {
   fill: #ffd2a3;
-  opacity: 0;
-  transition: opacity 0.9s var(--ease) 0.5s;
+  opacity: 0.9;
 }
 
-.constel-group[data-lit="true"] .constel__minor {
-  opacity: 0.9;
+/* La formacion: cada estrella viaja desde un punto disperso del cielo hasta
+   su sitio en la figura (ver `vuelo()` en Certifications.jsx). En SVG los px
+   de un transform son unidades del dibujo. Al salir de pantalla se
+   dispersan otra vez, para volver a formarse al entrar. */
+.constel__vuela {
+  opacity: 0;
+  transform: translate(var(--dx), var(--dy)) scale(0.4);
+  transition:
+    transform 1.3s cubic-bezier(0.2, 0.75, 0.15, 1),
+    opacity 0.5s var(--ease);
+  transition-delay: var(--v);
+}
+
+.constel-group[data-lit="true"] .constel__vuela {
+  opacity: 1;
+  transform: none;
 }
 
 /* Las estrellas con nombre. La magnitud crece con el tiempo: la mas antigua
@@ -3490,15 +3503,16 @@ body.is-anchored .about__float {
   opacity: 0;
   transform: scale(0.2);
   transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
-  transition-delay: calc(0.3s + var(--i) * 0.22s);
+  transition-delay: calc(0.2s + var(--i) * 0.07s);
 }
 
+/* El halo se enciende cuando la estrella ya ha llegado. */
 .constel__halo {
   fill: rgba(255, 138, 40, 0.16);
   opacity: 0;
   transform: scale(0.4);
   transition: opacity 0.6s var(--ease), transform 0.5s var(--ease);
-  transition-delay: calc(0.3s + var(--i) * 0.22s);
+  transition-delay: calc(1.2s + var(--i) * 0.12s);
 }
 
 .constel-group[data-lit="true"] .constel__core {
@@ -3525,7 +3539,7 @@ body.is-anchored .about__float {
 /* La ultima de cada figura es "el presente": su halo late. */
 .constel-group[data-lit="true"] .constel__star[data-now] .constel__halo {
   animation: constel-now 2.6s ease-in-out infinite;
-  animation-delay: calc(var(--n) * 0.22s + 0.9s);
+  animation-delay: calc(var(--n) * 0.12s + 2.2s);
 }
 
 @keyframes constel-now {
@@ -3541,7 +3555,7 @@ body.is-anchored .about__float {
   text-anchor: middle;
   opacity: 0;
   transition: opacity 0.6s var(--ease);
-  transition-delay: calc(0.5s + var(--i) * 0.22s);
+  transition-delay: calc(1.4s + var(--i) * 0.12s);
 }
 
 .constel-group[data-lit="true"] .constel__num {
@@ -3558,7 +3572,7 @@ body.is-anchored .about__float {
 
 .constel-group[data-lit="true"] .constel__comet {
   opacity: 1;
-  transition-delay: calc(var(--n) * 0.22s + 0.6s);
+  transition-delay: calc(var(--n) * 0.1s + 2.4s);
 }
 
 /* La leyenda: el orden de la carta, del mas antiguo al mas reciente. */
@@ -3686,7 +3700,7 @@ body.is-anchored .about__float {
 @media (prefers-reduced-motion: reduce) {
   .constel__chart line,
   .constel__name,
-  .constel__minor,
+  .constel__vuela,
   .constel__core,
   .constel__halo,
   .constel__num,

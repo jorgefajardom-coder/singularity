@@ -22,7 +22,8 @@ const CENTRO_Y = 47.05;
 const SEMIANCHO = 85.35;
 
 // Puntos por mitad: los justos para que la cinta no se vea poligonal a
-// pantalla completa. El shader ya no los recorre (ver `campoDistancias`).
+// pantalla completa. El shader los recorre por bloques (ver `distCurva` en
+// BlackHole.jsx), asi que mas puntos cuestan poco, pero no son gratis.
 export const PUNTOS_POR_MITAD = 48;
 export const PUNTOS = PUNTOS_POR_MITAD * 2;
 
@@ -76,109 +77,4 @@ export function curvaParaShader() {
     });
   });
   return plana;
-}
-
-/**
- * LA DISTANCIA A LA CURVA, YA CALCULADA, EN UNA REJILLA.
- *
- * El shader medía la distancia a la curva recorriendo sus 96 segmentos, y lo
- * hacia dentro del trazado de rayos: por cada pixel y cada cruce con el disco,
- * seis veces mientras la cinta lleva el acabado del SVG (tres capas de grosor,
- * borde y cara, bisel y la propia cinta). Unas 576 distancias a segmento por
- * cruce, a pantalla completa. Medido en produccion (25-09-2026): la GPU
- * tardaba 1,4 s en presentar el primer fotograma tras elegir idioma, y el
- * morfo entero (1,8 s) se quedaba en cinco fotogramas. Se veia apagarse el
- * SVG y aparecer el hero: la transformacion no llegaba a verse.
- *
- * La curva no cambia nunca, asi que su campo de distancias se calcula una vez
- * aqui y el shader lo lee de una textura. Ver `distCurva` en BlackHole.jsx,
- * que tiene que usar este mismo DOMINIO. Medido en la Intel UHD integrada
- * (la que usa Chrome por defecto en el portatil): el morfo pasa de 42-58
- * fotogramas a 148-186, y el peor hueco de ~500 ms a ~100. La imagen es la
- * misma: con el ∞ imitando al SVG, 28 pixeles de antialias distintos en toda
- * la pantalla.
- *
- * Se calcula por propagacion y no punto a punto: cada segmento siembra los
- * texeles que tiene al lado y dos barridos pasan a cada texel el segmento mas
- * cercano de sus vecinos. ~8 segmentos por texel en vez de 96: 40 ms frente a
- * 130, y contra la fuerza bruta el error maximo es 2e-4 unidades (0,06 px).
- */
-export const DOMINIO = { x0: -1.6, y0: -1.2, ancho: 3.2, alto: 2.4, w: 640, h: 480 };
-
-export function campoDistancias() {
-  const c = curvaParaShader();
-  const n = c.length / 2;
-  const { x0, y0, ancho, alto, w, h } = DOMINIO;
-  const hx = ancho / (w - 1), hy = alto / (h - 1);
-
-  // Distancia al cuadrado del punto (px, py) al segmento k.
-  const seg = (k, px, py) => {
-    const k1 = (k + 1) % n;
-    const ax = c[2 * k], ay = c[2 * k + 1];
-    const bx = c[2 * k1] - ax, by = c[2 * k1 + 1] - ay;
-    const qx = px - ax, qy = py - ay;
-    let t = (qx * bx + qy * by) / (bx * bx + by * by);
-    t = t < 0 ? 0 : t > 1 ? 1 : t;
-    const dx = qx - bx * t, dy = qy - by * t;
-    return dx * dx + dy * dy;
-  };
-
-  const id = new Int16Array(w * h).fill(-1);
-  const d2 = new Float64Array(w * h).fill(Infinity);
-
-  // Semilla: cada segmento, en su caja y dos texeles alrededor.
-  for (let k = 0; k < n; k++) {
-    const k1 = (k + 1) % n;
-    const i0 = Math.max(0, Math.floor((Math.min(c[2 * k], c[2 * k1]) - x0) / hx) - 2);
-    const i1 = Math.min(w - 1, Math.ceil((Math.max(c[2 * k], c[2 * k1]) - x0) / hx) + 2);
-    const j0 = Math.max(0, Math.floor((Math.min(c[2 * k + 1], c[2 * k1 + 1]) - y0) / hy) - 2);
-    const j1 = Math.min(h - 1, Math.ceil((Math.max(c[2 * k + 1], c[2 * k1 + 1]) - y0) / hy) + 2);
-    for (let j = j0; j <= j1; j++) {
-      for (let i = i0; i <= i1; i++) {
-        const p = j * w + i;
-        const e = seg(k, x0 + i * hx, y0 + j * hy);
-        if (e < d2[p]) { d2[p] = e; id[p] = k; }
-      }
-    }
-  }
-
-  // El texel p prueba el segmento que tiene su vecino q.
-  const probar = (p, q, px, py) => {
-    const k = id[q];
-    if (k < 0 || k === id[p]) return;
-    const e = seg(k, px, py);
-    if (e < d2[p]) { d2[p] = e; id[p] = k; }
-  };
-  for (let pasada = 0; pasada < 2; pasada++) {
-    for (let j = 0; j < h; j++) {
-      const py = y0 + j * hy;
-      for (let i = 0; i < w; i++) {
-        const p = j * w + i, px = x0 + i * hx;
-        if (i > 0) probar(p, p - 1, px, py);
-        if (j > 0) {
-          probar(p, p - w, px, py);
-          if (i > 0) probar(p, p - w - 1, px, py);
-          if (i < w - 1) probar(p, p - w + 1, px, py);
-        }
-      }
-      for (let i = w - 2; i >= 0; i--) probar(j * w + i, j * w + i + 1, x0 + i * hx, py);
-    }
-    for (let j = h - 1; j >= 0; j--) {
-      const py = y0 + j * hy;
-      for (let i = w - 1; i >= 0; i--) {
-        const p = j * w + i, px = x0 + i * hx;
-        if (i < w - 1) probar(p, p + 1, px, py);
-        if (j < h - 1) {
-          probar(p, p + w, px, py);
-          if (i < w - 1) probar(p, p + w + 1, px, py);
-          if (i > 0) probar(p, p + w - 1, px, py);
-        }
-      }
-      for (let i = 1; i < w; i++) probar(j * w + i, j * w + i - 1, x0 + i * hx, py);
-    }
-  }
-
-  const out = new Float32Array(w * h);
-  for (let p = 0; p < w * h; p++) out[p] = Math.sqrt(d2[p]);
-  return out;
 }

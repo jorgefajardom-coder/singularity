@@ -1,31 +1,37 @@
 import { Component, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { CanvasTexture, ClampToEdgeWrapping, DataTexture, DataUtils, HalfFloatType, LinearFilter, RedFormat, Vector2 } from "three";
+import { CanvasTexture, LinearFilter, Vector2, Vector3 } from "three";
 
 // El arrastre por el puntero es cosa del hero. Fuera de el el agujero tiene
 // que estar donde dice `journey`: en la orbita los aros (DOM) no saben nada
 // del puntero y el agujero se salia de su centro hacia donde estuviera el
 // raton; en las manos de los astronautas, igual.
 const QUIETO = new Vector2(0, 0);
-// La distancia al trazado del ∞ de los idiomas, ya calculada (ver
-// `campoDistancias`), para que la cinta del shader lo tape. Una sola textura
-// para todos los lienzos, hecha la primera vez que alguno la pide.
-let campo = null;
-function texturaCampo() {
-  if (campo) return campo;
-  const d = campoDistancias();
-  const medio = new Uint16Array(d.length);
-  for (let i = 0; i < d.length; i++) medio[i] = DataUtils.toHalfFloat(d[i]);
-  campo = new DataTexture(medio, DOMINIO.w, DOMINIO.h, RedFormat, HalfFloatType);
-  campo.minFilter = campo.magFilter = LinearFilter;
-  campo.wrapS = campo.wrapT = ClampToEdgeWrapping;
-  campo.needsUpdate = true;
-  return campo;
-}
+// El trazado del ∞ de los idiomas, para que la cinta del shader lo tape.
+const CURVA = (() => {
+  const plana = curvaParaShader();
+  const out = [];
+  for (let i = 0; i < plana.length; i += 2) out.push(new Vector2(plana[i], plana[i + 1]));
+  return out;
+})();
+// Los segmentos en bloques de POR_GRUPO, cada uno con el circulo que lo
+// envuelve (centro y radio), para que `distCurva` salte bloques enteros.
+const POR_GRUPO = 8;
+const GRUPOS = (() => {
+  const out = [];
+  for (let g = 0; g < CURVA.length / POR_GRUPO; g++) {
+    const pts = [];
+    for (let j = 0; j <= POR_GRUPO; j++) pts.push(CURVA[(g * POR_GRUPO + j) % CURVA.length]);
+    const c = pts.reduce((a, p) => a.add(p), new Vector2()).divideScalar(pts.length);
+    const r = Math.max(...pts.map((p) => p.distanceTo(c)));
+    out.push(new Vector3(c.x, c.y, r));
+  }
+  return out;
+})();
 import { ui } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { useMusic } from "../lib/music";
-import { DOMINIO, campoDistancias } from "../lib/curvaInfinito";
+import { curvaParaShader } from "../lib/curvaInfinito";
 
 const vertexShader = `
   varying vec2 vUv;
@@ -50,13 +56,15 @@ uniform float uDisk, uWhite;
 uniform float uScale, uTopDown, uIsolation, uFaceOn;
 uniform vec2 uPointer, uCenter;
 uniform sampler2D uText, uCopy;
-// Distancia al ∞ de los idiomas, el MISMO trazado del SVG del cargador,
-// calculada de antemano (ver campoDistancias en curvaInfinito.js): x a la
-// derecha, y arriba, en unidades de LEM_A. El dominio es DOMINIO de alli.
-uniform sampler2D uCurvaDist;
-const vec2 CAMPO_MIN = vec2(${DOMINIO.x0.toFixed(4)}, ${DOMINIO.y0.toFixed(4)});
-const vec2 CAMPO_TAM = vec2(${DOMINIO.ancho.toFixed(4)}, ${DOMINIO.alto.toFixed(4)});
-const vec2 CAMPO_RES = vec2(${DOMINIO.w.toFixed(1)}, ${DOMINIO.h.toFixed(1)});
+// El ∞ de los idiomas, el MISMO trazado del SVG del cargador, muestreado (ver
+// curvaInfinito.js): x a la derecha, y arriba, en unidades de LEM_A. Y sus
+// segmentos en bloques, con el circulo que envuelve a cada uno (xy centro, z
+// radio).
+const int CURVA_N = ${CURVA.length};
+const int POR_GRUPO = ${POR_GRUPO};
+const int GRUPOS_N = ${GRUPOS.length};
+uniform vec2 uCurva[CURVA_N];
+uniform vec3 uGrupos[GRUPOS_N];
 
 const float DISK_IN  = 2.05;   // borde interno, junto a la última órbita estable
 const float DISK_OUT = 15.0;
@@ -153,19 +161,31 @@ vec3 starField(vec3 d) {
 // al final es el anillo del disco sobre el plano ecuatorial. No hay dos objetos
 // ni dos motores: hay un conjunto de nivel que se transforma.
 // Distancia (en unidades de LEM_A) del punto p al trazado del ∞ de los idiomas.
-// Una lectura de textura. Antes eran 96 segmentos por llamada, y esto se llama
-// hasta seis veces por cruce con el disco: congelaba la intro (ver
-// campoDistancias). Los texeles caen en los puntos de la rejilla, de ahi el
-// medio texel. Fuera del dominio —lejos de la curva, donde solo cuenta a
-// grandes rasgos— se suma lo que falta hasta el borde.
-// Con nivel de mip explicito: se lee dentro del bucle del trazado de rayos, y
-// una lectura con derivadas implicitas ahi obliga al compilador de Direct3D
-// (el de Chrome en Windows) a desenrollar el bucle. Medido: iba PEOR que los
-// 96 segmentos.
+//
+// Exacta, segmento a segmento, pero sin recorrerlos todos: un bloque cuyo
+// circulo ya queda mas lejos que la mejor distancia encontrada no puede
+// mejorarla, y se salta entero. Recorrer los 96 segmentos en cada llamada,
+// dentro del trazado de rayos, congelaba la intro en graficas integradas.
+//
+// (Se probo tambien leerla de una textura precalculada, 25-09-2026: iba mas
+// rapido, pero en Chrome y Edge sobre la Intel el lienzo parpadeaba en negro
+// un fotograma de vez en cuando, 6 de 9 pasadas. Con los segmentos, no.)
+float distSegmento(vec2 p, vec2 a, vec2 b) {
+  vec2 ab = b - a, pa = p - a;
+  return length(pa - ab * clamp(dot(pa, ab) / dot(ab, ab), 0.0, 1.0));
+}
 float distCurva(vec2 p) {
-  vec2 q = clamp(p, CAMPO_MIN, CAMPO_MIN + CAMPO_TAM);
-  vec2 uv = ((q - CAMPO_MIN) / CAMPO_TAM * (CAMPO_RES - 1.0) + 0.5) / CAMPO_RES;
-  return textureLod(uCurvaDist, uv, 0.0).r + length(p - q);
+  float d = 1e3;
+  for (int g = 0; g < GRUPOS_N; g++) {
+    vec3 c = uGrupos[g];
+    if (length(p - c.xy) - c.z >= d) continue;
+    for (int j = 0; j < POR_GRUPO; j++) {
+      int k = g * POR_GRUPO + j;
+      int k1 = k + 1 < CURVA_N ? k + 1 : 0;
+      d = min(d, distSegmento(p, uCurva[k], uCurva[k1]));
+    }
+  }
+  return d;
 }
 
 // Lo contrario del tono de mas abajo (Reinhard con WHITE 1.85 y la curva de
@@ -187,9 +207,10 @@ vec3 sinTono(vec3 c) {
  * (#loaderLight, 14, subida 0.8). Es lo que la cinta del shader lleva puesto
  * al principio, para que el SVG se retire sobre una copia identica y el
  * cambio no se vea (Jorge: "no debe notarse el cambio a simple vista").
- * Devuelve el color en pantalla (rgb) y la cobertura (a).
+ * Devuelve el color en pantalla (rgb) y la cobertura (a). d es la distancia
+ * de P0 al trazado, que quien llama ya tiene.
  */
-vec4 esmalteSVG(vec2 P0) {
+vec4 esmalteSVG(vec2 P0, float d) {
   const float S = 85.35;               // unidades del viewBox por unidad de LEM_A
   const float AA = 0.0035;
   vec2 vb = vec2(99.55 + P0.x * S, 47.05 - P0.y * S);
@@ -198,6 +219,19 @@ vec4 esmalteSVG(vec2 P0) {
   vec2 c0 = es ? vec2(14.2, 17.0) : vec2(100.0, 13.8);
   vec2 c1 = es ? vec2(100.0, 80.3) : vec2(184.9, 80.3);
   vec4 o = vec4(0.0);
+
+  // El resplandor de las dos mitades en la pantalla de eleccion (un
+  // drop-shadow naranja en global.css, que se suma al de la animacion de
+  // entrada). Va DEBAJO de la figura. Ancho e intensidad medidos contra el
+  // SVG a 1536x639; en otras pantallas es el mismo halo difuso.
+  float fuera = max(d - 9.0 / S, 0.0);
+  float halo = 0.21 * exp(-0.5 * fuera * fuera / (0.056 * 0.056));
+
+  // Lejos del trazado solo queda el halo. La capa que mas se aparta es la de
+  // grosor bajada 7 (7/S) con 8.5/S de semiancho: por encima de 0.19 ninguna
+  // capa puede tocar este punto (desigualdad triangular), asi que el
+  // resultado es exactamente el mismo y se ahorran cuatro distancias.
+  if (d > 0.19) return vec4(vec3(1.0, 0.416, 0.071), halo);
 
   // Grosor: tres capas desplazadas hacia abajo.
   for (int k = 0; k < 3; k++) {
@@ -209,7 +243,6 @@ vec4 esmalteSVG(vec2 P0) {
     vec3 col = mix(vec3(1.0, 0.416, 0.071), vec3(0.227, 0.047, 0.008), t);
     o.rgb = mix(o.rgb, col, cob); o.a = cob + o.a * (1.0 - cob);
   }
-  float d = distCurva(P0);
   // Borde.
   float cob = smoothstep(9.0 / S + AA, 9.0 / S - AA, d);
   o.rgb = mix(o.rgb, vec3(0.49, 0.11, 0.016), cob); o.a = cob + o.a * (1.0 - cob);
@@ -229,12 +262,6 @@ vec4 esmalteSVG(vec2 P0) {
                        : vec4(0.169, 0.031, 0.008, 0.35 * (tl - 0.48) / 0.52);
   o.rgb = mix(o.rgb, luz.rgb, cob * luz.a);
 
-  // El resplandor de las dos mitades en la pantalla de eleccion (un
-  // drop-shadow naranja en global.css, que se suma al de la animacion de
-  // entrada). Va DEBAJO de la figura. Ancho e intensidad medidos contra el
-  // SVG a 1536x639; en otras pantallas es el mismo halo difuso.
-  float fuera = max(d - 9.0 / S, 0.0);
-  float halo = 0.21 * exp(-0.5 * fuera * fuera / (0.056 * 0.056));
   float a = o.a + halo * (1.0 - o.a);
   vec3 premul = o.rgb * o.a + vec3(1.0, 0.416, 0.071) * halo * (1.0 - o.a);
   return vec4(a > 0.0 ? premul / a : vec3(0.0), a);
@@ -257,7 +284,12 @@ vec3 diskSample(vec3 hit, vec3 dir, vec3 e1, vec3 e2, vec3 nrm, float morph, out
   // segmento: la cinta de plasma tapa asi al ∞ de los idiomas punto por
   // punto, con su forma original (Jorge: ni engordarla ni achicarla). Con el
   // disco ya formado no se usa, y el agujero del hero no paga el recorrido.
-  float toEight = morph < 0.999 ? distCurva(vec2(u, v) / LEM_A) : 1e3;
+  // La misma distancia la usa el acabado del SVG (esmalteSVG): se calcula
+  // una sola vez por cruce.
+  float esmalte = 1.0 - smoothstep(0.02, 0.34, uFormation);
+  vec2 P0 = vec2(u, v) / LEM_A;
+  float dCurva = (morph < 0.999 || esmalte > 0.0) ? distCurva(P0) : 1e3;
+  float toEight = morph < 0.999 ? dCurva : 1e3;
 
   const float R_IN  = DISK_IN / LEM_A;
   const float R_OUT = DISK_OUT / LEM_A;
@@ -265,7 +297,11 @@ vec3 diskSample(vec3 hit, vec3 dir, vec3 e1, vec3 e2, vec3 nrm, float morph, out
   // El anillo con las coordenadas SIN aplanar: el disco es redondo.
   float toRing = abs(r / LEM_A - RMID);
 
-  float dist = mix(toEight, toRing, morph);
+  // Con el disco formado ya no se mezcla: toEight vale 1e3 y, aun con peso
+  // (1 - morph) de milesimas, sumaba ~0,9 a la distancia y el disco entero
+  // desaparecia durante los dos o tres fotogramas que tarda morph en pasar
+  // de 0,999 a 1. Era el parpadeo en negro del relevo al hero (25-09-2026).
+  float dist = morph < 0.999 ? mix(toEight, toRing, morph) : toRing;
 
   // La meseta de la banda (el 80 % interior) tiene que cubrir exactamente el
   // anillo DISK_IN..DISK_OUT; si no, se come la parte interna, que es la más
@@ -284,8 +320,7 @@ vec3 diskSample(vec3 hit, vec3 dir, vec3 e1, vec3 e2, vec3 nrm, float morph, out
   // del disco— se ahorran las tres octavas de fbm y el resto del sombreado.
   // Al principio la cinta lleva el acabado del SVG (ver esmalteSVG), y el
   // plasma la invade mientras la figura ya se transforma.
-  float esmalte = 1.0 - smoothstep(0.02, 0.34, uFormation);
-  vec4 lamina = esmalte > 0.0 ? esmalteSVG(vec2(u, v) / LEM_A) : vec4(0.0);
+  vec4 lamina = esmalte > 0.0 ? esmalteSVG(P0, dCurva) : vec4(0.0);
   if (edge < 0.004) {
     opacity = lamina.a * esmalte;
     return sinTono(lamina.rgb) * lamina.a * esmalte;
@@ -734,7 +769,7 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     // que altura se mira. Lo escribe el scroll (ver Stage.jsx).
     uCenter: { value: new Vector2() }, uScale: { value: 1 }, uTopDown: { value: 0 }, uIsolation: { value: 0 }, uFaceOn: { value: 0 },
     uHue: { value: hue }, uDisk: { value: disk }, uWhite: { value: white },
-    uCurvaDist: { value: texturaCampo() },
+    uCurva: { value: CURVA }, uGrupos: { value: GRUPOS },
   }), []);
   // Pueden cambiar sin volver a montar el lienzo (el idioma, por ejemplo,
   // re-renderiza el arbol entero).

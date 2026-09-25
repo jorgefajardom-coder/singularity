@@ -70,9 +70,7 @@ export default function Footer() {
   return (
     <footer className="footer">
       <div className="shell">
-        {/* Columnas a la izquierda; a la derecha, en el hueco que quedaba
-            libre, la firma: la tarjeta como una postal apoyada sobre el
-            nombre. */}
+        {/* Columnas a la izquierda; a la derecha, la tarjeta como una postal. */}
         <div className="footer__cuerpo">
         <div className="footer__cols">
           <div className="footer__col">
@@ -101,10 +99,10 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* Solo la tarjeta: ya lleva el nombre y la foto. El nombre en grande
+            se quito (Jorge, 25-09-2026) para aprovechar el espacio. */}
         <div className="footer__firma">
           <TarjetaFoto />
-          {/* En blanco solido: en contorno se perdia contra el fondo. */}
-          <h2 className="display display--lg footer__name">{site.name}</h2>
         </div>
         </div>
 

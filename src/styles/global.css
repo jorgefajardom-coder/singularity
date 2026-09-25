@@ -2507,49 +2507,31 @@ body.is-anchored .about__float {
   padding: clamp(56px, 8vw, 100px) 0 32px;
 }
 
-.footer__name {
-  /* Mas pequeno que el resto de titulares grandes: aqui es una firma. */
-  font-size: clamp(34px, 5.2vw, 76px);
-  line-height: 0.88;
-  max-width: 14ch;
-  color: #fff;
-}
-
 /* El nombre y, a su lado, la tarjeta con la foto (como las del Stack). */
 .footer__cuerpo {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
+  align-items: center;
   gap: clamp(32px, 5vw, 80px);
 }
 
-/* La firma, a la derecha: la tarjeta como una postal apoyada encima del
-   nombre, inclinada y montando un poco sobre el. */
+/* A la derecha, la tarjeta sola, como una postal inclinada. */
 .footer__firma {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
 }
 
-.footer__firma .footer__name {
-  position: relative;
-  z-index: 1;
-  /* A un lado de las columnas: algo mas pequeno que la firma a todo lo ancho. */
-  font-size: clamp(30px, 4vw, 62px);
-  text-align: right;
-}
-
 /* Regla propia de esta carta: las del Stack miden 290-360 px y aqui, junto
    a una firma, sobraba. Mas estrecha, con menos relleno y la foto contenida. */
 .poster.footer__carta {
   flex: none;
-  width: clamp(132px, 10.5vw, 168px);
+  width: clamp(150px, 12vw, 190px);
   padding: 7px;
   box-shadow: 0 14px 30px #000a;
-  /* La postal: inclinada, a un lado y montada sobre la primera linea. */
-  z-index: 2;
-  margin: 0 clamp(24px, 6vw, 90px) calc(clamp(30px, 4vw, 62px) * -0.06) 0;
-  rotate: -7deg;
+  /* La postal: inclinada y un poco separada del borde derecho. */
+  margin-right: clamp(12px, 4vw, 64px);
+  rotate: -6deg;
   /* Solo para mirar: nada de seleccionar, arrastrar ni el menu de guardar
      en el movil (Footer.jsx bloquea el menu contextual). */
   user-select: none;
@@ -2593,23 +2575,14 @@ body.is-anchored .about__float {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* En columna, la postal va bajo los enlaces, a la izquierda. */
   .footer__firma {
     align-items: flex-start;
   }
 
-  .footer__firma .footer__name {
-    text-align: left;
-  }
-}
-
-@media (max-width: 720px) {
-
-  /* En el movil la postal va encima del nombre sin montar sobre el: a ese
-     tamano tapaba media linea. */
   .poster.footer__carta {
-    flex: none;
-    width: min(170px, 48vw);
-    margin: 0 0 14px 6px;
+    width: min(180px, 50vw);
+    margin: 8px 0 0 10px;
   }
 }
 

@@ -3330,57 +3330,219 @@ body.is-anchored .about__float {
   z-index: 0;
 }
 
-.certs__grid {
+/* Una sola constelacion: cada titulo es una estrella. El alto manda tanto
+   como el ancho (min con svh) para que quepa en una pantalla baja. */
+.constel {
   position: relative;
   z-index: 4;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: clamp(12px, 1.4vw, 20px);
-  margin-top: clamp(36px, 5vw, 64px);
+  height: min(46vw, 62svh, 560px);
+  margin: clamp(28px, 4vw, 56px) auto 0;
+  max-width: 1180px;
 }
 
-.cert {
-  position: relative;
+.constel[data-vertical="true"] {
+  height: calc(var(--n) * 150px + 40px);
+}
+
+.constel__lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.constel__lines line {
+  stroke: rgba(255, 214, 186, 0.5);
+  stroke-width: 1;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 0.9s var(--ease);
+  transition-delay: calc(0.35s + var(--i) * 0.28s);
+}
+
+.constel[data-lit="true"] .constel__lines line {
+  stroke-dashoffset: 0;
+}
+
+.constel__stars {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.star {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.star__hit {
+  position: absolute;
+  left: 0;
+  top: 0;
   display: block;
-  padding: clamp(20px, 2vw, 28px);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: rgba(255, 240, 228, 0.03);
-  backdrop-filter: blur(8px);
-  transition: transform 0.5s var(--ease), border-color 0.5s var(--ease);
+  color: inherit;
+  text-decoration: none;
 }
 
-a.cert:hover {
-  transform: translateY(-4px);
-  border-color: rgba(255, 240, 228, 0.34);
+.star__dot {
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff6ee;
+  box-shadow: 0 0 6px 2px rgba(255, 154, 60, 0.75), 0 0 22px 6px rgba(255, 106, 18, 0.28);
+  opacity: 0;
+  transform: scale(0.2);
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease), box-shadow 0.4s var(--ease);
+  transition-delay: calc(var(--i) * 0.28s);
 }
 
-.cert__year {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  color: var(--accent-c);
+.star__label {
+  position: absolute;
+  top: 0;
+  left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: max-content;
+  max-width: min(24ch, 30vw);
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.7s var(--ease);
+  transition-delay: calc(0.2s + var(--i) * 0.28s);
 }
 
-.cert__title {
-  margin: 10px 0 6px;
-  font-size: clamp(15px, 1.4vw, 19px);
+.star[data-side="top"] .star__label,
+.star[data-side="bottom"] .star__label {
+  left: 0;
+  align-items: center;
+  text-align: center;
+  max-width: min(22ch, 26vw);
+}
+
+.star[data-side="top"] .star__label {
+  top: auto;
+  bottom: 16px;
+  transform: translateX(-50%);
+}
+
+.star[data-side="bottom"] .star__label {
+  top: 16px;
+  transform: translateX(-50%);
+}
+
+.star__title {
+  font-size: clamp(14px, 1.25vw, 18px);
   font-weight: 700;
   line-height: 1.25;
 }
 
-.cert__issuer {
-  margin: 0;
-  font-size: 13px;
+.star__meta {
+  font-size: 12px;
+  letter-spacing: 0.04em;
   color: var(--text-dim);
 }
 
-.cert__link {
+.star__link {
+  color: var(--accent-a);
+}
+
+.constel[data-lit="true"] .star__dot {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.constel[data-lit="true"] .star__label {
+  opacity: 1;
+}
+
+a.star__hit:hover .star__dot,
+a.star__hit:focus-visible .star__dot {
+  transform: scale(1.5);
+  box-shadow: 0 0 8px 3px rgba(255, 154, 60, 0.95), 0 0 34px 12px rgba(255, 106, 18, 0.4);
+}
+
+a.star__hit:hover .star__title {
+  color: var(--accent-a);
+}
+
+/* Las estrellas con descripcion se encienden igual que las que enlazan. */
+.star__hit[tabindex]:hover .star__dot,
+.star__hit[tabindex]:focus .star__dot {
+  transform: scale(1.5);
+  box-shadow: 0 0 8px 3px rgba(255, 154, 60, 0.95), 0 0 34px 12px rgba(255, 106, 18, 0.4);
+}
+
+.star__hit[tabindex] {
+  cursor: help;
+  outline: none;
+}
+
+/* La descripcion sale al lado contrario de la etiqueta, para no taparla. */
+.star__detail {
   position: absolute;
-  top: 18px;
-  right: 18px;
-  font-size: 14px;
+  left: 0;
+  z-index: 6;
+  width: min(360px, 80vw);
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(17, 14, 19, 0.92);
+  backdrop-filter: blur(10px);
+  font-size: 13px;
+  line-height: 1.55;
   color: var(--text-dim);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity 0.3s var(--ease), visibility 0.3s;
+}
+
+.star[data-side="top"] .star__detail {
+  top: 18px;
+}
+
+.star[data-side="bottom"] .star__detail {
+  bottom: 18px;
+}
+
+.star__hit:hover .star__detail,
+.star__hit:focus .star__detail {
+  opacity: 1;
+  visibility: visible;
+}
+
+.star:has(.star__hit:hover),
+.star:has(.star__hit:focus) {
+  z-index: 5;
+}
+
+@media (max-width: 720px) {
+  .star__label {
+    max-width: 58vw;
+  }
+
+  .star[data-side="right"] .star__detail {
+    top: 36px;
+    left: 18px;
+    width: 64vw;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .constel__lines line,
+  .star__dot,
+  .star__label {
+    transition: none;
+  }
 }
 
 /* ============================================================

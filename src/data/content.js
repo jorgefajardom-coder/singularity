@@ -824,20 +824,71 @@ export const companies = {
 
 /* ============================================================
    Certificaciones y formación
-   TODO: esto es una plantilla. Pásame tu lista real (nombre,
-   entidad, año y enlace del certificado) y la relleno.
+   Una estrella por título, unidas en este orden. Sin fechas (lo
+   decidió Jorge). `detail` sale al pasar por la estrella; `href`
+   la vuelve enlace al certificado.
    ============================================================ */
 export const certifications = {
   // El titular y la nota están en `sections.certifications`.
   items: [
     {
-      title: t("Ingeniería mecatrónica", "Mechatronics Engineering"),
-      issuer: t("Pregrado", "Bachelor's degree"),
-      year: "",
-      href: "",
+      title: t(
+        "Ingeniería Mecatrónica, Robótica y Automatización",
+        "Mechatronics, Robotics and Automation Engineering"
+      ),
+      issuer: t("Universitaria Agustiniana · Pregrado", "Universitaria Agustiniana · Bachelor's degree"),
     },
-    // Añade aquí las demás:
-    // { title: t("Nombre ES", "Name EN"), issuer: "Coursera", year: "2024", href: "https://..." },
+    {
+      title: t("Certificación FESTO FACT", "FESTO FACT Center Certification"),
+      issuer: t("Festo Didactic · Uniagustiniana", "Festo Didactic · Uniagustiniana"),
+      detail: t(
+        "Formación técnica integral en neumática y electroneumática industrial, automatización industrial y programación avanzada de PLC dentro del FACT Center de Festo Didactic. Enfocada en sistemas de manufactura flexible y celdas de producción automatizadas, integrando Industria 4.0, IIoT y redes industriales inalámbricas, con un enfoque práctico en escenarios industriales reales, integración de sistemas, diagnóstico, optimización y metodologías ágiles.",
+        "Comprehensive technical training in industrial pneumatics and electro-pneumatics, industrial automation, and advanced PLC programming within the Festo Didactic FACT Center. Focused on flexible manufacturing systems and automated production cells, integrating Industry 4.0, IIoT, and industrial wireless networks, with a strong hands-on approach to real industrial scenarios, system integration, diagnostics, optimization, and agile methodologies."
+      ),
+    },
+    {
+      title: t(
+        "Diplomado en Automatización Industrial con enfoque en la Industria 4.0",
+        "Diploma in Industrial Automation with a focus on Industry 4.0"
+      ),
+      issuer: t("Universitaria Agustiniana", "Universitaria Agustiniana"),
+      detail: t(
+        "Diseño, implementación y optimización de sistemas automatizados: programación avanzada de PLC, sensores inteligentes y SCADA; IoT, IA y analítica de datos; redes industriales (WiFi, Bluetooth, Zigbee, LoRa, NB-IoT, Modbus/TCP); celdas flexibles, robótica colaborativa y gemelos digitales en realidad virtual.",
+        "Design, implementation, and optimization of automated systems: advanced PLC programming, smart sensors, and SCADA; IoT, AI, and data analytics; industrial networks (WiFi, Bluetooth, Zigbee, LoRa, NB-IoT, Modbus/TCP); flexible cells, collaborative robotics, and digital twins in virtual reality."
+      ),
+    },
+    {
+      title: t("MATLAB Onramp", "MATLAB Onramp"),
+      issuer: t("MathWorks", "MathWorks"),
+      href: "https://matlabacademy.mathworks.com/progress/share/certificate.html?id=34b26b0a-037d-44df-98b7-54308746dc96&",
+    },
+    {
+      title: t("Diplomado en Programación en Java", "Diploma in Java Programming"),
+      issuer: t("Politécnico de Colombia", "Politécnico de Colombia"),
+      detail: t(
+        "Lógica de programación, programación orientada a objetos y estructuras de datos básicas en Java, aplicadas a resolver problemas algorítmicos.",
+        "Programming logic, object-oriented programming, and basic data structures in Java, applied to solving algorithmic problems."
+      ),
+    },
+    {
+      title: t("Aptis General · Inglés C1", "Aptis General · English C1"),
+      issuer: t("British Council", "British Council"),
+    },
+    {
+      title: t("Español C2", "Spanish C2"),
+      issuer: t("Lengua materna", "Native language"),
+    },
+    {
+      title: t("Bachiller Académico", "Academic High School Diploma"),
+      issuer: t("Gimnasio Campestre Cristiano", "Gimnasio Campestre Cristiano"),
+    },
+    {
+      title: t(
+        "Diploma con profundización en Teología y Estudios Bíblicos",
+        "Diploma with emphasis in Theology and Biblical Studies"
+      ),
+      issuer: t("Gimnasio Campestre Cristiano", "Gimnasio Campestre Cristiano"),
+    },
   ],
 };
 

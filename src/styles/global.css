@@ -1124,8 +1124,10 @@ body.is-locked {
      Stage.jsx y Halo.jsx. */
   aspect-ratio: 1024 / 1536;
   --retrato-y: -19.7%;
-  /* Cuanto va la figura (y el agujero de sus manos) a la derecha de la caja. */
-  --astronauta-x: 1vw;
+  /* Cuanto va la figura (y el agujero de sus manos) a la derecha de la caja.
+     Jorge la probo a 1 % de pantalla y en 0, y la dejo a medio punto
+     (24-09-2026). */
+  --astronauta-x: 0.5vw;
   transform: translateY(var(--retrato-y));
   /* La cara (ver BUST_FACE en Stage.jsx): alrededor de ella escala el busto
      cuando viaja hacia el Stack, para caer sobre la cara del otro. */
@@ -1614,10 +1616,10 @@ body.is-anchored .about__float {
      top -0,16 %. El `top` en % es del ALTO de la caja. */
   left: -1.39%;
   top: 1.95%;
-  /* Un 1 % del ancho de pantalla a la derecha (Jorge, 24-09-2026), solo la
-     figura: la aureola y las galaxias se quedan. El agujero de las manos se
-     mueve con ella (`.meditation__singularity`), y Stage.jsx suma este
-     desplazamiento al destino de la cara en la transformacion desde Sobre mi. */
+  /* Desplazamiento horizontal de la figura (`--astronauta-x`); la aureola y
+     las galaxias no se mueven. El agujero de las manos va con ella
+     (`.meditation__singularity`), y Stage.jsx suma este desplazamiento al
+     destino de la cara en la transformacion desde Sobre mi. */
   translate: var(--astronauta-x) 0;
   display: block;
   width: 104.48%;

@@ -53,7 +53,7 @@ function TarjetaFoto() {
         <canvas ref={lienzo} role="img" aria-label={site.name} />
       </div>
       <header className="poster__cabeza">
-        <h3 className="poster__titulo">Ing. J.A.F.M</h3>
+        <h3 className="poster__titulo">{site.name}</h3>
       </header>
       <footer className="poster__pie" aria-hidden="true">
         <span>VOL. 00</span>

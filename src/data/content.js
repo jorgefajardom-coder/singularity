@@ -922,7 +922,7 @@ export const certifications = {
 export const socials = [
   {
     label: "LinkedIn",
-    href: "https://www.linkedin.com/in/jorge-andr%C3%A9s-fajardo-mora-486912267",
+    href: "https://www.linkedin.com/in/jorge-andres-fajardo-mora-486912267",
   },
   { label: "GitHub", href: "https://github.com/jorgefajardom-coder" },
   { label: "YouTube", href: "https://www.youtube.com/@JorgeAndr%C3%A9sFajardoMora" },

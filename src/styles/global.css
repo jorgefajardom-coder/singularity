@@ -3495,9 +3495,86 @@ body.is-anchored .about__float {
   color: var(--accent-a);
 }
 
+/* Magnitud: la mas antigua es la mas tenue y pequena, la mas reciente la
+   mas grande. Asi el orden se ve aunque no haya fechas. */
 .constel[data-lit="true"] .star__dot {
+  opacity: calc(0.62 + 0.38 * var(--mag, 1));
+  transform: scale(calc(0.72 + 0.5 * var(--mag, 1)));
+}
+
+/* La ultima de cada figura es "el presente": late con un halo. */
+.star[data-now] .star__dot::after {
+  content: "";
+  position: absolute;
+  inset: -9px;
+  border: 1px solid rgba(255, 154, 60, 0.55);
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.constel[data-lit="true"] .star[data-now] .star__dot::after {
+  animation: star-now 2.6s ease-out infinite;
+  animation-delay: calc(var(--n) * 0.28s + 0.8s);
+}
+
+@keyframes star-now {
+  0% { opacity: 0.9; transform: scale(0.6); }
+  100% { opacity: 0; transform: scale(2.2); }
+}
+
+/* Numeral de orden, en el color de la brasa. */
+.star__num {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  color: var(--accent-a);
+}
+
+/* La figura de la constelacion, como en los atlas antiguos: un trazo que
+   se intuye detras, nunca compite con las estrellas. */
+.constel__figure path {
+  fill: none;
+  stroke: rgba(255, 196, 150, 0.26);
+  stroke-width: 1;
+  stroke-dasharray: 2 5;
+  stroke-linecap: round;
+  opacity: 0;
+  transition: opacity 1.6s var(--ease) 0.6s;
+}
+
+.constel[data-lit="true"] .constel__figure path {
   opacity: 1;
-  transform: scale(1);
+}
+
+/* Estrellas menores de fondo: carta celeste, no protagonistas. */
+.constel__dust {
+  fill: #fff1e4;
+  opacity: 0;
+  transition: opacity 1.2s var(--ease);
+}
+
+.constel[data-lit="true"] .constel__dust {
+  opacity: 0.32;
+  animation: dust-titila 4s ease-in-out infinite;
+  animation-delay: var(--d);
+}
+
+@keyframes dust-titila {
+  0%, 100% { opacity: 0.32; }
+  50% { opacity: 0.1; }
+}
+
+/* El cometa recorre el trazo en el sentido del tiempo, de I a la ultima. */
+.constel__comet {
+  fill: #fff6ee;
+  filter: drop-shadow(0 0 4px rgba(255, 154, 60, 0.95)) drop-shadow(0 0 10px rgba(255, 106, 18, 0.6));
+  opacity: 0;
+  transition: opacity 0.8s var(--ease);
+}
+
+.constel[data-lit="true"] .constel__comet {
+  opacity: 1;
+  transition-delay: calc(var(--n) * 0.28s + 0.4s);
 }
 
 .constel[data-lit="true"] .star__label {
@@ -3582,9 +3659,19 @@ a.star__hit:hover .star__title {
 @media (prefers-reduced-motion: reduce) {
   .constel__lines line,
   .constel__name,
+  .constel__dust,
   .star__dot,
   .star__label {
     transition: none;
+  }
+
+  .constel__comet {
+    display: none;
+  }
+
+  .constel[data-lit="true"] .constel__dust,
+  .constel[data-lit="true"] .star[data-now] .star__dot::after {
+    animation: none;
   }
 }
 

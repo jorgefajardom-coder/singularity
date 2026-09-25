@@ -76,7 +76,7 @@ export const sections = {
   },
   certifications: {
     id: "certifications",
-    heading: t("Certificaciones", "Certifications"),
+    heading: t("Formación", "Education"),
   },
   companies: {
     // Sin `heading`: la órbita de marcas se presenta sola, con la nota.
@@ -832,17 +832,31 @@ export const companies = {
 export const certifications = {
   // El titular está en `sections.certifications`. Dos constelaciones en el
   // mismo cielo: los títulos y diplomas por un lado, las certificaciones por
-  // otro (lo pidió Jorge, 25-09-2026).
+  // otro (lo pidió Jorge, 25-09-2026). Cada lista va en ORDEN CRONOLÓGICO,
+  // del más antiguo al más reciente: la constelación lo dibuja sin fechas.
   groups: [
     {
       label: t("Títulos y diplomas", "Degrees and diplomas"),
+      figure: "birrete",
       items: [
         {
+          title: t("Bachiller Académico", "Academic High School Diploma"),
+          issuer: t("Gimnasio Campestre Cristiano", "Gimnasio Campestre Cristiano"),
+        },
+        {
           title: t(
-            "Ingeniería Mecatrónica, Robótica y Automatización",
-            "Mechatronics, Robotics and Automation Engineering"
+            "Diploma con profundización en Teología y Estudios Bíblicos",
+            "Diploma with emphasis in Theology and Biblical Studies"
           ),
-          issuer: t("Universitaria Agustiniana · Pregrado", "Universitaria Agustiniana · Bachelor's degree"),
+          issuer: t("Gimnasio Campestre Cristiano", "Gimnasio Campestre Cristiano"),
+        },
+        {
+          title: t("Diplomado en Programación en Java", "Diploma in Java Programming"),
+          issuer: t("Politécnico de Colombia", "Politécnico de Colombia"),
+          detail: t(
+            "Lógica de programación, programación orientada a objetos y estructuras de datos básicas en Java, aplicadas a resolver problemas algorítmicos.",
+            "Programming logic, object-oriented programming, and basic data structures in Java, applied to solving algorithmic problems."
+          ),
         },
         {
           title: t(
@@ -856,29 +870,22 @@ export const certifications = {
           ),
         },
         {
-          title: t("Diplomado en Programación en Java", "Diploma in Java Programming"),
-          issuer: t("Politécnico de Colombia", "Politécnico de Colombia"),
-          detail: t(
-            "Lógica de programación, programación orientada a objetos y estructuras de datos básicas en Java, aplicadas a resolver problemas algorítmicos.",
-            "Programming logic, object-oriented programming, and basic data structures in Java, applied to solving algorithmic problems."
-          ),
-        },
-        {
-          title: t("Bachiller Académico", "Academic High School Diploma"),
-          issuer: t("Gimnasio Campestre Cristiano", "Gimnasio Campestre Cristiano"),
-        },
-        {
           title: t(
-            "Diploma con profundización en Teología y Estudios Bíblicos",
-            "Diploma with emphasis in Theology and Biblical Studies"
+            "Ingeniería Mecatrónica, Robótica y Automatización",
+            "Mechatronics, Robotics and Automation Engineering"
           ),
-          issuer: t("Gimnasio Campestre Cristiano", "Gimnasio Campestre Cristiano"),
+          issuer: t("Universitaria Agustiniana · Pregrado", "Universitaria Agustiniana · Bachelor's degree"),
         },
       ],
     },
     {
       label: t("Certificaciones", "Certifications"),
+      figure: "medalla",
       items: [
+        {
+          title: t("Español C2", "Spanish C2"),
+          issuer: t("Lengua materna", "Native language"),
+        },
         {
           title: t("Certificación FESTO FACT", "FESTO FACT Center Certification"),
           issuer: t("Festo Didactic · Uniagustiniana", "Festo Didactic · Uniagustiniana"),
@@ -888,17 +895,13 @@ export const certifications = {
           ),
         },
         {
-          title: t("MATLAB Onramp", "MATLAB Onramp"),
-          issuer: t("MathWorks", "MathWorks"),
-          href: "https://matlabacademy.mathworks.com/progress/share/certificate.html?id=34b26b0a-037d-44df-98b7-54308746dc96&",
-        },
-        {
           title: t("Aptis General · Inglés C1", "Aptis General · English C1"),
           issuer: t("British Council", "British Council"),
         },
         {
-          title: t("Español C2", "Spanish C2"),
-          issuer: t("Lengua materna", "Native language"),
+          title: t("MATLAB Onramp", "MATLAB Onramp"),
+          issuer: t("MathWorks", "MathWorks"),
+          href: "https://matlabacademy.mathworks.com/progress/share/certificate.html?id=34b26b0a-037d-44df-98b7-54308746dc96&",
         },
       ],
     },

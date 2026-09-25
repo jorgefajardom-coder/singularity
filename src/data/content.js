@@ -309,6 +309,7 @@ export const stack = [
       { name: "Canva", color: "#ef4b23" },
       { name: "CapCut", color: "#ffb52e" },
       { name: "Filmora", color: "#c93812" },
+      { name: "Higgsfield", color: "#ff6a00" },
     ],
   },
   {

@@ -3372,6 +3372,26 @@ body.is-anchored .about__float {
   margin-top: 14px;
 }
 
+/* Un claro en el cielo detras de cada figura: apaga las estrellas del fondo
+   alrededor para que la constelacion no se pierda entre ellas. */
+.constel__cielo {
+  position: relative;
+}
+
+.constel__cielo::before {
+  content: "";
+  position: absolute;
+  inset: -14% -10%;
+  z-index: -1;
+  background: radial-gradient(closest-side, rgba(8, 7, 10, 0.94), rgba(8, 7, 10, 0.82) 62%, rgba(8, 7, 10, 0) 100%);
+  opacity: 0;
+  transition: opacity 0.9s var(--ease);
+}
+
+.constel-group[data-lit="true"] .constel__cielo::before {
+  opacity: 1;
+}
+
 .constel__chart {
   display: block;
   width: 100%;
@@ -3381,9 +3401,11 @@ body.is-anchored .about__float {
 }
 
 /* Los trazos de la figura se dibujan uno tras otro al entrar. */
+/* Ambar, no blanco: el fondo es de estrellas blancas y azuladas, y asi la
+   figura se distingue de el. */
 .constel__chart line {
-  stroke: rgba(255, 214, 186, 0.55);
-  stroke-width: 0.32;
+  stroke: rgba(255, 168, 84, 0.78);
+  stroke-width: 0.42;
   stroke-linecap: round;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
@@ -3396,13 +3418,13 @@ body.is-anchored .about__float {
 }
 
 .constel__minor {
-  fill: #fff1e4;
+  fill: #ffd2a3;
   opacity: 0;
   transition: opacity 0.9s var(--ease) 0.5s;
 }
 
 .constel-group[data-lit="true"] .constel__minor {
-  opacity: 0.7;
+  opacity: 0.9;
 }
 
 /* Las estrellas con nombre. La magnitud crece con el tiempo: la mas antigua

@@ -43,12 +43,23 @@ const FIGURAS = {
       [7, 8], [8, 9], [9, 10], [10, 11], [11, 12], [12, 13],
     ],
   },
-  // Medalla: dos cintas que bajan en V hasta el disco. I y II en las puntas
-  // de las cintas, III en el canto del disco y IV en el centro, su estrella.
+  // Medalla: dos cintas (cada una una banda, con sus dos cantos) que bajan
+  // en V hasta el disco, y dentro del disco una estrella de cinco puntas.
+  // I y II en las puntas de las cintas, III en el canto del disco y IV en la
+  // punta de la estrella.
   medalla: {
-    slots: [[18, 2], [82, 2], [27, 53], [50, 53]],
-    menores: [[42, 31], [58, 31], [68, 38], [73, 53], [68, 68], [50, 76], [32, 68], [32, 38]],
-    trazos: [[0, 4], [1, 5], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 2], [2, 11], [11, 4]],
+    slots: [[18, 2], [82, 2], [31.9, 49.1, -5.5, 1.2], [50, 46.5]],
+    menores: [
+      [31, 2], [69, 2],
+      [50, 36], [61.2, 39.6], [68.1, 49.1], [68.1, 60.9], [61.2, 70.4], [50, 74], [38.8, 70.4], [31.9, 60.9], [38.8, 39.6],
+      [58.1, 52.4], [55, 61.9], [45, 61.9], [41.9, 52.4],
+    ],
+    trazos: [
+      [0, 4], [0, 14], [4, 6],
+      [1, 5], [1, 7], [5, 6],
+      [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12], [12, 13], [13, 2], [2, 14], [14, 6],
+      [3, 16], [16, 18], [18, 15], [15, 17], [17, 3],
+    ],
   },
 };
 
@@ -111,6 +122,7 @@ function Constelacion({ label, items, figura }) {
     <div className="constel-group" data-lit={lit} style={{ "--n": n }}>
       <h3 className="constel__name">{label}</h3>
       <div className="constel" ref={ref}>
+        <div className="constel__cielo">
         <svg className="constel__chart" viewBox="-6 -6 112 88" aria-hidden="true">
           {figura.trazos.map(([a, b], i) => (
             <line
@@ -124,10 +136,12 @@ function Constelacion({ label, items, figura }) {
             />
           ))}
           {menores.map(([x, y], i) => (
-            <circle key={`m${i}`} className="constel__minor" cx={x} cy={y} r="0.9" />
+            <circle key={`m${i}`} className="constel__minor" cx={x} cy={y} r="1.05" />
           ))}
           {lista.map((c, i) => {
-            const [x, y] = todos[i];
+            // El numeral va arriba, salvo en las estrellas del borde superior
+            // (debajo) o si la figura le da otro sitio (`[x, y, dx, dy]`).
+            const [x, y, nx = 0, ny = y < 12 ? 8 : -4.6] = todos[i];
             const mag = n === 1 ? 1 : i / (n - 1);
             return (
               <g
@@ -142,9 +156,7 @@ function Constelacion({ label, items, figura }) {
               >
                 <circle className="constel__halo" r="5" />
                 <circle className="constel__core" r={1.5 + mag * 1.1} />
-                {/* El numeral va arriba, salvo en las estrellas del borde
-                    superior, que no tienen sitio y lo llevan debajo. */}
-                <text className="constel__num" y={y < 12 ? 8 : -4.6}>
+                <text className="constel__num" x={nx} y={ny}>
                   {ROMANOS[i] ?? i + 1}
                 </text>
               </g>
@@ -156,6 +168,7 @@ function Constelacion({ label, items, figura }) {
             </circle>
           ) : null}
         </svg>
+        </div>
 
         <ol className="constel__legend">
           {lista.map((c, i) => {

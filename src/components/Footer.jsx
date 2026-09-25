@@ -3,15 +3,6 @@ import { site, socials, nav, ui } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { pintarFoto } from "../lib/fotoProtegida";
 
-const SHAPES = [
-  { clip: "polygon(50% 0, 100% 100%, 0 100%)", color: "#a82405" },
-  { clip: "circle(50% at 50% 50%)", color: "#db3208" },
-  { clip: "polygon(0 0, 100% 0, 100% 100%)", color: "#ff8224" },
-  { clip: "ellipse(50% 32% at 50% 50%)", color: "#ff9a3c" },
-  { clip: "polygon(0 100%, 50% 0, 100% 100%)", color: "#ff6a12" },
-  { clip: "circle(50% at 50% 50%)", color: "#ffb066" },
-];
-
 /**
  * Tarjeta con la foto, igual que las del Stack. La foto va PROTEGIDA: llega
  * cifrada y se pinta en un <canvas> (ver lib/fotoProtegida.js), sin <img> que
@@ -110,12 +101,6 @@ export default function Footer() {
             <span>{tr(site.location)}</span>
             <span>{tr(site.role)}</span>
           </div>
-        </div>
-
-        <div className="footer__shapes" aria-hidden="true">
-          {SHAPES.map((s, i) => (
-            <i key={i} style={{ background: s.color, clipPath: s.clip }} />
-          ))}
         </div>
 
         <div className="footer__legal">

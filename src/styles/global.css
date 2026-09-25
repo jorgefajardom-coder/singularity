@@ -2610,19 +2610,6 @@ body.is-anchored .about__float {
   color: var(--accent-a);
 }
 
-.footer__shapes {
-  display: flex;
-  gap: 4px;
-  margin-top: 24px;
-  flex-wrap: wrap;
-}
-
-.footer__shapes i {
-  width: clamp(44px, 6vw, 84px);
-  aspect-ratio: 1;
-  display: block;
-}
-
 .footer__legal {
   display: flex;
   flex-wrap: wrap;

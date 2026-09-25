@@ -70,12 +70,10 @@ export default function Footer() {
   return (
     <footer className="footer">
       <div className="shell">
-        <div className="footer__firma">
-          {/* En blanco solido: en contorno se perdia contra el fondo. */}
-          <h2 className="display display--lg footer__name">{site.name}</h2>
-          <TarjetaFoto />
-        </div>
-
+        {/* Columnas a la izquierda; a la derecha, en el hueco que quedaba
+            libre, la firma: la tarjeta como una postal apoyada sobre el
+            nombre. */}
+        <div className="footer__cuerpo">
         <div className="footer__cols">
           <div className="footer__col">
             <h4>{tr(ui.navigation)}</h4>
@@ -101,6 +99,13 @@ export default function Footer() {
             <span>{tr(site.location)}</span>
             <span>{tr(site.role)}</span>
           </div>
+        </div>
+
+        <div className="footer__firma">
+          <TarjetaFoto />
+          {/* En blanco solido: en contorno se perdia contra el fondo. */}
+          <h2 className="display display--lg footer__name">{site.name}</h2>
+        </div>
         </div>
 
         <div className="footer__legal">

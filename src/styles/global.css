@@ -2516,18 +2516,40 @@ body.is-anchored .about__float {
 }
 
 /* El nombre y, a su lado, la tarjeta con la foto (como las del Stack). */
+.footer__cuerpo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: clamp(32px, 5vw, 80px);
+}
+
+/* La firma, a la derecha: la tarjeta como una postal apoyada encima del
+   nombre, inclinada y montando un poco sobre el. */
 .footer__firma {
   display: flex;
-  align-items: center;
-  gap: clamp(24px, 3.5vw, 56px);
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.footer__firma .footer__name {
+  position: relative;
+  z-index: 1;
+  /* A un lado de las columnas: algo mas pequeno que la firma a todo lo ancho. */
+  font-size: clamp(30px, 4vw, 62px);
+  text-align: right;
 }
 
 /* Regla propia de esta carta: las del Stack miden 290-360 px y aqui, junto
    a una firma, sobraba. Mas estrecha, con menos relleno y la foto contenida. */
 .poster.footer__carta {
-  flex: 0 0 clamp(132px, 10.5vw, 168px);
+  flex: none;
+  width: clamp(132px, 10.5vw, 168px);
   padding: 7px;
-  box-shadow: 0 8px 22px #0006;
+  box-shadow: 0 14px 30px #000a;
+  /* La postal: inclinada, a un lado y montada sobre la primera linea. */
+  z-index: 2;
+  margin: 0 clamp(24px, 6vw, 90px) calc(clamp(30px, 4vw, 62px) * -0.06) 0;
+  rotate: -7deg;
   /* Solo para mirar: nada de seleccionar, arrastrar ni el menu de guardar
      en el movil (Footer.jsx bloquea el menu contextual). */
   user-select: none;
@@ -2564,24 +2586,36 @@ body.is-anchored .about__float {
   pointer-events: none;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 900px) {
+  .footer__cuerpo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .footer__firma {
-    flex-direction: column;
     align-items: flex-start;
   }
 
-  /* En columna, flex-basis mide el alto: aqui el ancho va aparte. */
+  .footer__firma .footer__name {
+    text-align: left;
+  }
+}
+
+@media (max-width: 720px) {
+
+  /* En el movil la postal va encima del nombre sin montar sobre el: a ese
+     tamano tapaba media linea. */
   .poster.footer__carta {
     flex: none;
     width: min(170px, 48vw);
+    margin: 0 0 14px 6px;
   }
 }
 
 .footer__cols {
   display: flex;
   flex-wrap: wrap;
-  gap: clamp(32px, 6vw, 96px);
-  margin: clamp(32px, 5vw, 56px) 0;
+  gap: clamp(24px, 3.2vw, 56px);
+  margin: 0;
 }
 
 .footer__col {
@@ -3418,13 +3452,16 @@ body.is-anchored .about__float {
   opacity: 1;
 }
 
+/* Las figuras van ARRIBA, justo bajo su rotulo: centradas en vertical
+   quedaban a distinta altura, porque una leyenda tiene cinco lineas y la
+   otra cuatro. */
 .constel {
-  --figura: clamp(200px, 17vw, 270px);
+  --figura: clamp(260px, 22vw, 360px);
   display: grid;
   grid-template-columns: var(--figura) minmax(0, 1fr);
   justify-content: center;
-  gap: clamp(16px, 2vw, 32px);
-  align-items: center;
+  gap: clamp(12px, 1.6vw, 28px);
+  align-items: start;
   margin-top: 14px;
 }
 

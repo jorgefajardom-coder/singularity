@@ -1,23 +1,31 @@
 import { Component, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { CanvasTexture, LinearFilter, Vector2 } from "three";
+import { CanvasTexture, ClampToEdgeWrapping, DataTexture, DataUtils, HalfFloatType, LinearFilter, RedFormat, Vector2 } from "three";
 
 // El arrastre por el puntero es cosa del hero. Fuera de el el agujero tiene
 // que estar donde dice `journey`: en la orbita los aros (DOM) no saben nada
 // del puntero y el agujero se salia de su centro hacia donde estuviera el
 // raton; en las manos de los astronautas, igual.
 const QUIETO = new Vector2(0, 0);
-// El trazado del ∞ de los idiomas, para que la cinta del shader lo tape.
-const CURVA = (() => {
-  const plana = curvaParaShader();
-  const out = [];
-  for (let i = 0; i < plana.length; i += 2) out.push(new Vector2(plana[i], plana[i + 1]));
-  return out;
-})();
+// La distancia al trazado del ∞ de los idiomas, ya calculada (ver
+// `campoDistancias`), para que la cinta del shader lo tape. Una sola textura
+// para todos los lienzos, hecha la primera vez que alguno la pide.
+let campo = null;
+function texturaCampo() {
+  if (campo) return campo;
+  const d = campoDistancias();
+  const medio = new Uint16Array(d.length);
+  for (let i = 0; i < d.length; i++) medio[i] = DataUtils.toHalfFloat(d[i]);
+  campo = new DataTexture(medio, DOMINIO.w, DOMINIO.h, RedFormat, HalfFloatType);
+  campo.minFilter = campo.magFilter = LinearFilter;
+  campo.wrapS = campo.wrapT = ClampToEdgeWrapping;
+  campo.needsUpdate = true;
+  return campo;
+}
 import { ui } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { useMusic } from "../lib/music";
-import { curvaParaShader } from "../lib/curvaInfinito";
+import { DOMINIO, campoDistancias } from "../lib/curvaInfinito";
 
 const vertexShader = `
   varying vec2 vUv;
@@ -42,10 +50,13 @@ uniform float uDisk, uWhite;
 uniform float uScale, uTopDown, uIsolation, uFaceOn;
 uniform vec2 uPointer, uCenter;
 uniform sampler2D uText, uCopy;
-// El ∞ de los idiomas, el MISMO trazado del SVG del cargador, muestreado (ver
-// curvaInfinito.js): x a la derecha, y arriba, en unidades de LEM_A.
-const int CURVA_N = 96;
-uniform vec2 uCurva[CURVA_N];
+// Distancia al ∞ de los idiomas, el MISMO trazado del SVG del cargador,
+// calculada de antemano (ver campoDistancias en curvaInfinito.js): x a la
+// derecha, y arriba, en unidades de LEM_A. El dominio es DOMINIO de alli.
+uniform sampler2D uCurvaDist;
+const vec2 CAMPO_MIN = vec2(${DOMINIO.x0.toFixed(4)}, ${DOMINIO.y0.toFixed(4)});
+const vec2 CAMPO_TAM = vec2(${DOMINIO.ancho.toFixed(4)}, ${DOMINIO.alto.toFixed(4)});
+const vec2 CAMPO_RES = vec2(${DOMINIO.w.toFixed(1)}, ${DOMINIO.h.toFixed(1)});
 
 const float DISK_IN  = 2.05;   // borde interno, junto a la última órbita estable
 const float DISK_OUT = 15.0;
@@ -142,14 +153,19 @@ vec3 starField(vec3 d) {
 // al final es el anillo del disco sobre el plano ecuatorial. No hay dos objetos
 // ni dos motores: hay un conjunto de nivel que se transforma.
 // Distancia (en unidades de LEM_A) del punto p al trazado del ∞ de los idiomas.
+// Una lectura de textura. Antes eran 96 segmentos por llamada, y esto se llama
+// hasta seis veces por cruce con el disco: congelaba la intro (ver
+// campoDistancias). Los texeles caen en los puntos de la rejilla, de ahi el
+// medio texel. Fuera del dominio —lejos de la curva, donde solo cuenta a
+// grandes rasgos— se suma lo que falta hasta el borde.
+// Con nivel de mip explicito: se lee dentro del bucle del trazado de rayos, y
+// una lectura con derivadas implicitas ahi obliga al compilador de Direct3D
+// (el de Chrome en Windows) a desenrollar el bucle. Medido: iba PEOR que los
+// 96 segmentos.
 float distCurva(vec2 p) {
-  float d = 1e3;
-  for (int k = 0; k < CURVA_N - 1; k++) {
-    vec2 a = uCurva[k], ab = uCurva[k + 1] - a, pa = p - a;
-    d = min(d, length(pa - ab * clamp(dot(pa, ab) / dot(ab, ab), 0.0, 1.0)));
-  }
-  vec2 a = uCurva[CURVA_N - 1], ab = uCurva[0] - a, pa = p - a;
-  return min(d, length(pa - ab * clamp(dot(pa, ab) / dot(ab, ab), 0.0, 1.0)));
+  vec2 q = clamp(p, CAMPO_MIN, CAMPO_MIN + CAMPO_TAM);
+  vec2 uv = ((q - CAMPO_MIN) / CAMPO_TAM * (CAMPO_RES - 1.0) + 0.5) / CAMPO_RES;
+  return textureLod(uCurvaDist, uv, 0.0).r + length(p - q);
 }
 
 // Lo contrario del tono de mas abajo (Reinhard con WHITE 1.85 y la curva de
@@ -718,7 +734,7 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     // que altura se mira. Lo escribe el scroll (ver Stage.jsx).
     uCenter: { value: new Vector2() }, uScale: { value: 1 }, uTopDown: { value: 0 }, uIsolation: { value: 0 }, uFaceOn: { value: 0 },
     uHue: { value: hue }, uDisk: { value: disk }, uWhite: { value: white },
-    uCurva: { value: CURVA },
+    uCurvaDist: { value: texturaCampo() },
   }), []);
   // Pueden cambiar sin volver a montar el lienzo (el idioma, por ejemplo,
   // re-renderiza el arbol entero).

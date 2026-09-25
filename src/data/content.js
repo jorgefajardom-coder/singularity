@@ -713,11 +713,11 @@ export const projects = [
 export const companies = {
   // El texto de apoyo está en `sections.companies.note`.
   items: [
-    { name: "Team Icon Official", logo: "/images/clients/be-an-icon.png", href: "https://www.instagram.com/team_icon_official/" },
-    { name: "MiuTab", logo: "/images/clients/miutab.png", logoScale: 1.4, hideLabel: true, href: "https://www.linkedin.com/company/miutab/posts/?feedView=all" },
-    { name: "Uniagustiniana", logo: "/images/clients/uniagustiniana.png", logoScale: 1.35, href: "https://www.instagram.com/uniagustoficial/" },
-    { name: "Franco's Photography Col", logo: "/images/clients/francos-photography.png", href: "https://www.instagram.com/francosfotografiacol/" },
-    { name: "Khronos Ink", logo: "/images/clients/khronos-ink.png", href: "" },
+    { name: "Team Icon Official", logo: "/images/clients/be-an-icon.webp", href: "https://www.instagram.com/team_icon_official/" },
+    { name: "MiuTab", logo: "/images/clients/miutab.webp", logoScale: 1.4, hideLabel: true, href: "https://www.linkedin.com/company/miutab/posts/?feedView=all" },
+    { name: "Uniagustiniana", logo: "/images/clients/uniagustiniana.webp", logoScale: 1.35, href: "https://www.instagram.com/uniagustoficial/" },
+    { name: "Franco's Photography Col", logo: "/images/clients/francos-photography.webp", href: "https://www.instagram.com/francosfotografiacol/" },
+    { name: "Khronos Ink", logo: "/images/clients/khronos-ink.webp", href: "" },
   ],
 };
 

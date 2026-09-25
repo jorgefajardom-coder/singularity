@@ -22,7 +22,7 @@ export const t = (es, en) => ({ es, en });
 export const music = { src: "", title: "Orbit" };
 
 export const site = {
-  name: "Jorge Andrés Fajardo Mora",
+  name: "Jorge Andres Fajardo Mora",
   // Version corta para la barra superior, donde el nombre completo ocupa demasiado
   short: t("Ing. J.A.F.M", "Eng. J.A.F.M"),
   role: t(
@@ -125,10 +125,6 @@ export const ui = {
   navigation: t("Navegación", "Navigation"),
   social: t("Redes", "Social"),
   contact: t("Contacto", "Contact"),
-  builtWith: t(
-    "Hecho con React Three Fiber · Modelos en Blender",
-    "Built with React Three Fiber · Models in Blender"
-  ),
 
   // Filtro de proyectos
   stackPrev: t("Pósters anteriores", "Previous posters"),

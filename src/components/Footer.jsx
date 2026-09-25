@@ -16,9 +16,8 @@ export default function Footer() {
   return (
     <footer className="footer">
       <div className="shell">
-        <h2 className="display display--lg footer__name ghost">
-          <span className="ghost__outline">{site.name}</span>
-        </h2>
+        {/* En blanco solido: en contorno se perdia contra el fondo. */}
+        <h2 className="display display--lg footer__name">{site.name}</h2>
 
         <div className="footer__cols">
           <div className="footer__col">
@@ -57,7 +56,6 @@ export default function Footer() {
           <span>
             © {new Date().getFullYear()} {site.name}
           </span>
-          <span>{tr(ui.builtWith)}</span>
         </div>
       </div>
     </footer>

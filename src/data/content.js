@@ -590,8 +590,6 @@ export const projectCategories = [
   { id: "design", label: t("Diseño de producto y packaging", "Product Design & Packaging") },
   { id: "robotics", label: t("Robótica y manufactura", "Robotics & Manufacturing") },
   { id: "ai", label: t("IA y automatización", "AI & Automation") },
-  { id: "embedded", label: t("Embebidos e IoT", "Embedded & IoT") },
-  { id: "tools", label: t("Ingeniería y herramientas", "Engineering & Tools") },
 ];
 
 export const projects = [
@@ -704,114 +702,6 @@ export const projects = [
       src: "/images/esp32cam-seguridad.webp",
       alt: t("Módulo ESP32-CAM AI Thinker con su cámara OV2640", "ESP32-CAM AI Thinker module with its OV2640 camera"),
     }],
-  },
-  {
-    category: "robotics",
-    name: t("Gemelo digital de manufactura", "Digital Twin Manufacturing System"),
-    year: "2025",
-    href: "",
-    desc: t(
-      "Gemelo digital de una línea de producción que sincroniza el entorno virtual con los robots físicos para pruebas, monitorización y validación antes del despliegue. Comunicación en tiempo real, visualización 3D, detección de colisiones y optimización de proceso.",
-      "Digital twin of a production line that syncs the virtual environment with physical robots for testing, monitoring, and validation before deployment. Real-time communication, 3D visualization, collision detection, and process optimization."
-    ),
-    tags: ["Unity", "Python", "C#", t("Robótica industrial", "Industrial Robotics")],
-    media: [{ palette: ["#ffb52e", "#ff8a1f"] }, { palette: ["#ff8a1f", "#131316"] }],
-  },
-  {
-    category: "robotics",
-    name: t("Plataforma colaborativa multirrobot", "Multi-Robot Collaborative Platform"),
-    year: "2024",
-    href: "",
-    desc: t(
-      "Sistema distribuido donde varios robots se coordinan para transportar, ensamblar y manipular objetos. Comunicación distribuida y planificación de tareas, escalable a múltiples agentes.",
-      "Distributed system where multiple robots coordinate to transport, assemble, and manipulate objects. Distributed communication and task planning, scalable to multiple agents."
-    ),
-    tags: ["Python", "C++", "Unity", t("Robótica", "Robotics")],
-    media: [{ palette: ["#ff6a00", "#ffcf70"] }, { palette: ["#ff8a1f", "#ef4b23"] }],
-  },
-  {
-    category: "robotics",
-    name: t("Plataforma de navegación para robot móvil", "Mobile Robot Navigation Platform"),
-    year: "2024",
-    href: "",
-    desc: t(
-      "Robot móvil omnidireccional con ruedas Mecanum, IMU, sensores de línea QTR y ultrasonidos, construido para navegación autónoma y seguimiento de línea.",
-      "Omnidirectional mobile robot with Mecanum wheels, IMU, QTR line sensors, and ultrasonic sensing, built for autonomous navigation and line following."
-    ),
-    tags: ["Arduino", "Python", "C++"],
-    media: [{ palette: ["#ffb52e", "#0a0a0b"] }, { palette: ["#ff8a1f", "#ef4b23"] }],
-  },
-  {
-    category: "robotics",
-    name: t("Framework de control robótico", "Robotics Control Framework"),
-    year: "2024",
-    href: "",
-    desc: t(
-      "Framework modular y extensible para controlar múltiples actuadores y sensores, incluido el control sincronizado de varios drivers de servos PCA9685.",
-      "Modular, extensible framework for controlling multiple actuators and sensors, including synchronized control across several PCA9685 servo drivers."
-    ),
-    tags: ["Python", "Arduino", t("Sistemas embebidos", "Embedded Systems")],
-    media: [{ palette: ["#c93812", "#131316"] }, { palette: ["#ff8a1f", "#0a0a0b"] }],
-  },
-  {
-    category: "robotics",
-    name: t("Herramientas de simulación robótica", "Robotics Simulation Toolkit"),
-    year: "2024",
-    href: "",
-    desc: t(
-      "Conjunto de herramientas para simular robots industriales, cinemática y trayectorias, pensado para pruebas virtuales y visualización 3D antes de la implementación física.",
-      "Collection of tools for simulating industrial robots, kinematics, and trajectories, for virtual testing and 3D visualization before physical implementation."
-    ),
-    tags: ["Unity", "C#"],
-    media: [{ palette: ["#e5e7eb", "#ef4b23"] }, { palette: ["#0a0a0b", "#ff8a1f"] }],
-  },
-  {
-    category: "ai",
-    name: t("Automatización de flujos con IA", "AI Workflow Automation"),
-    year: "2025",
-    href: "",
-    desc: t(
-      "Automatización de procesos con agentes de IA que integran múltiples herramientas y servicios a través de APIs.",
-      "Process automation using AI agents that integrate multiple tools and services through APIs."
-    ),
-    tags: ["Python", "n8n", "Make", "HubSpot", "Airtable", "LLMs"],
-    media: [{ palette: ["#ff6a00", "#ef4b23"] }, { palette: ["#ff8a1f", "#131316"] }],
-  },
-  {
-    category: "embedded",
-    name: t("Plataforma de monitorización IoT industrial", "Industrial IoT Monitoring Platform"),
-    year: "2024",
-    href: "",
-    desc: t(
-      "Adquisición en tiempo real, cuadros de mando y monitorización remota de datos de sensores industriales, integrada con PLCs.",
-      "Real-time acquisition, dashboarding, and remote monitoring of industrial sensor data, integrated with PLCs."
-    ),
-    tags: ["Python", "IoT", "PLC", "OPC UA"],
-    media: [{ palette: ["#ff8a1f", "#0a0a0b"] }, { palette: ["#ffb52e", "#131316"] }],
-  },
-  {
-    category: "tools",
-    name: t("Repositorio de diseño de ingeniería", "Engineering Design Repository"),
-    year: "2024",
-    href: "",
-    desc: t(
-      "Diseños mecánicos y electrónicos para proyectos de automatización y robótica: diseño de PCB, CAD, modelado 3D, planos mecánicos y esquemas eléctricos.",
-      "Mechanical and electronic designs for automation and robotics projects: PCB design, CAD, 3D modeling, mechanical drawings, and electrical diagrams."
-    ),
-    tags: ["Fusion 360", "Inventor", "EasyEDA", "Fritzing"],
-    media: [{ palette: ["#ffcf70", "#131316"] }, { palette: ["#ff6a00", "#0a0a0b"] }],
-  },
-  {
-    category: "tools",
-    name: t("Proyectos de software industrial", "Industrial Software Projects"),
-    year: "2024",
-    href: "",
-    desc: t(
-      "Colección de aplicaciones industriales para automatización, monitorización y control, incluidas interfaces HMI e integración con hardware.",
-      "Collection of industrial applications for automation, monitoring, and control, including HMI interfaces and hardware integration."
-    ),
-    tags: ["C#", "Java", "Python"],
-    media: [{ palette: ["#c93812", "#ff8a1f"] }, { palette: ["#ffcf70", "#0a0a0b"] }],
   },
 ];
 

@@ -25,11 +25,12 @@ export const site = {
   name: "Jorge Andres Fajardo Mora",
   // Version corta para la barra superior, donde el nombre completo ocupa demasiado
   short: t("Ing. J.A.F.M", "Eng. J.A.F.M"),
-  // La pagina va enfocada a la gestion de proyectos (Jorge, 25-09-2026): la
-  // ingenieria es la base, no el protagonista. El "Hola, soy Jorge" NO se toca.
+  // NO se toca (Jorge, 25-09-2026): ni el "Hola, soy Jorge" ni este rol. El
+  // enfoque en gestion de proyectos se cuenta a partir de aqui, en la frase de
+  // debajo y en el resto de la pagina.
   role: t(
-    "Project Manager · Technical Product Manager",
-    "Project Manager · Technical Product Manager"
+    "Technical Product Manager · Ingeniero mecatrónico",
+    "Technical Product Manager · Mechatronics Engineer"
   ),
   email: "j.andres.f.mora@gmail.com",
   // TODO: confirma o cambia la ciudad; la puse yo, no venía en tu README.
@@ -203,8 +204,8 @@ export const about = {
   // Un elemento por párrafo. Añade o quita los que quieras.
   body: [
     t(
-      "Project manager con base en ingeniería mecatrónica. He llevado proyectos por todas sus fases (inicio, planificación, ejecución, seguimiento y cierre) en robótica, automatización industrial, IA, 3D y marca, y sé lo que exige cada etapa porque las he trabajado desde dentro.",
-      "Project manager with a background in mechatronics engineering. I've taken projects through every phase (initiation, planning, execution, monitoring and closing) in robotics, industrial automation, AI, 3D and branding, and I know what each stage demands because I've worked them from the inside."
+      "Technical Product Manager e ingeniero mecatrónico. He llevado proyectos por todas sus fases (inicio, planificación, ejecución, seguimiento y cierre) en robótica, automatización industrial, IA, 3D y marca, y sé lo que exige cada etapa porque las he trabajado desde dentro.",
+      "Technical Product Manager and mechatronics engineer. I've taken projects through every phase (initiation, planning, execution, monitoring and closing) in robotics, industrial automation, AI, 3D and branding, and I know what each stage demands because I've worked them from the inside."
     ),
     // La ingenieria es la ventaja del gestor, no una nota al pie: va afirmada.
     t(

@@ -1126,9 +1126,9 @@ body.is-locked {
   --retrato-y: -19.7%;
   /* Cuanto va la figura (y el agujero de sus manos) a la derecha de la caja.
      Jorge la probo a 1 % de pantalla y en 0, la dejo a medio punto
-     (24-09-2026) y despues la devolvio medio punto a la izquierda
-     (25-09-2026). */
-  --astronauta-x: 0vw;
+     (24-09-2026), despues la devolvio medio punto a la izquierda y la
+     quiso un pixel a la derecha (25-09-2026). */
+  --astronauta-x: 1px;
   transform: translateY(var(--retrato-y));
   /* La cara (ver BUST_FACE en Stage.jsx): alrededor de ella escala el busto
      cuando viaja hacia el Stack, para caer sobre la cara del otro. */

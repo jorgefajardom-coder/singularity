@@ -8,80 +8,53 @@ import { useLang } from "../lib/i18n";
 import { GhostHeading } from "./ui";
 
 /**
- * Certificaciones y formación, dibujadas en un mismo cielo como dos
- * constelaciones: títulos y diplomas por un lado, certificaciones por otro.
+ * Formación, dibujada como una carta celeste: dos constelaciones cuyas
+ * ESTRELLAS forman la figura que les da nombre (un birrete para los títulos y
+ * diplomas, una medalla para las certificaciones), y al lado su leyenda.
  * Los grupos viven en `certifications.groups` dentro de src/data/content.js,
  * cada uno en orden cronológico. Sin fechas, el orden se lee igual:
- *  - la figura sube: lo más antiguo abajo, lo más reciente arriba;
- *  - cada estrella lleva su numeral (I, II, III…) y brilla más cuanto más
- *    reciente es; la última late, es "el presente";
- *  - un cometa recorre el trazo en el sentido del tiempo.
- * Detrás, como en los atlas celestes antiguos, va la figura que da nombre a
- * la constelación (`figure` en los datos), en un trazo tenue.
- * Si un item trae `href`, la estrella se vuelve un enlace al certificado, y si
- * trae `detail`, la descripción aparece al pasar por encima (o al tocarla).
+ *  - cada título es una estrella numerada (I, II, III…) y la leyenda va en
+ *    ese orden;
+ *  - las estrellas brillan más cuanto más recientes son y la última late;
+ *  - un cometa salta de una a otra en el sentido del tiempo.
+ * Pasar por una línea de la leyenda enciende su estrella y al revés. Si un
+ * item trae `href`, la línea enlaza al certificado; si trae `detail`, la
+ * descripción se despliega debajo al pasar (o al tocarla).
  */
 
 const ROMANOS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
 
-// Figuras de fondo, en un lienzo de 100x60 que se encaja en la constelación.
+/**
+ * Figuras en un lienzo de 100 x 80. `slots` son las estrellas con nombre, en
+ * el orden en que se asignan a los títulos (el más antiguo, el primero);
+ * `menores` completan el contorno; `trazos` son las líneas de la figura, con
+ * índices sobre [...slots, ...menores]. Si hay menos títulos que slots, los
+ * que sobran se pintan como estrellas menores y la figura sigue entera.
+ */
 const FIGURAS = {
-  // Birrete: el tablero en rombo, el casquete y la borla.
-  birrete: [
-    "M50 5 L95 21 L50 37 L5 21 Z",
-    "M23 29 L23 45 Q50 57 77 45 L77 29",
-    "M50 21 L85 25 L85 42",
-    "M82 42 L85 50 L88 42 Z",
-  ],
-  // Medalla: dos cintas y el disco con su anillo.
-  medalla: [
-    "M36 1 L46 20 M64 1 L54 20",
-    "M50 20 m-19 19 a19 19 0 1 0 38 0 a19 19 0 1 0 -38 0",
-    "M50 27 m-12 12 a12 12 0 1 0 24 0 a12 12 0 1 0 -24 0",
-    "M50 31 L52.5 36.5 L58 37 L54 41 L55 47 L50 44 L45 47 L46 41 L42 37 L47.5 36.5 Z",
-  ],
+  // Birrete: el tablero en rombo (I a IV, vuelta completa), el casquete
+  // debajo y la borla, que cuelga del centro y termina en V: la graduación.
+  birrete: {
+    slots: [[4, 26], [50, 4], [96, 26], [50, 48], [84, 62]],
+    menores: [[50, 26], [84, 32], [24, 36], [22, 54], [36, 62], [50, 65], [64, 62], [78, 54], [76, 36]],
+    trazos: [
+      [0, 1], [1, 2], [2, 3], [3, 0],
+      [5, 6], [6, 4],
+      [7, 8], [8, 9], [9, 10], [10, 11], [11, 12], [12, 13],
+    ],
+  },
+  // Medalla: dos cintas que bajan en V hasta el disco. I y II en las puntas
+  // de las cintas, III en el canto del disco y IV en el centro, su estrella.
+  medalla: {
+    slots: [[18, 2], [82, 2], [27, 53], [50, 53]],
+    menores: [[42, 31], [58, 31], [68, 38], [73, 53], [68, 68], [50, 76], [32, 68], [32, 38]],
+    trazos: [[0, 4], [1, 5], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 2], [2, 11], [11, 4]],
+  },
 };
-
-// La figura: una cresta que asciende. Alterna siempre alto/bajo (así las
-// etiquetas vecinas caen a lados opuestos), sube de principio a fin y la más
-// reciente es siempre la cima.
-function posiciones(n, vertical) {
-  return Array.from({ length: n }, (_, i) => {
-    const t = n === 1 ? 0.5 : i / (n - 1);
-    const onda = n === 1 ? 0 : (n - 1 - i) % 2 === 0 ? -1 : 1;
-    // En vertical el tiempo baja con el scroll y el zigzag se queda en la
-    // franja izquierda para que las etiquetas tengan sitio a la derecha.
-    if (vertical) return [0.14 + onda * 0.08, 0.06 + 0.88 * t];
-    return [0.08 + 0.84 * t, 0.66 - 0.26 * t + onda * 0.12];
-  });
-}
-
-// Estrellas menores de fondo, siempre las mismas (pseudoazar con semilla):
-// dan a la figura el aire de una carta celeste sin distraer.
-function polvo(semilla, cuantas = 16) {
-  let s = semilla;
-  const rnd = () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646;
-  return Array.from({ length: cuantas }, () => ({
-    x: rnd(),
-    y: rnd(),
-    r: 0.6 + rnd() * 1.1,
-    d: rnd() * 4,
-  }));
-}
 
 export default function Certifications() {
   const { tr } = useLang();
   const groups = (certifications.groups ?? []).filter((g) => g.items?.length);
-  const [vertical, setVertical] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches
-  );
-
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 720px)");
-    const onChange = () => setVertical(mq.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
 
   if (!groups.length) return null;
 
@@ -96,16 +69,9 @@ export default function Certifications() {
       </div>
 
       <div className="shell">
-        <div className="constels" data-vertical={vertical}>
+        <div className="constels">
           {groups.map((g, i) => (
-            <Constelacion
-              key={i}
-              semilla={i * 7919 + 17}
-              label={tr(g.label)}
-              figura={FIGURAS[g.figure]}
-              items={g.items}
-              vertical={vertical}
-            />
+            <Constelacion key={i} label={tr(g.label)} figura={FIGURAS[g.figure] ?? FIGURAS.birrete} items={g.items} />
           ))}
         </div>
       </div>
@@ -113,25 +79,11 @@ export default function Certifications() {
   );
 }
 
-function Constelacion({ label, items, vertical, semilla, figura }) {
+function Constelacion({ label, items, figura }) {
   const { tr } = useLang();
   const ref = useRef(null);
   const [lit, setLit] = useState(false);
-  // El trazo se dibuja en píxeles reales del bloque: con un viewBox estirado
-  // el `pathLength` se deforma y las líneas salen a trozos.
-  const [size, setSize] = useState({ w: 0, h: 0 });
-  const [fondo] = useState(() => polvo(semilla));
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
-    const ro = new ResizeObserver(([e]) => {
-      const { width, height } = e.contentRect;
-      setSize({ w: width, h: height });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  const [activo, setActivo] = useState(-1);
 
   // Se enciende al entrar y se apaga al volver a subir, como los demás
   // bloques: el scroll tiene que poder deshacerse.
@@ -149,105 +101,95 @@ function Constelacion({ label, items, vertical, semilla, figura }) {
     return () => io.disconnect();
   }, []);
 
-  const n = items.length;
-  const pts = posiciones(n, vertical);
-  const px = pts.map(([x, y]) => [x * size.w, y * size.h]);
-  const ruta = px.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  const n = Math.min(items.length, figura.slots.length);
+  const lista = items.slice(0, n);
+  const todos = [...figura.slots, ...figura.menores];
+  const menores = [...figura.slots.slice(n), ...figura.menores];
+  const ruta = lista.map((_, i) => `${i ? "L" : "M"}${todos[i][0]} ${todos[i][1]}`).join(" ");
 
   return (
-    <div className="constel-group" style={{ "--n": n }}>
-      <h3 className="constel__name" data-lit={lit}>{label}</h3>
-      <div
-        ref={ref}
-        className="constel"
-        data-lit={lit}
-        data-vertical={vertical}
-        style={{ "--n": n }}
-      >
-        <svg className="constel__lines" viewBox={`0 0 ${size.w || 1} ${size.h || 1}`} aria-hidden="true">
-          {figura && size.w ? (
-            <svg className="constel__figure" viewBox="0 0 100 60" x="0" y="0" width={size.w} height={size.h}>
-              {figura.map((d, i) => (
-                <path key={i} d={d} vectorEffect="non-scaling-stroke" />
-              ))}
-            </svg>
-          ) : null}
-          {fondo.map((p, i) => (
-            <circle
-              key={`f${i}`}
-              className="constel__dust"
-              cx={p.x * size.w}
-              cy={p.y * size.h}
-              r={p.r}
-              style={{ "--d": `${p.d}s` }}
-            />
-          ))}
-          {px.slice(1).map(([x, y], i) => (
+    <div className="constel-group" data-lit={lit} style={{ "--n": n }}>
+      <h3 className="constel__name">{label}</h3>
+      <div className="constel" ref={ref}>
+        <svg className="constel__chart" viewBox="-6 -6 112 88" aria-hidden="true">
+          {figura.trazos.map(([a, b], i) => (
             <line
               key={i}
-              x1={px[i][0]}
-              y1={px[i][1]}
-              x2={x}
-              y2={y}
+              x1={todos[a][0]}
+              y1={todos[a][1]}
+              x2={todos[b][0]}
+              y2={todos[b][1]}
               pathLength="1"
               style={{ "--i": i }}
             />
           ))}
-          {size.w && n > 1 ? (
-            <circle className="constel__comet" r="2.4">
-              <animateMotion dur={`${2.2 + n * 0.9}s`} repeatCount="indefinite" path={ruta} />
+          {menores.map(([x, y], i) => (
+            <circle key={`m${i}`} className="constel__minor" cx={x} cy={y} r="0.9" />
+          ))}
+          {lista.map((c, i) => {
+            const [x, y] = todos[i];
+            const mag = n === 1 ? 1 : i / (n - 1);
+            return (
+              <g
+                key={`s${i}`}
+                className="constel__star"
+                data-activo={activo === i || undefined}
+                data-now={i === n - 1 || undefined}
+                style={{ "--i": i, "--mag": mag }}
+                transform={`translate(${x} ${y})`}
+                onPointerEnter={() => setActivo(i)}
+                onPointerLeave={() => setActivo(-1)}
+              >
+                <circle className="constel__halo" r="5" />
+                <circle className="constel__core" r={1.5 + mag * 1.1} />
+                {/* El numeral va arriba, salvo en las estrellas del borde
+                    superior, que no tienen sitio y lo llevan debajo. */}
+                <text className="constel__num" y={y < 12 ? 8 : -4.6}>
+                  {ROMANOS[i] ?? i + 1}
+                </text>
+              </g>
+            );
+          })}
+          {n > 1 ? (
+            <circle className="constel__comet" r="1">
+              <animateMotion dur={`${1.6 + n * 1.1}s`} repeatCount="indefinite" path={ruta} />
             </circle>
           ) : null}
         </svg>
 
-        <ul className="constel__stars">
-          {items.map((c, i) => {
+        <ol className="constel__legend">
+          {lista.map((c, i) => {
             const title = tr(c.title);
-            const [x, y] = pts[i];
             const detail = c.detail ? tr(c.detail) : "";
             const Tag = c.href ? "a" : "div";
-            // La etiqueta va hacia donde no hay trazo: encima de las estrellas
-            // que quedan por arriba de sus vecinas y debajo de las demás; en
-            // vertical, a la derecha.
-            const vecinas = [pts[i - 1], pts[i + 1]].filter(Boolean);
-            const media = vecinas.length
-              ? vecinas.reduce((acc, p) => acc + p[1], 0) / vecinas.length
-              : 1;
-            const side = vertical ? "right" : y <= media ? "top" : "bottom";
-            // Magnitud: de 0 (la más antigua) a 1 (la más reciente).
-            const mag = n === 1 ? 1 : i / (n - 1);
-
             return (
-              <li
-                key={`${title}-${i}`}
-                className="star"
-                data-side={side}
-                data-now={i === n - 1 || undefined}
-                style={{ left: `${x * 100}%`, top: `${y * 100}%`, "--i": i, "--mag": mag }}
-              >
+              <li key={`${title}-${i}`} style={{ "--i": i }} data-activo={activo === i || undefined}>
                 <Tag
-                  className="star__hit"
+                  className="constel__item"
+                  onPointerEnter={() => setActivo(i)}
+                  onPointerLeave={() => setActivo(-1)}
+                  onFocus={() => setActivo(i)}
+                  onBlur={() => setActivo(-1)}
                   {...(c.href
                     ? { href: c.href, target: "_blank", rel: "noreferrer noopener" }
                     : detail
                       ? { tabIndex: 0 }
                       : {})}
                 >
-                  <span className="star__dot" aria-hidden="true" />
-                  <span className="star__label">
-                    <span className="star__num" aria-hidden="true">{ROMANOS[i] ?? i + 1}</span>
-                    <span className="star__title">
+                  <span className="constel__roman" aria-hidden="true">{ROMANOS[i] ?? i + 1}</span>
+                  <span className="constel__text">
+                    <span className="constel__title">
                       {title}
-                      {c.href ? <span className="star__link" aria-hidden="true"> ↗</span> : null}
+                      {c.href ? <span className="constel__link" aria-hidden="true"> ↗</span> : null}
                     </span>
-                    <span className="star__meta">{tr(c.issuer)}</span>
+                    <span className="constel__meta">{tr(c.issuer)}</span>
+                    {detail ? <span className="constel__detail">{detail}</span> : null}
                   </span>
-                  {detail ? <span className="star__detail">{detail}</span> : null}
                 </Tag>
               </li>
             );
           })}
-        </ul>
+        </ol>
       </div>
     </div>
   );

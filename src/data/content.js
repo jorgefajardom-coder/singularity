@@ -937,8 +937,10 @@ export const props3d = {
     { fallback: "satellite", color: "#ffb52e", position: [0.9, 0.6, -1.3], scale: 0.46, speed: 1.4 },
   ],
   certs: [
-    { fallback: "moon", color: "#e6e2da", position: [-0.95, 0.5, -0.8], scale: 0.3, speed: 1.1 },
-    { fallback: "planet", color: "#ffb52e", position: [0.95, -0.4, -1.0], scale: 0.38, speed: 0.8 },
+    // Abajo, en el hueco bajo las figuras: arriba tapaban los rotulos y la
+    // leyenda de la carta.
+    { fallback: "moon", color: "#e6e2da", position: [-0.94, -0.7, -0.8], scale: 0.3, speed: 1.1 },
+    { fallback: "planet", color: "#ffb52e", position: [0.95, -0.8, -1.0], scale: 0.38, speed: 0.8 },
   ],
   contact: [
     { fallback: "satellite", color: "#ef4b23", position: [-0.93, -0.48, -0.7], scale: 0.48, speed: 1.0 },

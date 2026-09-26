@@ -20,13 +20,89 @@ const HERO_CY = -0.17;
 const HERO_SCALE = 1.34;
 
 /**
- * Los dos valores de arriba estan pensados para una ventana apaisada. En un
- * movil —alto y estrecho— el disco se encoge (el shader lo escala con el
- * aspecto) y el titular se va muy arriba, asi que entre ambos se abria un
- * hueco enorme. En vertical el disco se agranda y sube.
+ * En vertical (telefono) el agujero se coloca a partir del TITULAR MEDIDO.
+ *
+ * Antes eran dos numeros fijos (cy -0.04, escala 1). En el telefono de Jorge
+ * el titular quedaba a 2,4 radios de la sombra —en escritorio esta a 0,63—,
+ * asi que apenas se deformaba (26-09-2026: "el hola soy jorge debe estar igual
+ * de cerca y deformarse igual que en la version de escritorio"); y con la
+ * letra del sistema mas grande, el texto de abajo se montaba en el anillo.
+ *
+ * Medido en escritorio (1536x639): el titular mide 7,74 radios de sombra de
+ * ancho, y el titular PINTADO (el lenseado, no la caja del <h1>) termina 1,51
+ * radios por encima del centro de la sombra. En vertical la lente sube el
+ * texto pintado mucho mas que en escritorio (~50 px en 412x839), asi que para
+ * que lo pintado quede a esos mismos 1,51 radios la caja del <h1> tiene que
+ * quedar a solo 0,2 (ajustado midiendo capturas: 0,2 -> 1,52; 0,35 -> 1,65).
+ * En vertical se busca la escala y la altura que reproducen esas dos
+ * proporciones con el titular que haya de verdad (tamano de letra incluido).
+ *
+ * Del shader (medido y comprobado en los dos formatos):
+ *   radio de la sombra en px  = R_UV / escala * alto / (2 * zoom)
+ *   centro de la sombra en px = alto/2 - cy*alto/2 - (SUBE_UV / escala) * alto / (2 * zoom)
+ * (SUBE_UV: la camara mira un poco desde arriba y la sombra sale mas alta que
+ * el centro del agujero).
  */
+const R_UV = 0.2895;
+const SUBE_UV = 0.1537;
+const DISTANCIA_R = 0.2;
+// En apaisado (telefono en horizontal) la lente desplaza el texto como en
+// escritorio: vale la distancia de la caja del <h1> medida alli.
+const DISTANCIA_R_APAISADO = 0.633;
+const ANCHO_R = 7.74;
+
+const VERTICAL = { cy: -0.04, scale: 1.0 };
+let cache = null;
+
+function medirVertical() {
+  const titulo = document.querySelector(".hero__title");
+  const hero = document.querySelector(".hero");
+  if (!titulo || !hero) return null;
+  const t = titulo.getBoundingClientRect();
+  const origen = hero.getBoundingClientRect().top;
+  const ancho = t.width;
+  const abajo = t.bottom - origen;
+  if (!(ancho > 40) || !(abajo > 0)) return null;
+  // El lienzo del agujero, no la ventana: en el movil la barra del
+  // navegador cambia `innerHeight` y el lienzo (100svh) no.
+  const lienzo = document.querySelector(".stage__void");
+  const alto = lienzo?.clientHeight || window.innerHeight;
+  const aspecto = (lienzo?.clientWidth || window.innerWidth) / Math.max(alto, 1);
+  const zoom = Math.min(2.2, Math.max(1, 1.85 / Math.max(aspecto, 0.35)));
+  const pxUnidad = alto / (2 * zoom);
+  const distancia = aspecto < 0.85 ? DISTANCIA_R : DISTANCIA_R_APAISADO;
+  let radio = ancho / ANCHO_R;
+  // Lo que cuelga por debajo de la sombra (el anillo inferior lenseado) llega
+  // a ~1,1 radios: no puede pisar el texto del pie. Si no cabe, se encoge.
+  const pie = document.querySelector(".hero__meta");
+  if (pie) {
+    const tope = pie.getBoundingClientRect().top - origen - 12;
+    const cabe = (tope - abajo) / (distancia + 1.2);
+    if (cabe > 10) radio = Math.min(radio, cabe);
+  }
+  const scale = (R_UV * pxUnidad) / radio;
+  const centro = abajo + distancia * radio;
+  const cy = (alto / 2 - centro - (SUBE_UV / scale) * pxUnidad) / (alto / 2);
+  return { cy, scale };
+}
+
+/** Recalcula (al montar, con las fuentes cargadas, al cambiar de tamano). */
+export function recalcularHeroBase() {
+  cache = null;
+  return heroBase();
+}
+
 export const heroBase = () => {
   const aspect = window.innerWidth / Math.max(window.innerHeight, 1);
-  if (aspect < 0.85) return { cy: -0.04, scale: 1.0 };
-  return { cy: HERO_CY, scale: HERO_SCALE };
+  // Los dos numeros fijos valen para una pantalla apaisada de cierta altura.
+  // Un telefono en horizontal (300-400 px de alto) tambien se mide: con los
+  // fijos, titular, disco y pie se amontonaban.
+  const bajo = window.innerHeight < 500;
+  if (aspect >= 0.85 && !bajo) return { cy: HERO_CY, scale: HERO_SCALE };
+  if (!cache) {
+    const medido = typeof document !== "undefined" ? medirVertical() : null;
+    if (!medido) return VERTICAL;
+    cache = medido;
+  }
+  return cache;
 };

@@ -49,7 +49,7 @@ describe("presupuesto", () => {
   it("el telefono va a densidad 1 como mucho y con menos pasos por rayo", () => {
     expect(PRESUPUESTO.dprMovil).toBeLessThanOrEqual(1);
     expect(PRESUPUESTO.pasosAgujero.movil).toBeLessThan(PRESUPUESTO.pasosAgujero.escritorio);
-    expect(PRESUPUESTO.contextos.movil).toBeLessThanOrEqual(2);
+    expect(PRESUPUESTO.contextos.movil).toBeLessThanOrEqual(3);
   });
 });
 

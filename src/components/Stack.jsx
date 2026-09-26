@@ -33,9 +33,15 @@ export default function Stack({ sequence }) {
     const el = fila.current;
     if (reduced || !el || !seccion.current) return undefined;
     const cartas = [...el.querySelectorAll(".poster")];
+    // Donde queda cada carta en la fila. Se mide al empezar cada reparto y al
+    // refrescar, no en cada fotograma: leer `offsetLeft` de las once cartas
+    // entre escrituras de estilo obligaba a recalcular en cada lectura.
+    let sitios = null;
+    const medirSitios = () => { sitios = cartas.map((c) => c.offsetLeft); };
     const repartir = (p) => {
       const n = cartas.length;
-      const base = cartas[0].offsetLeft;
+      if (!sitios) medirSitios();
+      const base = sitios[0];
       cartas.forEach((carta, i) => {
         const retraso = n > 1 ? (i / (n - 1)) * 0.5 : 0;
         const t = Math.min(1, Math.max(0, (p - retraso) / 0.5));
@@ -48,7 +54,7 @@ export default function Stack({ sequence }) {
           carta.style.translate = carta.style.rotate = carta.style.scale = carta.style.zIndex = "";
           return;
         }
-        const dx = (base - carta.offsetLeft) * (1 - e);
+        const dx = (base - sitios[i]) * (1 - e);
         carta.style.translate = `${dx}px 0`;
         carta.style.rotate = `${(1 - e) * (i % 2 ? 5 : -4)}deg`;
         carta.style.scale = String(0.94 + 0.06 * e);
@@ -126,7 +132,7 @@ export default function Stack({ sequence }) {
       onUpdate: (self) => pasar(self.progress),
       // Al cambiar el tamano de la ventana las posiciones de la baraja (en px)
       // se quedaban viejas y las cartas apiladas salian desalineadas.
-      onRefresh: (self) => { pasar(self.progress); repartir(reparto.d); },
+      onRefresh: (self) => { sitios = null; pasar(self.progress); repartir(reparto.d); },
     });
     repartir(0);
     pasar(st.progress);

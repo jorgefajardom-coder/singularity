@@ -1,10 +1,10 @@
 import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLang } from "../lib/i18n";
 import { gsap, prefersReducedMotion } from "../lib/anim";
-import { heroBase } from "../lib/stagePose";
+import { recalcularHeroBase } from "../lib/stagePose";
 import { MITADES } from "../lib/curvaInfinito";
 import { useMusic } from "../lib/music";
-import { gpuFallo, perfil, useGpuFallo } from "../lib/gpu";
+import { gpuFallo, useGpuFallo } from "../lib/gpu";
 
 // El infinito es SVG y se dibuja sin tocar WebGL. El agujero negro llega
 // despues, mientras el contador sube, para no bloquear el primer pintado.
@@ -56,29 +56,27 @@ const VB_H = 105;
 const MARGEN = 0.94;
 
 /**
- * En el telefono la transformacion va en CSS, sin lienzo propio.
+ * SIN GPU la transformacion va en CSS, sin lienzo propio.
  *
- * El agujero del cargador era un SEGUNDO contexto WebGL con el shader mas
- * pesado de la pagina, vivo a la vez que el del hero y compilado durante la
- * seleccion de idioma. En un movil eso es la mitad del tope de contextos y el
- * doble de compilacion justo en la parte mas cara de la intro. Alli el ∞ se
- * apaga sobre un disco CSS que crece hasta el sitio y el tamano del agujero
- * del hero, y al fundirse el cargador lo que aparece debajo es el agujero de
- * verdad, ya compilado: un solo contexto WebGL en toda la intro.
+ * La transformacion del ∞ al agujero es el shader, tambien en el telefono
+ * (Jorge, 26-09-2026: el disco CSS "se ve horrible" y la transicion es la
+ * pieza). Solo quien no tiene GPU —o la tiene por software, ver lib/gpu.js—
+ * ve el ∞ apagarse sobre un disco CSS que crece hasta el sitio y el tamano del
+ * agujero del hero.
  *
  * RADIO_UV es el radio del disco en coordenadas del shader (medido sobre el
  * agujero del hero), para que el disco CSS termine del mismo tamano.
  */
-// Tambien sin GPU (o con WebGL por software, ver lib/gpu.js): se decide en el
-// momento, porque la GPU puede darse por caida mientras se elige idioma.
-const introCss = () => perfil.movil || gpuFallo();
+// Se decide en el momento: la GPU puede darse por caida mientras se elige
+// idioma (el lienzo del cargador ya esta montado y la comprueba).
+const introCss = () => gpuFallo();
 const RADIO_UV = 0.62;
 const SOMBRA_CY = 0.074;
 
 export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
   const disco = useRef(null);
   const sinGpu = useGpuFallo();
-  const cssAhora = perfil.movil || sinGpu;
+  const cssAhora = sinGpu;
   const { lang, setLang } = useLang();
   const { prepare } = useMusic();
   const root = useRef(null);
@@ -298,7 +296,8 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
       timeline.to(".loader__label, .loader__seams", { opacity: 0, duration: 0.28, ease: "power1.out" }, 0);
       timeline.to(mark, { opacity: 0, duration: 0.15, ease: "none" }, 0.05);
 
-      const rest = heroBase();
+      // Medido ahora, con el hero ya montado debajo y las fuentes puestas.
+      const rest = recalcularHeroBase();
       if (introCss() && disco.current) {
         // El mismo recorrido que el agujero del shader: nace en el cruce del
         // ∞ y, en la segunda mitad, baja a su sitio de reposo en el hero.

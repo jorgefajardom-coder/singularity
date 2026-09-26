@@ -1256,8 +1256,15 @@ body.is-locked {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* En el telefono la figura ocupa el ancho de abajo y los contadores se le
+   montaban en la rodilla: suben arriba, bajo la barra, centrados. */
 @media (max-width: 600px) {
-  .meditation__stats { right: 12px; bottom: 16px; gap: 7px; }
+  .meditation__stats {
+    right: 0; left: 0; bottom: auto;
+    top: calc(var(--alto-barra, 80px) + 4px);
+    justify-content: center;
+    gap: 7px;
+  }
   .meditation__stat + .meditation__stat { padding-left: 7px; }
   .meditation__stat b { font-size: 17px; }
   .meditation__stat span { font-size: 6px; letter-spacing: 0; }
@@ -2756,7 +2763,7 @@ body.is-anchored .about__float {
      titulo se lea en lo que queda a la vista. */
   .footer__firma {
     --carta-w: 19.5vw;
-    --tit: 7px;
+    --tit: 10px;
     justify-content: flex-start;
     padding-left: 0;
   }
@@ -4454,4 +4461,87 @@ body.is-anchored .about__float {
   letter-spacing: 0.18em;
   color: var(--accent-a);
   background: var(--ink-2);
+}
+
+/* ============================================================
+   Responsive en telefonos (26-09-2026)
+   Tamanos de referencia (StatCounter 2026): 360x800 (Galaxy A/S, el mas
+   usado), 390x844 y 393x852 (iPhone 12-16), 412x915 (Pixel, Samsung
+   grandes), 414x896 (iPhone 11/XR), 430x932 (Pro Max) y 375x667 (SE). Se
+   prueba con el alto VISIBLE, que es menor por la barra del navegador.
+   ============================================================ */
+
+/* Nada puede ensanchar la pagina. En Android un solo elemento que se salga
+   por la derecha (el halo de una estrella, una ficha) agranda la vista
+   entera: la barra y el cielo median 362-373 px en una pantalla de 360.
+   `clip` y no `hidden`: no crea un contenedor de scroll, asi que no rompe
+   los `sticky`. Va en los dos porque Android solo lo respeta asi. */
+html,
+body {
+  overflow-x: clip;
+}
+
+@media (max-width: 600px) {
+  /* Las fichas de la constelacion: a todo el ancho de su grupo, sin
+     sangria, para que no se salgan por la derecha. */
+  .constel__ficha,
+  .constel-group:last-child .constel__ficha {
+    left: 0;
+    right: 0;
+    width: auto;
+  }
+
+  /* Las postales del pie: en una pantalla de 360 las siete median ~70 px y
+     el titulo 7 px, ilegible. Siguen en una fila y en abanico, pero mas
+     grandes, y la fila se desliza con el dedo. */
+  .footer__firma {
+    --carta-w: 30vw;
+    --tit: 9px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    /* Aire para la inclinacion de las cartas, que si no se recorta. */
+    padding: 14px 12px 18px;
+    margin-inline: -12px;
+  }
+
+  .footer__firma::-webkit-scrollbar { display: none; }
+
+  .footer__firma > .poster {
+    scroll-snap-align: start;
+  }
+
+  .footer__firma > .poster + .poster {
+    margin-left: calc(var(--carta-w) * -0.28);
+  }
+
+  .poster.footer__carta .poster__pie {
+    font-size: 6.5px;
+  }
+}
+
+/* Los titulos de las postales NUNCA se cortan. La letra sale del ancho de
+   la propia cabecera (`cqi`), no del de la pantalla, asi que cabe en
+   cualquier tamano de carta:
+     - el nombre va en dos renglones fijos; cada uno mide ~10,8 em;
+     - los lugares van en una linea que ha de caber en la parte que NO tapa
+       la carta siguiente (~70 % del ancho); el mas largo, "Colombia",
+       mide ~7,3 em. */
+.poster.footer__carta .poster__cabeza {
+  container-type: inline-size;
+}
+
+.poster.footer__carta .footer__nombre {
+  font-size: min(var(--tit), 100cqi / 11.2);
+}
+
+.footer__nombre > span {
+  display: block;
+  white-space: nowrap;
+}
+
+.footer__firma > .poster:not(:last-child) .poster__titulo {
+  white-space: nowrap;
+  font-size: min(var(--tit), 70cqi / 7.6);
 }

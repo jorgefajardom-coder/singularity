@@ -10,7 +10,7 @@ import Stack from "./Stack";
 import { companies, sections } from "../data/content";
 import { gsap, ScrollTrigger, useReducedMotion } from "../lib/anim";
 import Aislado from "./Aislado";
-import { heroBase } from "../lib/stagePose";
+import { heroBase, recalcularHeroBase } from "../lib/stagePose";
 
 /**
  * Primera pantalla y órbita comparten un solo agujero negro.
@@ -87,13 +87,17 @@ export default function Stage({ entered, warm, espejo }) {
   useEffect(() => {
     const onResize = () => {
       if (orbitPose.current.p > 0.001) return;
-      const next = heroBase();
+      // En vertical el reposo sale del titular medido (ver stagePose.js):
+      // se vuelve a medir con el tamano nuevo y con las fuentes ya puestas.
+      const next = recalcularHeroBase();
       orbitPose.current.cy = next.cy;
       orbitPose.current.scale = next.scale;
     };
+    onResize();
+    document.fonts?.ready.then(onResize);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, []);
+  }, [warm]);
 
   // En desarrollo, para poder leer la fase desde la consola:
   // window.journey  ->  { p, cy, scale, topDown, fall }
@@ -344,7 +348,13 @@ export default function Stage({ entered, warm, espejo }) {
         const row = rowRect;
         const cx = target.left + target.width / 2;
         const visibility = Math.min(1, Math.max(0, (cx - row.left) / target.width), Math.max(0, (row.right - cx) / target.width));
-        layer.style.opacity = String((1 - coverMix + coverMix * visibility) * (1 - stamp));
+        const opacidad = (1 - coverMix + coverMix * visibility) * (1 - stamp);
+        layer.style.opacity = String(opacidad);
+        // Invisible (ya estampado, o la portada fuera de la fila): no se
+        // pinta. Esperar a DORMIDO dejaba el shader trazando la pantalla
+        // entera sin verse justo durante el reparto de la baraja, que se
+        // quedaba a ~20 fps y a tirones (26-09-2026).
+        if (opacidad < 0.002) journey.current.oculto = true;
       } else {
         layer.style.opacity = "";
       }

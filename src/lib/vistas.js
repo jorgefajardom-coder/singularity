@@ -40,13 +40,16 @@ export function useRegistrarVista(ref) {
       cerca = e.isIntersecting;
       estado.cerca += cerca ? 1 : -1;
       avisar();
-    }, { rootMargin: "100% 0px 100% 0px" });
+    }, { rootMargin: "200% 0px 200% 0px" });
     const oVisible = new IntersectionObserver(([e]) => {
       if (e.isIntersecting === visible) return;
       visible = e.isIntersecting;
       estado.visibles += visible ? 1 : -1;
       avisar();
-    }, { rootMargin: "80px 0px 80px 0px" });
+    // Margen de una pantalla entera: con un scroll brusco el visor entraba
+    // antes de que el lienzo volviera a pintar en bucle, y el modelo se
+    // quedaba atras, "despegado" de su hueco (video de Jorge, 26-09-2026).
+    }, { rootMargin: "100% 0px 100% 0px" });
     oCerca.observe(el);
     oVisible.observe(el);
     return () => {

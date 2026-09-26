@@ -178,7 +178,14 @@ export default function Halo() {
       const ty = portrait
         ? (parseFloat(getComputedStyle(portrait).getPropertyValue("--retrato-y")) || 0) / 100 : 0;
       const waist = bounds ? bounds.top + bounds.height * (1 - ty) : Infinity;
-      const atWaist = waist <= window.innerHeight + 1 && waist >= window.innerHeight - 2;
+      // Contra el borde de abajo del MARCO (sticky, 100svh), no contra la
+      // ventana: en el movil, al esconderse la barra del navegador,
+      // `innerHeight` crece ~56 px y el marco no, asi que la cintura no
+      // llegaba nunca a "tocar" la ventana y las galaxias no salian (video de
+      // Jorge, 26-09-2026). Margen de 4 px por el redondeo del scroll tactil.
+      const marco = portrait?.closest(".meditation__frame")?.getBoundingClientRect();
+      const suelo = marco ? marco.bottom : window.innerHeight;
+      const atWaist = Math.abs(waist - suelo) <= 4 && (!marco || marco.top <= 1);
       // La aureola permanece; los aros se despliegan de nuevo al bajar.
       if (inView && opacity >= 0.99 && atWaist) {
         started = true;

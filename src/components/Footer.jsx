@@ -121,7 +121,14 @@ function TarjetaFoto() {
         {sinFoto && <span className="footer__iniciales" aria-hidden="true">JAFM</span>}
       </div>
       <header className="poster__cabeza">
-        <h3 className="poster__titulo">{site.name}</h3>
+        {/* Dos renglones fijos ("Jorge Andres" / "Fajardo Mora"): partido
+            donde cayera, el nombre ocupaba cuatro lineas en una cabecera de
+            dos y se cortaba por arriba y por abajo. La letra se ajusta al
+            ancho de la carta (ver `.footer__nombre` en el CSS). */}
+        <h3 className="poster__titulo footer__nombre" aria-label={site.name}>
+          <span aria-hidden="true">{site.name.split(" ").slice(0, 2).join(" ")}</span>
+          <span aria-hidden="true">{site.name.split(" ").slice(2).join(" ")}</span>
+        </h3>
       </header>
       <footer className="poster__pie" aria-hidden="true">
         <span>VOL. 00</span>

@@ -982,14 +982,13 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
    * Resolucion que se adapta en el telefono. Cada pixel lanza un rayo de
    * cientos de pasos, asi que el coste va con el area del lienzo.
    *
-   * Empieza BAJA (ver `DPR_MOVIL` abajo) y sube solo si sobra: antes
-   * arrancaba en 1 y bajaba al ver que no llegaba, y para cuando lo veia la
-   * intro ya se habia pasado a tirones. Ahora, cada 20 fotogramas:
+   * Empieza en 1 (ver `DPR_MOVIL` abajo): por debajo, el titular, que lo
+   * pinta este shader, se veia pixelado. Cada 20 fotogramas:
    *   - media por encima del presupuesto movil (33 ms): baja un 15 %, hasta
-   *     0,5, y ya no vuelve a subir (subir y bajar se veria como un parpadeo
-   *     de nitidez);
-   *   - media por debajo de 1/50 s y sin haber bajado nunca: sube un escalon,
-   *     hasta 1, que es el techo del presupuesto.
+   *     0,75, y ya no vuelve a subir (subir y bajar se veria como un
+   *     parpadeo de nitidez);
+   *   - media por debajo de 1/50 s y sin haber bajado nunca: sube 0,25,
+   *     hasta 1,5, para que el titular gane nitidez donde el telefono puede.
    * Se mide desde el fotograma 10 para no contar la compilacion, y no se mide
    * lo que no se pinta (`tapado`).
    */
@@ -1003,12 +1002,12 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     if (m.n < 20) return;
     const media = m.t / m.n;
     m.n = 0; m.t = 0;
-    if (media > PRESUPUESTO.fotogramaMs.movil / 1000 && dprVivo.current > 0.5) {
+    if (media > PRESUPUESTO.fotogramaMs.movil / 1000 && dprVivo.current > 0.75) {
       m.bajo = true;
-      dprVivo.current = Math.max(0.5, dprVivo.current * 0.85);
+      dprVivo.current = Math.max(0.75, dprVivo.current * 0.85);
       setDpr(dprVivo.current);
-    } else if (!m.bajo && media < 1 / 50 && dprVivo.current < PRESUPUESTO.dprMovil) {
-      dprVivo.current = Math.min(PRESUPUESTO.dprMovil, dprVivo.current + 0.125);
+    } else if (!m.bajo && media < 1 / 50 && dprVivo.current < PRESUPUESTO.dprMovilMax) {
+      dprVivo.current = Math.min(PRESUPUESTO.dprMovilMax, dprVivo.current + 0.25);
       setDpr(dprVivo.current);
     }
   });
@@ -1085,8 +1084,9 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
  */
 const AMBAR = 25;
 
-// Densidad inicial en el telefono (sube sola hasta PRESUPUESTO.dprMovil).
-const DPR_MOVIL = 0.75;
+// Densidad inicial en el telefono. A 0,75 el titular (que lo pinta este
+// shader) salia pixelado; 1 es el suelo. Sube sola si sobra (ver `ajusta`).
+const DPR_MOVIL = PRESUPUESTO.dprMovil;
 // La GPU de alto consumo solo donde hay de donde tirar: en un telefono pedirla
 // no da mas GPU, da mas calor y mas bateria.
 const GL_OPCIONES = { antialias: false, alpha: true, powerPreference: perfil.movil ? "default" : "high-performance" };

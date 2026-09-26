@@ -102,7 +102,7 @@ test("captura de la primera pantalla sin GPU", async ({ page }) => {
 test("los contextos WebGL no pasan del presupuesto", async ({ page }, info) => {
   // WebGL por software es lento: recorrer la pagina entera lleva minutos.
   test.setTimeout(600_000 * LENTO);
-  const tope = esMovil(info) ? 2 : 10;
+  const tope = esMovil(info) ? 3 : 10;
   await entrar(page);
   let maximo = await contextosVivos(page);
   await recorrer(page, async () => { maximo = Math.max(maximo, await contextosVivos(page)); });

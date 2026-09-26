@@ -52,9 +52,13 @@ export const PRESUPUESTO = {
   // Fotograma objetivo: 60 fps en escritorio, 30 en telefono.
   fotogramaMs: { escritorio: 16.7, movil: 33.3 },
   // Lienzos WebGL vivos a la vez como maximo, con la pagina ya recorrida.
-  contextos: { escritorio: 10, movil: 2 },
-  // Densidad maxima de los lienzos 3D en telefono.
+  // En el telefono: agujero del hero + esferas de la orbita + lienzo 3D de
+  // Proyectos (el del cargador ya se ha ido cuando llegan los otros).
+  contextos: { escritorio: 10, movil: 3 },
+  // Densidad de los lienzos 3D en telefono: arranca en 1 y solo sube si
+  // sobra. Por debajo de 1 el titular, que lo dibuja el shader, se pixelaba.
   dprMovil: 1,
+  dprMovilMax: 1.5,
   // Pasos por rayo del agujero negro.
   pasosAgujero: { escritorio: 180, movil: 128 },
   // Peso maximo de un modelo que se precarga sin que nadie lo pida (MB).

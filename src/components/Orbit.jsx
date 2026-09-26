@@ -3,7 +3,7 @@ import { gsap } from "../lib/anim";
 import { useLang } from "../lib/i18n";
 import CompanyMark from "./CompanyMark";
 import { useTrasIntro } from "../lib/arranque";
-import { gpuFallo, perfil, revisarRenderer, useGpuFallo, vigilarContexto } from "../lib/gpu";
+import { gpuFallo, revisarRenderer, useGpuFallo, vigilarContexto } from "../lib/gpu";
 import { createOrbitSpheresCss } from "../lib/esferasCss";
 
 /**
@@ -191,10 +191,11 @@ export default function Orbit({ journey, items, note }) {
       spheres.render();
     };
 
-    // En el telefono, o si la GPU ya fallo, las esferas van en CSS (ver
-    // lib/esferasCss.js): ni contexto WebGL propio ni three.js que bajar.
+    // Si la GPU ya fallo, las esferas van en CSS (ver lib/esferasCss.js). En
+    // el telefono tambien van en WebGL: en CSS se veian planas y encendidas
+    // antes de tiempo (video de Jorge, 26-09-2026).
     let soltar = () => {};
-    if (perfil.movil || gpuFallo()) {
+    if (gpuFallo()) {
       spheres = createOrbitSpheresCss(sphereLayer.current, n);
       gsap.ticker.add(tick);
     } else {

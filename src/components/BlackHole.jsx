@@ -756,27 +756,35 @@ const WIND_MAX = 22;
 /**
  * ¿La GPU esta pintando el lienzo de blanco?
  *
- * Paso en un Android (25-09-2026, video de Jorge): el agujero salia como un
- * rectangulo blanco opaco —el hero lavado y sin nombre, las marcas sobre
- * blanco, una elipse blanca pegada al astronauta— y en el computador, con el
- * mismo tamano de pantalla, se veia bien. No se puede probar en cada telefono,
- * asi que el lienzo se comprueba a si mismo: lee seis puntos del borde justo
- * despues de pintar (el buffer sigue intacto en esa misma tarea) y, si casi
- * todos son blanco opaco, se da por roto. En el borde nunca hay blanco de
- * verdad: el cielo es oscuro, el disco es ambar (azul bajo) y en los lienzos
- * aislados el fondo es transparente.
+ * Paso en un Android (25-09-2026, video de Jorge): el agujero salia blanco
+ * —el hero lavado y sin nombre, las marcas sobre blanco, una elipse blanca
+ * pegada al astronauta— y en el computador, con el mismo tamano de pantalla,
+ * se veia bien. No se puede probar en cada telefono, asi que el lienzo se
+ * comprueba a si mismo: justo despues de pintar (el buffer sigue intacto en
+ * esa misma tarea) lee una fila y una columna por el centro y cuenta los
+ * pixeles casi blancos y opacos.
+ *
+ * Medido en el video: en los fotogramas rotos son del 24 al 100 % de la cruz;
+ * un lienzo sano no pasa del 5 %, porque el disco es ambar (azul bajo), el
+ * cielo oscuro, y el blanco del titular o del aro del halo son trazos finos.
+ * Esquinas no sirve: en los lienzos aislados el fondo es transparente, y la
+ * elipse blanca de Sobre mi las dejaba negras.
  */
-const PUNTOS = [[0.03, 0.03], [0.97, 0.03], [0.03, 0.5], [0.97, 0.5], [0.03, 0.97], [0.97, 0.97]];
-const PIXEL = new Uint8Array(4);
+const LIMITE_BLANCO = 0.18;
+let fila = new Uint8Array(0), columna = new Uint8Array(0);
 function pintaBlanco(ctx) {
   const w = ctx.drawingBufferWidth, h = ctx.drawingBufferHeight;
-  if (!w || !h) return false;
-  let blancos = 0;
-  for (const [x, y] of PUNTOS) {
-    ctx.readPixels(Math.floor(x * (w - 1)), Math.floor(y * (h - 1)), 1, 1, ctx.RGBA, ctx.UNSIGNED_BYTE, PIXEL);
-    if (PIXEL[0] > 200 && PIXEL[1] > 200 && PIXEL[2] > 200 && PIXEL[3] > 200) blancos++;
-  }
-  return blancos >= 4;
+  if (w < 8 || h < 8) return 0;
+  if (fila.length < w * 4) fila = new Uint8Array(w * 4);
+  if (columna.length < h * 4) columna = new Uint8Array(h * 4);
+  ctx.readPixels(0, h >> 1, w, 1, ctx.RGBA, ctx.UNSIGNED_BYTE, fila);
+  ctx.readPixels(w >> 1, 0, 1, h, ctx.RGBA, ctx.UNSIGNED_BYTE, columna);
+  const blancos = (px, n) => {
+    let c = 0;
+    for (let i = 0; i < n * 4; i += 4) if (px[i] > 235 && px[i + 1] > 235 && px[i + 2] > 235 && px[i + 3] > 235) c++;
+    return c;
+  };
+  return (blancos(fila, w) + blancos(columna, h)) / (w + h);
 }
 
 function Scene({ interaction, reduced, formation, sample, visual, lens, journey, espejo, espejoModo, hue = 0, disk = 1, white = 0, onRoto, ajusta = false }) {
@@ -1008,7 +1016,14 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     if (tapado && pintados.current > 1) return;
     pintados.current++;
     gl.render(scene, camera);
-    if (pintados.current >= 3 && pintados.current <= 12 && pintaBlanco(gl.getContext())) onRoto?.();
+    // Al arrancar, y despues una vez por segundo mas o menos: el blanco puede
+    // salir solo en algun tramo del viaje (en el video, al llegar a Sobre mi).
+    const n = pintados.current;
+    if ((n >= 3 && n <= 12) || n % 60 === 0) {
+      const blanco = pintaBlanco(gl.getContext());
+      if (import.meta.env.DEV) (window.__blanco ??= []).push(+blanco.toFixed(3));
+      if (blanco > LIMITE_BLANCO) onRoto?.();
+    }
   }, 1);
 
   return <mesh frustumCulled={false}><planeGeometry args={[2,2]} /><shaderMaterial

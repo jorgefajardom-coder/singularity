@@ -140,6 +140,7 @@ export const ui = {
 
   // Visor 3D de un proyecto
   model3d: t("Modelo 3D", "3D model"),
+  loading3d: t("Cargando el modelo 3D…", "Loading the 3D model…"),
   dragToRotate: t("Arrastra para girar", "Drag to rotate"),
   modelDrag: t("Arrastra para girar", "Drag to rotate"),
   playVideo: t("Ver la simulación", "Watch the simulation"),
@@ -648,10 +649,12 @@ export const projects = [
     ),
     tags: [t("Empaque", "Packaging"), "Autodesk Fusion", "3D", t("Animación de producto", "Product Animation")],
     // Dos videos propios, servidos desde /videos. Van lado a lado en
-    // escritorio y uno encima del otro en movil.
+    // escritorio y uno encima del otro en movil. El poster (un fotograma de
+    // cada uno, pocos kB) es lo que se ve hasta darle al play: en el movil,
+    // con `preload="metadata"`, sin el salia un rectangulo negro.
     clips: [
-      { src: "/videos/drone-box-animation.mp4", title: t("Caja plegable con inserto de espuma", "Folding box with foam insert") },
-      { src: "/videos/packaging-box.mp4", title: t("Estuche de hélices", "Propeller case") },
+      { src: "/videos/drone-box-animation.mp4", poster: "/images/drone-box-animation-poster.webp", title: t("Caja plegable con inserto de espuma", "Folding box with foam insert") },
+      { src: "/videos/packaging-box.mp4", poster: "/images/packaging-box-poster.webp", title: t("Estuche de hélices", "Propeller case") },
     ],
     media: [],
   },

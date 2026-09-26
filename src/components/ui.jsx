@@ -17,16 +17,16 @@ export function GhostHeading({ children, className = "display display--lg", as: 
     if (!fill) return;
 
     if (prefersReducedMotion()) {
-      gsap.set(fill, { clipPath: "inset(0 0% 0 0)" });
+      gsap.set(fill, { clipPath: "inset(-0.4em 0% -0.25em 0)" });
       return;
     }
 
     const ctx = gsap.context(() => {
       gsap.fromTo(
         fill,
-        { clipPath: "inset(0 100% 0 0)" },
+        { clipPath: "inset(-0.4em 100% -0.25em 0)" },
         {
-          clipPath: "inset(0 0% 0 0)",
+          clipPath: "inset(-0.4em 0% -0.25em 0)",
           ease: "none",
           scrollTrigger: {
             trigger: el,

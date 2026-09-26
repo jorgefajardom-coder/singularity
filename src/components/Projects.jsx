@@ -1,8 +1,9 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { projects, projectCategories, sections, ui } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { GhostHeading, Placeholder, VideoEmbed } from "./ui";
 import { asset } from "../lib/asset";
+import { scroller } from "../lib/anim";
 
 // El visor arrastra consigo el stack 3D. Se carga aparte para que no entre en
 // el bundle principal de quien nunca abre un proyecto con modelo.
@@ -40,7 +41,10 @@ function Escena({ p, name }) {
         ) : null}
 
         {activo === "modelo" ? (
-          <Suspense fallback={null}>
+          // Mientras llega el visor (el .glb pesa megabytes y con red movil
+          // tarda), su hueco ya ocupa lo mismo y lo dice: con `null` la ficha
+          // se abria con un vacio negro de varios segundos y sin explicacion.
+          <Suspense fallback={<div className="modelo escena__espera" role="status"><div className="modelo__hueco" /><span>{tr(ui.loading3d)}</span></div>}>
             <ModelViewer model={p.model} label={`${name} · ${tr(ui.model3d)}`} hint={tr(ui.modelDrag)} />
           </Suspense>
         ) : (
@@ -57,6 +61,53 @@ export default function Projects() {
   const [filter, setFilter] = useState("all");
   const [open, setOpen] = useState(0);
   const seccion = useRef(null);
+
+  /**
+   * Abrir una fila sin que la pagina salte.
+   *
+   * Abrir una cierra la que estaba abierta, y si esa quedaba ENCIMA (el dron,
+   * que arranca abierto) todo lo de debajo sube lo que medía su ficha: en el
+   * movil, al tocar la celda la pagina se iba hasta Formacion y habia que
+   * volver a buscarla (video del 25-09-2026). Durante los 0,7 s del plegado
+   * se compensa en cada fotograma lo que se ha movido el boton tocado, asi
+   * que se queda bajo el dedo.
+   */
+  const anclar = useRef({ boton: null, antes: 0, hasta: 0, raf: 0 });
+  const corregir = () => {
+    const a = anclar.current;
+    if (!a.boton) return;
+    const delta = a.boton.getBoundingClientRect().top - a.antes;
+    if (Math.abs(delta) <= 0.5) return;
+    // La altura REAL de la ventana, no `lenis.scroll`: con el dedo el scroll
+    // es nativo y Lenis no se entera (ahi vale lo que tuviera la ultima vez).
+    const destino = window.scrollY + delta;
+    const lenis = scroller.current;
+    if (lenis) lenis.scrollTo(destino, { immediate: true, force: true });
+    else window.scrollTo(0, destino);
+  };
+  const alternar = (i, boton) => {
+    const a = anclar.current;
+    cancelAnimationFrame(a.raf);
+    a.boton = boton;
+    a.antes = boton.getBoundingClientRect().top;
+    a.hasta = performance.now() + 900;
+    setOpen((actual) => (actual === i ? -1 : i));
+  };
+  // Lo que cambia de golpe (el visor 3D de la fila que se cierra se desmonta
+  // al instante) se corrige antes de pintar; el plegado animado, fotograma a
+  // fotograma hasta que termina.
+  useLayoutEffect(() => {
+    const a = anclar.current;
+    if (!a.boton) return undefined;
+    corregir();
+    const seguir = () => {
+      corregir();
+      if (performance.now() < a.hasta) a.raf = requestAnimationFrame(seguir);
+      else a.boton = null;
+    };
+    a.raf = requestAnimationFrame(seguir);
+    return () => cancelAnimationFrame(a.raf);
+  }, [open]);
 
   /**
    * Los modelos 3D se bajan en segundo plano en cuanto aparece Areas (la
@@ -171,7 +222,7 @@ export default function Projects() {
                   className="proj__btn"
                   aria-expanded={isOpen}
                   aria-controls={`proj-panel-${i}`}
-                  onClick={() => setOpen(isOpen ? -1 : i)}
+                  onClick={(e) => alternar(i, e.currentTarget)}
                 >
                   <span className="proj__num">{String(i + 1).padStart(2, "0")}</span>
                   <span className="proj__id">
@@ -265,7 +316,7 @@ export default function Projects() {
                         ) : null}
 
                         {clips.map((c) => (
-                          <VideoEmbed key={c.src} src={c.src} title={tr(c.title)} />
+                          <VideoEmbed key={c.src} src={c.src} poster={c.poster} title={tr(c.title)} />
                         ))}
                       </div>
                     ) : null}

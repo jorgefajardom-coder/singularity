@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { site, ui } from "../data/content";
 import { useLang, LangToggle } from "../lib/i18n";
 import MusicPlayer from "./MusicPlayer";
+import { enlaceCorreo } from "../lib/correo";
 
 /**
  * Barra fija, visible en todo momento.
@@ -95,7 +96,10 @@ export default function Nav() {
       <div className="nav__right">
         {/* En telefonos estrechos el texto se cambia por un sobre (ver
             global.css); el nombre accesible es el mismo en los dos casos. */}
-        <a className="btn nav__contacto" href="#contact" aria-label={tr(ui.contactCta)}>
+        {/* Abre el correo, no baja a Hablemos (Jorge, 26-09-2026): Gmail en
+            computador, la app de correo en el telefono (ver lib/correo.js).
+            El formulario sigue abajo para quien baje hasta el. */}
+        <a className="btn nav__contacto" {...enlaceCorreo(site.email, { asunto: "Portafolio" })} aria-label={tr(ui.contactCta)}>
           <span className="nav__contacto-texto" aria-hidden="true">{tr(ui.contactCta)}</span>
           <svg className="nav__contacto-icono" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
             <rect x="3" y="5.5" width="18" height="13" rx="2" />

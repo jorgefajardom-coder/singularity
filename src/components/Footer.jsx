@@ -61,15 +61,16 @@ function useDesplegar(fila) {
 }
 
 // Postales de viaje que acompanan a la de la foto, abiertas en abanico.
+// Colombia va la primera, justo detras de la tarjeta de Jorge (26-09-2026).
 const postales = [
-  { lugar: "canada", titulo: { es: "Canadá", en: "Canada" }, pie: "56° N", giro: 9 },
-  { lugar: "miami", titulo: { es: "Miami", en: "Miami" }, pie: "25° N", giro: -5 },
-  { lugar: "florida", titulo: { es: "Florida", en: "Florida" }, pie: "28° N", giro: 4 },
-  { lugar: "china", titulo: { es: "China", en: "China" }, pie: "40° N", giro: -6 },
   // Colombia no es un dibujo: una ilustracion hecha aparte (Valle del Cocora
   // con un oso de anteojos), con los mismos colores y matasellos.
   { lugar: "colombia", titulo: { es: "Colombia", en: "Colombia" }, pie: "4° N", giro: 3,
     imagen: "images/postal-colombia.webp" },
+  { lugar: "canada", titulo: { es: "Canadá", en: "Canada" }, pie: "56° N", giro: 9 },
+  { lugar: "miami", titulo: { es: "Miami", en: "Miami" }, pie: "25° N", giro: -5 },
+  { lugar: "florida", titulo: { es: "Florida", en: "Florida" }, pie: "28° N", giro: 4 },
+  { lugar: "china", titulo: { es: "China", en: "China" }, pie: "40° N", giro: -6 },
 ];
 
 // La postal en blanco de quien mira, que puede ser la siguiente del album:

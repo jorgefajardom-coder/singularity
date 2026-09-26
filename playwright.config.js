@@ -25,8 +25,10 @@ export default defineConfig({
   testDir: "tests/e2e",
   timeout: CI ? 300_000 : 90_000,
   expect: { timeout: CI ? 60_000 : 20_000, toHaveScreenshot: { maxDiffPixelRatio: 0.02 } },
-  fullyParallel: false,
-  workers: CI ? 1 : 2,
+  fullyParallel: true,
+  // Los runners de GitHub para repos publicos traen 4 nucleos: 3 navegadores
+  // a la vez y uno libre para el servidor de preview.
+  workers: CI ? 3 : 2,
   retries: CI ? 1 : 0,
   reporter: CI ? [["github"], ["list"]] : "list",
   use: {

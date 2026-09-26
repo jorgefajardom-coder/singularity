@@ -17,6 +17,11 @@ on:
 permissions:
   contents: read
 
+# Un push nuevo cancela la pasada anterior, que ya no sirve.
+concurrency:
+  group: pruebas-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   e2e:
     runs-on: ubuntu-latest

@@ -329,3 +329,48 @@ test("volver de segundo plano con el contexto perdido degrada limpio", async ({ 
   expect(ancho).toBeLessThanOrEqual(page.viewportSize().width);
   if (esMovil(info)) expect(await page.locator("h1").textContent()).toContain("Jorge");
 });
+
+test("anclar la escena no despega el marco del agujero", async ({ page }) => {
+  // Al desplegarse las galaxias la escena se ancla (Halo.jsx). Con el
+  // `overflow: hidden` en el body, el marco sticky del agujero dejaba de
+  // pegarse y el agujero de las manos desaparecia (su lienzo en y = -2687).
+  await entrar(page);
+  await page.mouse.move(page.viewportSize().width / 2, page.viewportSize().height / 2);
+  await page.mouse.wheel(0, 2500);
+  await page.waitForTimeout(1500);
+  const antes = await page.evaluate(() => document.querySelector(".stage__void").getBoundingClientRect().top);
+  const anclado = await page.evaluate(async () => {
+    document.body.classList.add("is-anchored");
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const top = document.querySelector(".stage__void").getBoundingClientRect().top;
+    document.body.classList.remove("is-anchored");
+    return top;
+  });
+  expect(Math.abs(anclado - antes)).toBeLessThanOrEqual(1);
+});
+
+test("la intro no apaga el infinito antes de que su lienzo este listo", async ({ page }) => {
+  test.setTimeout(120_000 * LENTO);
+  await page.addInitScript(() => {
+    window.__fases = [];
+    new MutationObserver(() => {
+      const fase = document.querySelector(".loader")?.dataset.phase;
+      if (fase && window.__fases.at(-1)?.fase !== fase) {
+        window.__fases.push({ fase, preparado: Boolean(window.__introPreparado), gpu: window.__gpuFallo ?? null });
+      }
+    }).observe(document, { subtree: true, attributes: true, childList: true });
+  });
+  await page.goto("./");
+  await page.locator('.loader[data-phase="choose"]').waitFor({ timeout: 45_000 * LENTO });
+  // Se pulsa en cuanto aparece el selector: es el caso que salia en negro.
+  await page.locator(".loader__half--es").dispatchEvent("click");
+  await page.locator(".loader").waitFor({ state: "detached", timeout: 45_000 * LENTO });
+  const fases = await page.evaluate(() => window.__fases);
+  const t = fases.find((f) => f.fase === "transforming");
+  expect(t, JSON.stringify(fases)).toBeTruthy();
+  // O el lienzo ya estaba listo, o no hay GPU / se acabo la espera y la
+  // intro fue con el disco CSS: nunca el ∞ apagandose sobre un negro.
+  const css = await page.evaluate(() => Boolean(document.querySelector(".loader__disco")) || Boolean(window.__gpuFallo));
+  expect(t.preparado || t.gpu !== null || css, JSON.stringify(fases)).toBe(true);
+  await expect(page.locator("h1")).toContainText("Jorge");
+});

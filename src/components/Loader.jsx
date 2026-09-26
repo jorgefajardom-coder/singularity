@@ -67,16 +67,23 @@ const MARGEN = 0.94;
  * RADIO_UV es el radio del disco en coordenadas del shader (medido sobre el
  * agujero del hero), para que el disco CSS termine del mismo tamano.
  */
-// Se decide en el momento: la GPU puede darse por caida mientras se elige
-// idioma (el lienzo del cargador ya esta montado y la comprueba).
-const introCss = () => gpuFallo();
 const RADIO_UV = 0.62;
+// Lo mas que se espera al lienzo del cargador tras pulsar (ver `preparado`).
+const ESPERA_MAX = 3500;
 const SOMBRA_CY = 0.074;
 
 export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
   const disco = useRef(null);
   const sinGpu = useGpuFallo();
-  const cssAhora = sinGpu;
+  // El lienzo del cargador no llego a tiempo (ver `choose`): esta intro va
+  // con el disco CSS, como sin GPU, en vez de apagar el ∞ sobre un negro.
+  const [cssPorTiempo, setCssPorTiempo] = useState(false);
+  const cssAhora = sinGpu || cssPorTiempo;
+  // Se decide en el momento: la GPU puede darse por caida mientras se elige
+  // idioma (el lienzo del cargador ya esta montado y la comprueba).
+  const cssRef = useRef(cssAhora);
+  cssRef.current = cssAhora;
+  const introCss = () => gpuFallo() || cssRef.current;
   const { lang, setLang } = useLang();
   const { prepare } = useMusic();
   const root = useRef(null);
@@ -363,6 +370,44 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
     pintado.current = true;
     if (fase.current === "transforming") listoRef.current(true);
   }, []);
+
+  /**
+   * ¿Se puede ENSENAR ya el lienzo del cargador? Compilado y con sus dos
+   * primeros fotogramas hechos (ver `onPreparado` en BlackHole.jsx).
+   *
+   * La transformacion no arranca hasta entonces. Antes arrancaba al pulsar el
+   * idioma pasara lo que pasara, y si se pulsaba rapido —o con una grafica
+   * integrada, que tarda 0,5-3 s en compilar el shader, o con la red lenta y
+   * el chunk de three sin llegar— el ∞ del SVG se apagaba sobre un lienzo que
+   * aun no pintaba: un segundo de negro y el hero de golpe, sin
+   * transformacion (medido: pulsando al aparecer el selector, en escritorio,
+   * negro de 0,25 a 1 s y ningun lienzo en el cargador). Ahora el ∞ se queda
+   * en pantalla —las etiquetas se retiran, que es la respuesta al clic— hasta
+   * que el lienzo esta, y si no llega en ESPERA_MAX la intro sigue con el
+   * disco CSS.
+   */
+  const preparado = useRef(false);
+  const avisarPreparado = useMemo(() => () => {
+    preparado.current = true;
+    // Para las pruebas y para medir en produccion cuanto tarda (ms).
+    if (typeof window !== "undefined") window.__introPreparado = performance.now();
+    if (fase.current === "esperando") setPhase("transforming");
+  }, []);
+  useEffect(() => {
+    if (phase !== "esperando") return undefined;
+    if (sinGpu) { setPhase("transforming"); return undefined; }
+    const ctx = gsap.context(() => {
+      // El contador tambien: al dejar `choose` se deshace su animacion y el
+      // "100" volvia a asomar.
+      gsap.set(".loader__num", { opacity: 0 });
+      gsap.to(".loader__label, .loader__seams, .loader__hint", { opacity: 0, duration: 0.28, ease: "power1.out" });
+    }, root);
+    const tope = setTimeout(() => {
+      setCssPorTiempo(true);
+      setPhase("transforming");
+    }, ESPERA_MAX);
+    return () => { clearTimeout(tope); ctx.revert(); };
+  }, [phase, sinGpu]);
   useEffect(() => {
     if (phase === "transforming" && (introCss() || pintado.current)) onReady(true);
   },[phase,onReady]);
@@ -383,6 +428,12 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
       warm.current?.();
       return;
     }
+    // Esperando al lienzo del cargador NO se montan los del hero: compilan el
+    // mismo shader a la vez y le quitaban la GPU justo al que se espera (con
+    // la cache de shaders vacia, primera visita: 2,2 s de espera en vez de
+    // ~1,4). Se montan al arrancar la transformacion, como cuando se pulsa
+    // antes del aviso de abajo.
+    if (phase === "esperando") return;
     if (phase !== "choose") return;
 
     let idle = null;
@@ -421,7 +472,7 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
       onDone();
       return;
     }
-    setPhase("transforming");
+    setPhase(introCss() || preparado.current ? "transforming" : "esperando");
   };
 
   const onKey = (e, code) => {
@@ -436,7 +487,7 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
       {/* Se monta ya en la pantalla de selección, invisible: compilar este
           fragment shader cuesta varios fotogramas, y si el canvas arranca al
           pulsar, el SVG se apaga antes de que haya nada dibujado debajo. */}
-      {(phase === "choose" || phase === "transforming") && <div className="loader__singularity">
+      {(phase === "choose" || phase === "esperando" || phase === "transforming") && <div className="loader__singularity">
         {cssAhora ? (
           <div className="loader__disco" ref={disco} aria-hidden="true">
             <span className="loader__disco-sombra" />
@@ -444,7 +495,7 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
           </div>
         ) : (
           <Suspense fallback={<div className="blackhole__fallback" />}>
-            <BlackHole formation={formation} journey={travel} espejo={espejo} espejoModo="publica" onPintado={avisarPintado} />
+            <BlackHole formation={formation} journey={travel} espejo={espejo} espejoModo="publica" onPintado={avisarPintado} onPreparado={avisarPreparado} />
           </Suspense>
         )}
       </div>}

@@ -379,9 +379,14 @@ body.is-locked {
   animation: loader-form-glow 1.5s ease-in-out both;
 }
 
-.loader[data-phase="choose"] .loader__mark {
+/* `esperando`: ya se pulso el idioma y el ∞ aguarda a que el lienzo del
+   agujero este listo (ver `preparado` en Loader.jsx). Misma animacion, asi
+   que no se reinicia ni cambia el brillo al pasar de una fase a la otra. */
+.loader[data-phase="choose"] .loader__mark,
+.loader[data-phase="esperando"] .loader__mark {
   animation: loader-finish-glow 1.1s ease-out both;
 }
+.loader[data-phase="esperando"] { cursor: progress; }
 
 @keyframes loader-form-glow {
   from {
@@ -1538,8 +1543,20 @@ body.is-locked {
    con el scroll. Medido: el marco se quedaba en top = -256 y la galaxia
    ampliada aparecia centrada 256 px por encima de la pantalla, con cuatro
    rotulos fuera. Lo que falta aqui —el desplazamiento por codigo— lo cubre el
-   pin de Halo.jsx, que no toca el layout. */
-body.is-anchored {
+   pin de Halo.jsx, que no toca el layout.
+
+   ACTUALIZADO (26-09-2026): ya NO va en el body, sino en `html` y SOLO ahi.
+   El mecanismo del fallo de arriba era otro: el `overflow` del body solo se
+   pasa al viewport si el de `html` es `visible`, y desde que `html` lleva
+   `overflow-x: clip` (mas abajo, para que nada ensanche la pagina en
+   Android) nunca lo es. Asi que `overflow: hidden` en el body lo convertia en
+   contenedor de scroll propio, el marco sticky del agujero (`.stage__void`)
+   dejaba de pegarse al viewport y se iba con la pagina: al desplegarse las
+   galaxias el agujero de las manos desaparecia (su lienzo quedaba en
+   y = -2687) hasta que se soltaba el ancla. En `html` el overflow va al
+   viewport, que sigue siendo el que desplaza: bloquea la rueda y el dedo y
+   ningun sticky se entera. */
+html:has(body.is-anchored) {
   overflow: hidden;
 }
 

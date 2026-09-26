@@ -802,7 +802,7 @@ function pintaBlanco(ctx) {
 
 const ahoraMs = () => performance.now();
 
-function Scene({ interaction, reduced, formation, sample, visual, lens, journey, espejo, espejoModo, hue = 0, disk = 1, white = 0, onRoto, onPintado, ajusta = false }) {
+function Scene({ interaction, reduced, formation, sample, visual, lens, journey, espejo, espejoModo, hue = 0, disk = 1, white = 0, onRoto, onPintado, onPreparado, ajusta = false }) {
   const elapsed = useRef(0);
   const rigid = useRef(0);
   const wound = useRef(0);
@@ -1050,6 +1050,10 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     if (tapado && pintados.current > 1) return;
     pintados.current++;
     gl.render(scene, camera);
+    // Compilado y con dos fotogramas hechos: ya se puede ENSENAR. Lo espera
+    // el cargador antes de arrancar la transformacion (`onPintado` no vale
+    // para eso: con el lienzo oculto no se pasa de dos fotogramas).
+    if (pintados.current === 2) onPreparado?.();
     // `readPixels` detiene la tuberia de la GPU hasta que termina el
     // fotograma, asi que NO va en cada fotograma ni cada segundo. Se mira al
     // arrancar (fotogramas 3 a 6) y despues solo cuando el viaje cambia de
@@ -1115,7 +1119,7 @@ function hueOf(hex) {
  * dpr a la misma proporcion, el lienzo se repinta a tamano real y queda
  * nitido. Ver `entrar()` en Halo.jsx.
  */
-export default function BlackHole({ bare = false, className = "", formation, journey, lensSource, lensFrame, onLensReady, onPintado, tint, dpr, disk = 1, white = 0, espejo, espejoModo }) {
+export default function BlackHole({ bare = false, className = "", formation, journey, lensSource, lensFrame, onLensReady, onPintado, onPreparado, tint, dpr, disk = 1, white = 0, espejo, espejoModo }) {
   const { lang } = useLang();
   const { sample } = useMusic();
   const root = useRef(null);
@@ -1302,7 +1306,7 @@ export default function BlackHole({ bare = false, className = "", formation, jou
         gl={GL_OPCIONES}
         onCreated={({ gl }) => { gl.setClearColor(0x000000, 0); revisarRenderer(gl.getContext()); }}
         fallback={<div className="blackhole__fallback" />}>
-        <Scene interaction={interaction} reduced={reduced} formation={formation} journey={journey} sample={sample} visual={visual} lens={lens} espejo={espejo} espejoModo={espejoModo} hue={hueOf(tint)} disk={disk} white={white} onRoto={romper} onPintado={onPintado} ajusta={movil && dpr === undefined} />
+        <Scene interaction={interaction} reduced={reduced} formation={formation} journey={journey} sample={sample} visual={visual} lens={lens} espejo={espejo} espejoModo={espejoModo} hue={hueOf(tint)} disk={disk} white={white} onRoto={romper} onPintado={onPintado} onPreparado={onPreparado} ajusta={movil && dpr === undefined} />
       </Canvas></SceneBoundary>}
     </div>
   </div>;

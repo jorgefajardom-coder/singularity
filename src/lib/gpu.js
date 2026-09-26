@@ -99,6 +99,33 @@ export function useGpuFallo() {
 }
 
 /**
+ * WebGL POR SOFTWARE cuenta como no tener GPU.
+ *
+ * Cuando el navegador no puede usar la grafica (bloqueada, sin controlador,
+ * escritorio remoto) no dice que no hay WebGL: lo emula en la CPU con
+ * SwiftShader o llvmpipe. Funciona, pero el agujero negro a pantalla completa
+ * va a un fotograma cada varios segundos: la intro de 2 s se quedaba casi un
+ * minuto en "transformando" (medido en CI, 26-09-2026). Mejor el respaldo CSS.
+ */
+const SOFTWARE = /swiftshader|llvmpipe|softpipe|software|basic render/i;
+
+export function revisarRenderer(gl) {
+  try {
+    const ext = gl.getExtension("WEBGL_debug_renderer_info");
+    const nombre = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+    if (SOFTWARE.test(nombre)) marcarGpuFallo(`render por software (${nombre})`);
+  } catch {
+    // Sin poder preguntar, se sigue: la autocomprobacion de cada lienzo avisa.
+  }
+}
+
+// `?sin-gpu` en la URL fuerza el camino sin WebGL (para probarlo a mano y en
+// las pruebas, en cualquier maquina).
+if (typeof location !== "undefined" && /[?&]sin-gpu(=|&|$)/.test(location.search)) {
+  marcarGpuFallo("forzado con ?sin-gpu");
+}
+
+/**
  * Engancha la perdida de contexto de un lienzo al estado global. Devuelve la
  * funcion que desengancha. `preventDefault` NO se llama a proposito: no se
  * quiere que el navegador intente devolver el contexto (ver arriba).

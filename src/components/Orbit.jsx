@@ -3,7 +3,7 @@ import { gsap } from "../lib/anim";
 import { useLang } from "../lib/i18n";
 import CompanyMark from "./CompanyMark";
 import { useTrasIntro } from "../lib/arranque";
-import { gpuFallo, perfil, useGpuFallo, vigilarContexto } from "../lib/gpu";
+import { gpuFallo, perfil, revisarRenderer, useGpuFallo, vigilarContexto } from "../lib/gpu";
 import { createOrbitSpheresCss } from "../lib/esferasCss";
 
 /**
@@ -202,6 +202,7 @@ export default function Orbit({ journey, items, note }) {
         if (cancelled) return;
         spheres = createOrbitSpheres(sphereLayer.current, n);
         soltar = vigilarContexto(spheres.canvas, "esferas de la orbita");
+        revisarRenderer(spheres.gl);
         gsap.ticker.add(tick);
       }).catch((e) => {
         // Sin el modulo de three (red cortada, chunk viejo) quedan las de CSS.

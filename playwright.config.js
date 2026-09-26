@@ -5,9 +5,9 @@ import { defineConfig, devices } from "@playwright/test";
  * preview` sirve `dist/`). En local usan el Chrome instalado, sin descargar
  * navegadores; en CI, el Chromium de Playwright.
  *
- * WebGL headless: con `--use-angle=swiftshader` pinta por software en
- * cualquier maquina (CI incluida). Es lento, pero aqui no se mide velocidad,
- * sino que la pagina funcione, quepa y sobreviva a perder la GPU.
+ * WebGL headless: en local con la grafica real (d3d11); en CI por software,
+ * que la pagina detecta y trata como si no hubiera GPU. Aqui no se mide
+ * velocidad, sino que la pagina funcione, quepa y sobreviva sin GPU.
  */
 const CI = Boolean(process.env.CI);
 const PUERTO = 4173;
@@ -23,8 +23,8 @@ const telefono = (nombre, width, height) => ({
 
 export default defineConfig({
   testDir: "tests/e2e",
-  timeout: 90_000,
-  expect: { timeout: 20_000, toHaveScreenshot: { maxDiffPixelRatio: 0.02 } },
+  timeout: CI ? 300_000 : 90_000,
+  expect: { timeout: CI ? 60_000 : 20_000, toHaveScreenshot: { maxDiffPixelRatio: 0.02 } },
   fullyParallel: false,
   workers: CI ? 1 : 2,
   retries: CI ? 1 : 0,
@@ -32,7 +32,14 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${PUERTO}/singularity/`,
     channel: CI ? undefined : "chrome",
-    launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] },
+    // En local, la GPU de verdad: asi se prueba el camino WebGL. En CI no hay
+    // grafica y WebGL va por software, que la pagina trata como "sin GPU"
+    // (ver lib/gpu.js): alli se prueba el camino de respaldo.
+    launchOptions: {
+      args: CI
+        ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
+        : ["--use-angle=d3d11", "--enable-gpu", "--ignore-gpu-blocklist"],
+    },
     trace: "retain-on-failure",
   },
   projects: [

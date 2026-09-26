@@ -87,6 +87,7 @@ export function createOrbitSpheres(host, count) {
     render() { renderer.render(scene, camera); },
     /** El lienzo, para vigilar si pierde el contexto (ver Orbit.jsx). */
     canvas: renderer.domElement,
+    gl: renderer.getContext(),
     dispose() {
       geometry.dispose();
       balls.forEach(({ material, glowMaterial }) => {

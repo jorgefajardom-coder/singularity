@@ -4,7 +4,7 @@ import { gsap, prefersReducedMotion } from "../lib/anim";
 import { heroBase } from "../lib/stagePose";
 import { MITADES } from "../lib/curvaInfinito";
 import { useMusic } from "../lib/music";
-import { perfil } from "../lib/gpu";
+import { gpuFallo, perfil, useGpuFallo } from "../lib/gpu";
 
 // El infinito es SVG y se dibuja sin tocar WebGL. El agujero negro llega
 // despues, mientras el contador sube, para no bloquear el primer pintado.
@@ -69,12 +69,16 @@ const MARGEN = 0.94;
  * RADIO_UV es el radio del disco en coordenadas del shader (medido sobre el
  * agujero del hero), para que el disco CSS termine del mismo tamano.
  */
-const INTRO_CSS = perfil.movil;
+// Tambien sin GPU (o con WebGL por software, ver lib/gpu.js): se decide en el
+// momento, porque la GPU puede darse por caida mientras se elige idioma.
+const introCss = () => perfil.movil || gpuFallo();
 const RADIO_UV = 0.62;
 const SOMBRA_CY = 0.074;
 
 export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
   const disco = useRef(null);
+  const sinGpu = useGpuFallo();
+  const cssAhora = perfil.movil || sinGpu;
   const { lang, setLang } = useLang();
   const { prepare } = useMusic();
   const root = useRef(null);
@@ -246,7 +250,7 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
     travel.current.cubre = true;
     // Sin lienzo aqui nadie publica el espejo: el del hero lee `cubre` de
     // este objeto (y nada mas, no hay reloj que copiar).
-    if (INTRO_CSS && espejo) espejo.current = travel.current;
+    if (introCss() && espejo) espejo.current = travel.current;
     // A la escala a la que se esta viendo el ∞, que en pantallas estrechas no
     // es 1 (ver `encajar`). Arrancando siempre en 1, la cinta del shader salia
     // mas grande que el SVG justo en el fotograma del relevo.
@@ -295,7 +299,7 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
       timeline.to(mark, { opacity: 0, duration: 0.15, ease: "none" }, 0.05);
 
       const rest = heroBase();
-      if (INTRO_CSS && disco.current) {
+      if (introCss() && disco.current) {
         // El mismo recorrido que el agujero del shader: nace en el cruce del
         // ∞ y, en la segunda mitad, baja a su sitio de reposo en el hero.
         const alto = window.innerHeight;
@@ -361,9 +365,9 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
     if (fase.current === "transforming") listoRef.current(true);
   }, []);
   useEffect(() => {
-    if (phase === "transforming" && (INTRO_CSS || pintado.current)) onReady(true);
+    if (phase === "transforming" && (introCss() || pintado.current)) onReady(true);
   },[phase,onReady]);
-  useEffect(() => () => { if (INTRO_CSS && espejo) espejo.current = null; }, [espejo]);
+  useEffect(() => () => { if (introCss() && espejo) espejo.current = null; }, [espejo]);
 
   // Montar los lienzos del portafolio cuesta ~90 ms de hilo principal: son dos
   // contextos WebGL con sus shaders. Se pagan detras del cargador, que es
@@ -434,7 +438,7 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
           fragment shader cuesta varios fotogramas, y si el canvas arranca al
           pulsar, el SVG se apaga antes de que haya nada dibujado debajo. */}
       {(phase === "choose" || phase === "transforming") && <div className="loader__singularity">
-        {INTRO_CSS ? (
+        {cssAhora ? (
           <div className="loader__disco" ref={disco} aria-hidden="true">
             <span className="loader__disco-sombra" />
             <span className="loader__disco-plano" />

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { View, Preload } from "@react-three/drei";
-import { PRESUPUESTO, marcarGpuFallo, perfil } from "../lib/gpu";
+import { PRESUPUESTO, marcarGpuFallo, perfil, revisarRenderer } from "../lib/gpu";
 import { useVistas } from "../lib/vistas";
 
 /**
@@ -50,6 +50,7 @@ function Vigilar() {
   const gl = useThree((s) => s.gl);
   useEffect(() => {
     const canvas = gl.domElement;
+    revisarRenderer(gl.getContext());
     const perdido = () => marcarGpuFallo("contexto perdido (lienzo 3D)");
     canvas.addEventListener("webglcontextlost", perdido);
     return () => canvas.removeEventListener("webglcontextlost", perdido);

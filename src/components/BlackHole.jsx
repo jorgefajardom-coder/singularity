@@ -30,7 +30,7 @@ const GRUPOS = (() => {
 })();
 import { useLang } from "../lib/i18n";
 import { useMusic } from "../lib/music";
-import { PRESUPUESTO, marcarGpuFallo, perfil, useGpuFallo } from "../lib/gpu";
+import { PRESUPUESTO, marcarGpuFallo, perfil, revisarRenderer, useGpuFallo } from "../lib/gpu";
 import { curvaParaShader } from "../lib/curvaInfinito";
 
 // Pasos por rayo. En el telefono, menos: el coste del shader va con el area
@@ -1300,7 +1300,7 @@ export default function BlackHole({ bare = false, className = "", formation, jou
           medir; de los cambios de tamano ya se encarga el ResizeObserver. */}
       {roto ? <div className="blackhole__fallback" /> : <SceneBoundary onFallo={() => romper("la escena lanzo un error")}><Canvas key="transparent-context" dpr={dprLienzo} resize={{ offsetSize: true, scroll: false }} frameloop={active ? "always" : "never"}
         gl={GL_OPCIONES}
-        onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
+        onCreated={({ gl }) => { gl.setClearColor(0x000000, 0); revisarRenderer(gl.getContext()); }}
         fallback={<div className="blackhole__fallback" />}>
         <Scene interaction={interaction} reduced={reduced} formation={formation} journey={journey} sample={sample} visual={visual} lens={lens} espejo={espejo} espejoModo={espejoModo} hue={hueOf(tint)} disk={disk} white={white} onRoto={romper} onPintado={onPintado} ajusta={movil && dpr === undefined} />
       </Canvas></SceneBoundary>}

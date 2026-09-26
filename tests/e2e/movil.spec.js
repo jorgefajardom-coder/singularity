@@ -28,12 +28,21 @@ const CONTAR_CONTEXTOS = () => {
 
 const esMovil = (info) => info.project.name.startsWith("movil");
 
-async function entrar(page) {
+// En CI el WebGL va por software en una maquina de dos nucleos: a 1536x639
+// el shader del agujero y los seis del halo van a pocos fotogramas por
+// segundo y la intro de 2 s tarda casi un minuto. Los tiempos se estiran
+// alli; lo que se comprueba es lo mismo.
+const LENTO = process.env.CI ? 3 : 1;
+
+/** ¿La pagina ya se dio por "sin GPU" (WebGL por software, en CI)? */
+const sinGpuYa = (page) => page.evaluate(() => /software|sin-gpu/.test(window.__gpuFallo || ""));
+
+async function entrar(page, ruta = "./") {
   await page.addInitScript(CONTAR_CONTEXTOS);
-  await page.goto("./");
-  await page.locator('.loader[data-phase="choose"]').waitFor({ timeout: 45_000 });
+  await page.goto(ruta);
+  await page.locator('.loader[data-phase="choose"]').waitFor({ timeout: 45_000 * LENTO });
   await page.locator(".loader__half--es").dispatchEvent("click");
-  await page.locator(".loader").waitFor({ state: "detached", timeout: 45_000 });
+  await page.locator(".loader").waitFor({ state: "detached", timeout: 45_000 * LENTO });
 }
 
 const contextosVivos = (page) => page.evaluate(() => [...window.__gl.vivos].filter((c) => c.isConnected).length);
@@ -81,9 +90,10 @@ test("la barra cabe y sus piezas no se pisan", async ({ page }) => {
  * tiene WebGL.
  */
 test("captura de la primera pantalla sin GPU", async ({ page }) => {
+  test.setTimeout(240_000 * LENTO);
   await entrar(page);
-  expect(await perderGpu(page)).toBeGreaterThan(0);
-  await expect.poll(() => page.evaluate(() => window.__gpuFallo ?? null)).not.toBeNull();
+  if (!(await sinGpuYa(page))) expect(await perderGpu(page)).toBeGreaterThan(0);
+  await expect.poll(() => page.evaluate(() => window.__gpuFallo ?? null), { timeout: 20_000 * LENTO }).not.toBeNull();
   await expect(page.locator(".stage__void .blackhole__fallback").first()).toBeVisible();
   await page.waitForTimeout(600);
   await expect(page).toHaveScreenshot("primera-pantalla-sin-gpu.png", { animations: "disabled", maxDiffPixelRatio: 0.03 });
@@ -91,14 +101,16 @@ test("captura de la primera pantalla sin GPU", async ({ page }) => {
 
 test("los contextos WebGL no pasan del presupuesto", async ({ page }, info) => {
   // WebGL por software es lento: recorrer la pagina entera lleva minutos.
-  test.setTimeout(600_000);
+  test.setTimeout(600_000 * LENTO);
   const tope = esMovil(info) ? 2 : 10;
   await entrar(page);
   let maximo = await contextosVivos(page);
   await recorrer(page, async () => { maximo = Math.max(maximo, await contextosVivos(page)); });
   expect(maximo).toBeLessThanOrEqual(tope);
-  // Recorrer la pagina no puede dejar la GPU marcada como caida.
-  expect(await page.evaluate(() => window.__gpuFallo ?? null)).toBeNull();
+  // Recorrer la pagina no puede dejar la GPU marcada como caida (salvo que
+  // ya estuviera "sin GPU" desde el principio por ir por software).
+  const fallo = await page.evaluate(() => window.__gpuFallo ?? null);
+  expect(fallo === null || /software/.test(fallo), `la GPU se marco caida: ${fallo}`).toBe(true);
 });
 
 /** Pierde a proposito el contexto de todos los lienzos WebGL vivos. */
@@ -113,11 +125,12 @@ const perderGpu = (page) => page.evaluate(() => {
 });
 
 test("si la GPU se pierde, la pagina sigue entera y usable", async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(240_000 * LENTO);
   await entrar(page);
+  test.skip(await sinGpuYa(page), "sin WebGL por hardware no hay contexto que perder (lo cubre la prueba ?sin-gpu)");
   const perdidos = await perderGpu(page);
   expect(perdidos).toBeGreaterThan(0);
-  await expect.poll(() => page.evaluate(() => window.__gpuFallo ?? null)).not.toBeNull();
+  await expect.poll(() => page.evaluate(() => window.__gpuFallo ?? null), { timeout: 20_000 * LENTO }).not.toBeNull();
   // El agujero pasa a su respaldo y el titular vuelve al DOM, legible.
   await expect(page.locator(".stage__void .blackhole__fallback")).toBeVisible();
   await expect(page.locator(".hero")).not.toHaveClass(/hero--lensed/);
@@ -139,4 +152,12 @@ test("las fichas cerradas no dejan enlaces enfocables", async ({ page }) => {
     return cerrados.every((p) => p.inert);
   });
   expect(enfocables).toBe(true);
+});
+
+test("sin GPU (?sin-gpu): intro CSS, hero con respaldo y ningun WebGL", async ({ page }) => {
+  await entrar(page, "./?sin-gpu");
+  await expect(page.locator(".stage__void .blackhole__fallback").first()).toBeVisible();
+  await expect(page.locator(".hero")).not.toHaveClass(/hero--lensed/);
+  await expect(page.locator("h1")).toContainText("Jorge");
+  expect(await contextosVivos(page)).toBe(0);
 });

@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useState } from "react";
 import { site, props3d, sections, ui } from "../data/content";
 
 const PropsView = lazy(() =>
@@ -8,23 +8,75 @@ import { useLang } from "../lib/i18n";
 import { GhostHeading } from "./ui";
 import SplitText from "./SplitText";
 
+/** El mismo mensaje como enlace `mailto:`, para el respaldo. */
+function comoMailto(data) {
+  const subject = encodeURIComponent(`Portfolio: ${data.get("name") || ""}`);
+  const phone = String(data.get("phone") || "").trim();
+  const body = encodeURIComponent(
+    `${data.get("name") || ""}\n${data.get("email") || ""}${phone ? `\n${phone}` : ""}\n\n${data.get("message") || ""}`
+  );
+  return `mailto:${site.email}?subject=${subject}&body=${body}`;
+}
+
 /**
- * El formulario NO tiene backend: abre el cliente de correo.
- * Si quieres recibirlos en tu bandeja sin servidor, crea un form en
- * Formspree / Basin y cambia esto por un `action` con su URL y method="post".
+ * El formulario envia a un Google Apps Script de Jorge (`site.formEndpoint`),
+ * que manda el mensaje a su Gmail: gratis y sin servidor propio.
+ *
+ * Va como `application/x-www-form-urlencoded`, que es una peticion "simple":
+ * sin preflight CORS, que Apps Script no contesta. El script responde
+ * `{ ok, error }` con `Access-Control-Allow-Origin: *`, asi que se puede leer.
+ *
+ * Si falla (sin red, el script caido, el limite de envios), el mensaje no se
+ * pierde: aparece el correo con un enlace `mailto:` que ya lleva lo escrito.
  */
 export default function Contact() {
   const { tr } = useLang();
+  // "listo" | "enviando" | "enviado" | "error" | "limite"
+  const [estado, setEstado] = useState("listo");
+  const [respaldo, setRespaldo] = useState(`mailto:${site.email}`);
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    const subject = encodeURIComponent(`Portfolio: ${data.get("name") || ""}`);
-    const phone = String(data.get("phone") || "").trim();
-    const body = encodeURIComponent(
-      `${data.get("name") || ""}\n${data.get("email") || ""}${phone ? `\n${phone}` : ""}\n\n${data.get("message") || ""}`
-    );
-    window.location.href = `mailto:${site.email}?subject=${subject}&body=${body}`;
+    if (estado === "enviando") return;
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    setRespaldo(comoMailto(data));
+    // Campo trampa: una persona no lo ve ni lo rellena.
+    if (String(data.get("sitio") || "")) {
+      setEstado("enviado");
+      form.reset();
+      return;
+    }
+    setEstado("enviando");
+    const corte = new AbortController();
+    const reloj = setTimeout(() => corte.abort(), 20000);
+    try {
+      const r = await fetch(site.formEndpoint, {
+        method: "POST",
+        body: new URLSearchParams(data),
+        signal: corte.signal,
+      });
+      const json = await r.json().catch(() => ({}));
+      if (r.ok && json.ok) {
+        setEstado("enviado");
+        form.reset();
+      } else if (json.error === "limite") {
+        setEstado("limite");
+      } else {
+        console.error("[singularity] el formulario no se envio", r.status, json);
+        setEstado("error");
+      }
+    } catch (error) {
+      console.error("[singularity] el formulario no se envio", error);
+      setEstado("error");
+    } finally {
+      clearTimeout(reloj);
+    }
+  };
+
+  // Al volver a escribir, el aviso anterior se retira.
+  const onInput = () => {
+    if (estado !== "enviando" && estado !== "listo") setEstado("listo");
   };
 
   return (
@@ -49,7 +101,13 @@ export default function Contact() {
             </SplitText>
           </div>
 
-          <form className="contact__form" onSubmit={onSubmit}>
+          <form className="contact__form" onSubmit={onSubmit} onInput={onInput} aria-busy={estado === "enviando"}>
+            {/* Trampa para bots: fuera de la vista, del tabulador y de los
+                lectores de pantalla. Si llega rellena, no se envia nada. */}
+            <div className="contact__trampa" aria-hidden="true">
+              <label htmlFor="sitio">Sitio web</label>
+              <input id="sitio" name="sitio" type="text" tabIndex={-1} autoComplete="off" />
+            </div>
             <div className="field">
               <label htmlFor="name">{tr(ui.formName)}</label>
               <input id="name" name="name" type="text" required autoComplete="name" />
@@ -67,9 +125,18 @@ export default function Contact() {
               <label htmlFor="message">{tr(ui.formMessage)}</label>
               <textarea id="message" name="message" rows={4} required />
             </div>
-            <button className="btn btn--ink" type="submit">
-              {tr(ui.send)}
+            <button className="btn btn--ink" type="submit" disabled={estado === "enviando"}>
+              {tr(estado === "enviando" ? ui.sending : ui.send)}
             </button>
+            <p className="contact__estado" role="status" aria-live="polite" data-estado={estado}>
+              {estado === "enviado" ? tr(ui.sent) : null}
+              {estado === "error" || estado === "limite" ? (
+                <>
+                  {tr(estado === "limite" ? ui.sendLimit : ui.sendError)}{" "}
+                  <a href={respaldo}>{site.email}</a>
+                </>
+              ) : null}
+            </p>
           </form>
         </div>
       </div>

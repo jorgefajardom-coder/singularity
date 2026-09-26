@@ -4545,3 +4545,30 @@ body {
   white-space: nowrap;
   font-size: min(var(--tit), 70cqi / 7.6);
 }
+
+/* Formulario de Contacto: la trampa para bots, fuera de la vista (no con
+   `display: none`, que algunos bots detectan y se saltan). */
+.contact__trampa {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.contact__estado {
+  min-height: 1.4em;
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.contact__estado[data-estado="enviado"] { color: #1f7a3a; }
+.contact__estado[data-estado="error"],
+.contact__estado[data-estado="limite"] { color: #b3261e; }
+.contact__estado a { color: inherit; font-weight: 700; }
+
+.contact__form button[disabled] {
+  opacity: 0.6;
+  cursor: progress;
+}

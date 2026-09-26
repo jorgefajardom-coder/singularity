@@ -33,6 +33,12 @@ export const site = {
     "Technical Product Manager · Mechatronics Engineer"
   ),
   email: "j.andres.f.mora@gmail.com",
+  // El formulario de Contacto envia aqui (Google Apps Script en la cuenta de
+  // Jorge, 26-09-2026): el script manda el mensaje a su Gmail. Es publica a
+  // proposito; solo sirve para escribirle a el y el script filtra bots y
+  // limita envios. Si se cambia el script hay que publicar una version nueva
+  // en "Gestionar implementaciones" (la URL no cambia).
+  formEndpoint: "https://script.google.com/macros/s/AKfycbzUrwPZJ2RVssuWoKX41R5YyJVczXq3AdjOb5UYVDzYofnQ5FuoEFWI7MM6wI9Ko5xd/exec",
   // TODO: confirma o cambia la ciudad; la puse yo, no venía en tu README.
   location: t("Bogotá, Colombia", "Bogotá, Colombia"),
 
@@ -124,6 +130,10 @@ export const ui = {
   // mismo prometer "el proyecto" que llevar al codigo.
   viewRepo: t("Ver el repositorio", "View the repository"),
   send: t("Enviar", "Send"),
+  sending: t("Enviando…", "Sending…"),
+  sent: t("¡Mensaje enviado! Te respondo pronto.", "Message sent! I'll get back to you soon."),
+  sendError: t("No se pudo enviar. Escríbeme directamente a", "It couldn't be sent. Write to me directly at"),
+  sendLimit: t("Has enviado varios mensajes seguidos. Escríbeme directamente a", "You've sent several messages in a row. Write to me directly at"),
   formName: t("Nombre", "Name"),
   formEmail: t("Email", "Email"),
   formPhone: t("Teléfono (opcional)", "Phone (optional)"),

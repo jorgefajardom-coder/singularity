@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useState } from "react";
 import { asset } from "../lib/asset";
 
 /**
@@ -18,6 +18,9 @@ const CompanyMark = forwardRef(function CompanyMark(
   ref
 ) {
   const Tag = company.href ? "a" : "div";
+  // Si el logo no llega (red movil, bloqueo), nada de icono roto con el alt
+  // encima: se retira la imagen y queda el nombre, aunque la marca lo oculte.
+  const [roto, setRoto] = useState(false);
 
   return (
     <Tag
@@ -29,15 +32,20 @@ const CompanyMark = forwardRef(function CompanyMark(
         ? { href: company.href, target: "_blank", rel: "noreferrer noopener" }
         : {})}
     >
-      <img
+      {!roto && <img
         className="company__logo"
         style={{ scale: company.logoScale ?? 1 }}
         src={asset(company.logo)}
         // Solo la primera pasada cuenta para lectores de pantalla.
         alt={duplicate ? "" : company.name}
-        loading="lazy"
-      />
-      {!company.hideLabel && (
+        // Sin `loading="lazy"`: las marcas de la orbita arrancan escondidas
+        // dentro del agujero (escala 0) y en Android el navegador las daba
+        // por fuera de pantalla; salian como imagen rota con el alt. Son
+        // cinco logos de pocos kB.
+        decoding="async"
+        onError={() => setRoto(true)}
+      />}
+      {(roto || !company.hideLabel) && (
         <span className="company__label" aria-hidden="true">
           {company.name}
         </span>

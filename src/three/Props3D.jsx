@@ -10,6 +10,7 @@ import {
   useGLTF,
 } from "@react-three/drei";
 import { asset } from "../lib/asset";
+import { useTelefono } from "../lib/telefono";
 
 /* ------------------------------------------------------------------
    Iluminación compartida.
@@ -256,7 +257,18 @@ export function Prop({
 /* ------------------------------------------------------------------
    Vista 3D reutilizable que se "pega" a un hueco del DOM.
    ------------------------------------------------------------------ */
-export function PropsView({ items = [], className, parallax = 0 }) {
+/**
+ * En el telefono los objetos no se montan. El lienzo que los pinta va por
+ * ENCIMA del contenido (capa 3, ver ViewCanvas.jsx) y en una columna el texto
+ * ocupa todo el ancho: no queda borde libre donde pegarlos, y en el movil
+ * tapaban la leyenda de Certificaciones, el formulario de Contacto y el primer
+ * parrafo de Sobre mi.
+ */
+export function PropsView(props) {
+  return useTelefono() ? null : <PropsViewFull {...props} />;
+}
+
+function PropsViewFull({ items = [], className, parallax = 0 }) {
   const track = useRef(null);
 
   // <View> renderiza el div que marca el hueco y reenvía la ref;

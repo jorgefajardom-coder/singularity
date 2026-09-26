@@ -1,5 +1,6 @@
 import { Canvas } from "@react-three/fiber";
 import { View, Preload } from "@react-three/drei";
+import { useTelefono } from "../lib/telefono";
 
 /**
  * Un ÚNICO <Canvas> fijo a pantalla completa para todo el sitio.
@@ -27,12 +28,17 @@ const CANVAS_STYLE = {
 };
 
 export default function ViewCanvas({ eventSource }) {
+  // El lienzo cubre la pantalla entera y se limpia en cada fotograma aunque
+  // no haya nada a la vista: en un telefono de densidad 3, a 2x eran ~2,5
+  // millones de pixeles por fotograma. Con 1,5 el dron y la celda siguen
+  // nitidos y el coste baja casi a la mitad.
+  const telefono = useTelefono();
   return (
     <Canvas
       style={CANVAS_STYLE}
       eventSource={eventSource}
       eventPrefix="client"
-      dpr={[1, 2]}
+      dpr={telefono ? [1, 1.5] : [1, 2]}
       gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
       camera={{ fov: 35, position: [0, 0, 6] }}
     >

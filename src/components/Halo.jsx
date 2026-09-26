@@ -17,6 +17,7 @@ const BlackHole = lazy(() => import("./BlackHole"));
 import { useLang } from "../lib/i18n";
 import { prefersReducedMotion, scroller } from "../lib/anim";
 import { EnSuTurno } from "../lib/arranque";
+import { useTelefono } from "../lib/telefono";
 
 /**
  * El sistema que orbita al personaje que medita.
@@ -131,6 +132,11 @@ export default function Halo() {
   // lienzo del cuerpo ampliado para no verse a escalones.
   const [zoom, setZoom] = useState(1);
   const reduced = prefersReducedMotion();
+  // En el telefono los seis cuerpos no abren cada uno su lienzo WebGL: son
+  // seis compilaciones del shader mas pesado de la pagina y seis contextos,
+  // y en Android sumados a los demas pasaban el tope del navegador, que
+  // suelta primero los mas viejos (el del hero). Ahi van pintados en CSS.
+  const telefono = useTelefono();
 
   // Activa la apertura de los anillos y, despues, el destello de los cuerpos.
   useEffect(() => {
@@ -391,6 +397,7 @@ export default function Halo() {
                     fotones y lente— con el tono girado sobre el eje de los
                     grises, que es lo unico que cambia de uno a otro. */}
                 <span className="halo__hole">
+                  {telefono ? <span className="blackhole__fallback halo__plain" /> : <>
                   {/* Seis lienzos WebGL que estan varias pantallas mas abajo:
                       entran despues de la intro y de uno en uno (ver
                       lib/arranque.js). Montados al arrancar, se compilaban
@@ -407,6 +414,7 @@ export default function Halo() {
                     />
                   </Suspense>
                   </EnSuTurno>
+                  </>}
                 </span>
 
                 {/* El nombre sigue el arco interior del disco. El boton ya

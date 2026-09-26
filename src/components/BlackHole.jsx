@@ -1,4 +1,4 @@
-import { Component, useEffect, useMemo, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { CanvasTexture, LinearFilter, Vector2, Vector3 } from "three";
 
@@ -31,6 +31,7 @@ const GRUPOS = (() => {
 import { ui } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { useMusic } from "../lib/music";
+import { useTelefono } from "../lib/telefono";
 import { curvaParaShader } from "../lib/curvaInfinito";
 
 const vertexShader = `
@@ -752,7 +753,33 @@ const TIME_WRAP = 200 * Math.PI;
 // partir de ahí la figura gira rígida, conservando su forma.
 const WIND_MAX = 22;
 
-function Scene({ interaction, reduced, formation, sample, visual, lens, journey, espejo, espejoModo, hue = 0, disk = 1, white = 0 }) {
+/**
+ * ¿La GPU esta pintando el lienzo de blanco?
+ *
+ * Paso en un Android (25-09-2026, video de Jorge): el agujero salia como un
+ * rectangulo blanco opaco —el hero lavado y sin nombre, las marcas sobre
+ * blanco, una elipse blanca pegada al astronauta— y en el computador, con el
+ * mismo tamano de pantalla, se veia bien. No se puede probar en cada telefono,
+ * asi que el lienzo se comprueba a si mismo: lee seis puntos del borde justo
+ * despues de pintar (el buffer sigue intacto en esa misma tarea) y, si casi
+ * todos son blanco opaco, se da por roto. En el borde nunca hay blanco de
+ * verdad: el cielo es oscuro, el disco es ambar (azul bajo) y en los lienzos
+ * aislados el fondo es transparente.
+ */
+const PUNTOS = [[0.03, 0.03], [0.97, 0.03], [0.03, 0.5], [0.97, 0.5], [0.03, 0.97], [0.97, 0.97]];
+const PIXEL = new Uint8Array(4);
+function pintaBlanco(ctx) {
+  const w = ctx.drawingBufferWidth, h = ctx.drawingBufferHeight;
+  if (!w || !h) return false;
+  let blancos = 0;
+  for (const [x, y] of PUNTOS) {
+    ctx.readPixels(Math.floor(x * (w - 1)), Math.floor(y * (h - 1)), 1, 1, ctx.RGBA, ctx.UNSIGNED_BYTE, PIXEL);
+    if (PIXEL[0] > 200 && PIXEL[1] > 200 && PIXEL[2] > 200 && PIXEL[3] > 200) blancos++;
+  }
+  return blancos >= 4;
+}
+
+function Scene({ interaction, reduced, formation, sample, visual, lens, journey, espejo, espejoModo, hue = 0, disk = 1, white = 0, onRoto, ajusta = false }) {
   const elapsed = useRef(0);
   const rigid = useRef(0);
   const wound = useRef(0);
@@ -926,6 +953,30 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
   const pintados = useRef(0);
 
   /**
+   * Resolucion que se adapta en el telefono. Cada pixel lanza un rayo de
+   * hasta 180 pasos, asi que el coste va con el area del lienzo: si la media
+   * de un tramo de fotogramas pasa de 1/40 s, la resolucion baja un 15 %,
+   * hasta 0,6. Solo baja, nunca sube: subir y bajar se veria como un
+   * parpadeo de nitidez. Se mide desde el fotograma 10 para no contar la
+   * compilacion.
+   */
+  const { setDpr, viewport: { dpr: dprActual } } = useThree();
+  const medida = useRef({ n: 0, t: 0 });
+  const dprVivo = useRef(dprActual);
+  useFrame((_, delta) => {
+    if (!ajusta || !listo.current || pintados.current < 10) return;
+    const m = medida.current;
+    m.n++; m.t += Math.min(delta, 0.25);
+    if (m.n < 30) return;
+    const media = m.t / m.n;
+    m.n = 0; m.t = 0;
+    if (media > 1 / 40 && dprVivo.current > 0.6) {
+      dprVivo.current = Math.max(0.6, dprVivo.current * 0.85);
+      setDpr(dprVivo.current);
+    }
+  });
+
+  /**
    * Compilar sin congelar la pagina. Este shader tarda 0,5-3 s en compilar en
    * una grafica integrada, y el primer `render` lo hace de forma SINCRONA: el
    * hilo principal se quedaba parado todo ese rato, justo cuando entraban las
@@ -957,6 +1008,7 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     if (tapado && pintados.current > 1) return;
     pintados.current++;
     gl.render(scene, camera);
+    if (pintados.current >= 3 && pintados.current <= 12 && pintaBlanco(gl.getContext())) onRoto?.();
   }, 1);
 
   return <mesh frustumCulled={false}><planeGeometry args={[2,2]} /><shaderMaterial
@@ -996,7 +1048,7 @@ function hueOf(hex) {
  * dpr a la misma proporcion, el lienzo se repinta a tamano real y queda
  * nitido. Ver `entrar()` en Halo.jsx.
  */
-export default function BlackHole({ bare = false, className = "", formation, journey, lensSource, lensFrame, onLensReady, tint, dpr = [1, 1.25], disk = 1, white = 0, espejo, espejoModo }) {
+export default function BlackHole({ bare = false, className = "", formation, journey, lensSource, lensFrame, onLensReady, tint, dpr, disk = 1, white = 0, espejo, espejoModo }) {
   const { lang, tr } = useLang();
   const { sample } = useMusic();
   const root = useRef(null);
@@ -1005,6 +1057,36 @@ export default function BlackHole({ bare = false, className = "", formation, jou
   const interaction = useRef({ point: new Vector2(), down: false });
   const [active, setActive] = useState(true);
   const [reduced, setReduced] = useState(false);
+  /**
+   * Respaldo sin WebGL. Entra si el lienzo pinta blanco (ver `pintaBlanco`) o
+   * si el navegador suelta el contexto —en movil pasa al abrir muchos lienzos
+   * y los primeros en caer son los mas viejos, que son justo este—. Se queda
+   * para toda la visita: volver a intentarlo seria arriesgar otro destello.
+   * El titular vuelve al <h1> del DOM (`onLensReady(false)`), si no el nombre
+   * desapareceria con el lienzo.
+   */
+  const [roto, setRoto] = useState(false);
+  // En el telefono, 1 y no 1,25: son muchos pixeles por rayo en una GPU de
+  // movil, y la densidad de la pantalla ya disimula la diferencia. Ademas la
+  // escena la baja sola si no llega (ver `ajusta` en Scene).
+  const telefono = useTelefono();
+  const dprLienzo = dpr ?? (telefono ? 1 : [1, 1.25]);
+  const rotoRef = useRef(false);
+  const romper = useCallback(() => {
+    if (rotoRef.current) return;
+    rotoRef.current = true;
+    setRoto(true);
+  }, []);
+  useEffect(() => {
+    if (roto) onLensReady?.(false);
+  }, [roto, onLensReady]);
+  useEffect(() => {
+    const holder = root.current;
+    if (!holder) return undefined;
+    const perdido = () => romper();
+    holder.addEventListener("webglcontextlost", perdido, true);
+    return () => holder.removeEventListener("webglcontextlost", perdido, true);
+  }, [romper]);
   useEffect(() => {
     const media = matchMedia("(prefers-reduced-motion: reduce)");
     const sync = () => setReduced(media.matches);
@@ -1067,7 +1149,7 @@ export default function BlackHole({ bare = false, className = "", formation, jou
     };
 
     const repaint = () => {
-      if(!alive || !root.current) return;
+      if(!alive || !root.current || rotoRef.current) return;
       if(!enReposo()) { reintentar(); return; }
       const box = cajaEnReposo();
       if(!target.querySelector('[data-lens-line][data-lens-group="title"]')) return;
@@ -1129,12 +1211,12 @@ export default function BlackHole({ bare = false, className = "", formation, jou
           hasta abajo, sin recuperarse al subir. El lienzo siempre cubre el
           viewport entero, asi que al desplazarse no hay nada que volver a
           medir; de los cambios de tamano ya se encarga el ResizeObserver. */}
-      <SceneBoundary><Canvas key="transparent-context" dpr={dpr} resize={{ offsetSize: true, scroll: false }} frameloop={active ? "always" : "never"}
+      {roto ? <div className="blackhole__fallback" /> : <SceneBoundary><Canvas key="transparent-context" dpr={dprLienzo} resize={{ offsetSize: true, scroll: false }} frameloop={active ? "always" : "never"}
         gl={{antialias:false,alpha:true,powerPreference:"high-performance"}}
         onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
         fallback={<div className="blackhole__fallback" />}>
-        <Scene interaction={interaction} reduced={reduced} formation={formation} journey={journey} sample={sample} visual={visual} lens={lens} espejo={espejo} espejoModo={espejoModo} hue={hueOf(tint)} disk={disk} white={white} />
-      </Canvas></SceneBoundary>
+        <Scene interaction={interaction} reduced={reduced} formation={formation} journey={journey} sample={sample} visual={visual} lens={lens} espejo={espejo} espejoModo={espejoModo} hue={hueOf(tint)} disk={disk} white={white} onRoto={romper} ajusta={telefono && dpr === undefined} />
+      </Canvas></SceneBoundary>}
     </div>
   </div>;
 }

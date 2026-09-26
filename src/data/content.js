@@ -126,6 +126,7 @@ export const ui = {
   send: t("Enviar", "Send"),
   formName: t("Nombre", "Name"),
   formEmail: t("Email", "Email"),
+  formPhone: t("Teléfono (opcional)", "Phone (optional)"),
   formMessage: t("Cuéntame del proyecto", "Tell me about the project"),
   navigation: t("Navegación", "Navigation"),
   social: t("Redes", "Social"),

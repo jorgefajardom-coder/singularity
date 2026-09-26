@@ -20,8 +20,9 @@ export default function Contact() {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
     const subject = encodeURIComponent(`Portfolio: ${data.get("name") || ""}`);
+    const phone = String(data.get("phone") || "").trim();
     const body = encodeURIComponent(
-      `${data.get("name") || ""}\n${data.get("email") || ""}\n\n${data.get("message") || ""}`
+      `${data.get("name") || ""}\n${data.get("email") || ""}${phone ? `\n${phone}` : ""}\n\n${data.get("message") || ""}`
     );
     window.location.href = `mailto:${site.email}?subject=${subject}&body=${body}`;
   };
@@ -56,6 +57,11 @@ export default function Contact() {
             <div className="field">
               <label htmlFor="email">{tr(ui.formEmail)}</label>
               <input id="email" name="email" type="email" required autoComplete="email" />
+            </div>
+            <div className="field">
+              <label htmlFor="phone">{tr(ui.formPhone)}</label>
+              <input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel"
+                pattern="[0-9+\(\)\-\s]{7,20}" title={tr({ es: "Solo números, espacios y + ( ) -", en: "Digits, spaces and + ( ) - only" })} />
             </div>
             <div className="field">
               <label htmlFor="message">{tr(ui.formMessage)}</label>

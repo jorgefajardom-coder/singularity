@@ -52,18 +52,6 @@ function Palmera({ tronco, x, y, s = 1 }) {
   </>;
 }
 
-function PalmaDeCera({ x, base, alto, lado = 1 }) {
-  const top = base - alto;
-  const tronco = `M${x} ${base} Q${x + 5 * lado} ${base - alto / 2} ${x + 2 * lado} ${top}`;
-  return <g>
-    <path d={tronco} stroke={ink} strokeWidth="5" />
-    <path d={tronco} stroke={paper} strokeWidth="2.6" />
-    <g transform={`translate(${x + 2 * lado} ${top})`} fill={ink} stroke={paper} strokeWidth="1.4">
-      <path d="M0 0 Q-12 -6 -22 5 Q-12 -1 0 0Z M0 0 Q-9 -14 -20 -12 Q-8 -8 0 0Z M0 0 Q3 -17 15 -17 Q5 -11 0 0Z M0 0 Q13 -5 21 7 Q11 0 0 0Z M0 0 Q-1 -12 -4 -21 Q2 -11 0 0Z" />
-    </g>
-  </g>;
-}
-
 function Lugar({ lugar }) {
   switch (lugar) {
     case "canada": {
@@ -153,25 +141,65 @@ function Lugar({ lugar }) {
       <rect y="280" width="300" height="20" fill={ink} stroke="none" />
       <Matasellos codigo="KSC" />
     </>;
-    case "colombia": return <>
-      <Cielo id="colombia" horizonte={210} abajo={flame} />
-      <circle cx="160" cy="124" r="50" fill={orange} opacity=".16" stroke="none" />
-      <circle cx="160" cy="124" r="34" fill={orange} stroke="none" />
-      {/* Condor planeando. */}
-      <path className="art-task" transform="translate(62 0)" d="M92 76 Q78 68 58 72 L66 75 L54 79 L64 80 L56 84 Q76 80 92 80 Q108 80 128 84 L120 80 L130 79 L118 75 L126 72 Q106 68 92 76Z M88 77 h8 l-4 -5Z" fill={paper} stroke="none" />
-      <path d="M184 100 l5 4 l5 -4 M170 108 l4 3 l4 -3" stroke={paper} strokeWidth="1.3" opacity=".7" />
-      <path d="M0 176 Q50 118 110 150 Q160 112 210 140 T300 128 V300 H0Z" fill={ember} stroke="none" />
-      <ellipse className="art-pulse" cx="80" cy="182" rx="90" ry="8" fill={paper} stroke="none" fillOpacity=".2" />
-      <path d="M0 214 Q70 168 150 204 T300 186 V300 H0Z" fill={red} stroke="none" />
-      <path d="M0 214 Q70 168 150 204 T300 186" stroke={orange} strokeWidth="1.5" opacity=".7" />
-      <ellipse className="art-pulse" style={{ "--delay": ".6s" }} cx="226" cy="214" rx="96" ry="8" fill={paper} stroke="none" fillOpacity=".18" />
-      <path d="M0 252 Q90 222 180 246 T300 240 V300 H0Z" fill={ink} stroke={orange} strokeWidth="2" />
-      <PalmaDeCera x={46} base={256} alto={150} lado={-1} />
-      <PalmaDeCera x={78} base={258} alto={196} />
-      <PalmaDeCera x={118} base={250} alto={132} lado={-1} />
-      <PalmaDeCera x={206} base={248} alto={170} />
-      <PalmaDeCera x={250} base={246} alto={108} lado={-1} />
-      <Matasellos codigo="CO" />
+    case "china": {
+      const cresta = [[0, 204], [40, 182], [80, 198], [122, 160], [162, 178], [204, 140], [244, 162], [300, 132]];
+      const linea = cresta.map(([x, y], i) => `${i ? "L" : "M"}${x} ${y}`).join(" ");
+      return <>
+        <Cielo id="china" horizonte={236} abajo={red} />
+        <circle cx="160" cy="86" r="40" fill={orange} opacity=".14" stroke="none" />
+        <circle cx="160" cy="86" r="28" fill={paper} stroke="none" />
+        {[[150, 78, 6], [170, 96, 4], [166, 74, 3], [152, 98, 3]].map(([x, y, r]) => <circle key={x + y} cx={x} cy={y} r={r} fill={ember} fillOpacity=".16" stroke="none" />)}
+        {/* Picos lejanos entre la niebla. */}
+        <path d="M0 176 L28 120 L52 150 L84 104 L118 150 L150 128 L188 166 L226 112 L262 146 L300 118 V240 H0Z" fill={ember} stroke="none" />
+        <ellipse className="art-pulse" cx="110" cy="170" rx="110" ry="9" fill={paper} stroke="none" fillOpacity=".16" />
+        {/* La Gran Muralla sobre la cresta, con almenas y torres. */}
+        <path d={`${linea} V300 H0Z`} fill={red} stroke="none" />
+        {[22, 46, 72].map((dy, i) => <path key={dy} d={linea} transform={`translate(0 ${dy})`} stroke={ember} strokeOpacity={.4 - i * .1} strokeWidth="2" />)}
+        <path d={linea} stroke={orange} strokeWidth="8" strokeLinejoin="miter" />
+        <path d={linea} transform="translate(0 -6)" stroke={orange} strokeWidth="4" strokeDasharray="3 3" strokeLinecap="butt" />
+        {[cresta[1], cresta[3], cresta[5]].map(([x, y]) => <g key={x}>
+          <path d={`M${x - 8} ${y + 2} V${y - 18} h3 v-4 h4 v4 h2 v-4 h4 v4 h3 V${y + 2}Z`} fill={orange} stroke="none" />
+          <path d={`M${x - 2} ${y - 4} v-6 a2 2 0 0 1 4 0 v6Z`} fill={ink} stroke="none" />
+        </g>)}
+        <path d="M0 262 Q80 232 160 256 T300 244 V300 H0Z" fill={ink} stroke="none" />
+        <path d="M0 262 Q80 232 160 256 T300 244" stroke={orange} strokeWidth="2" />
+        {/* Pagoda en la loma de delante. */}
+        <g fill={ink} stroke={orange} strokeWidth="1.5">
+          {[0, 1, 2].map((k) => {
+            const y = 252 - k * 17, w = 22 - k * 5;
+            return <g key={k}>
+              <rect x={234 - w + 5} y={y - 11} width={(w - 5) * 2} height="11" />
+              <path d={`M${234 - w - 5} ${y - 9} L${234 - w + 3} ${y - 16} H${234 + w - 3} L${234 + w + 5} ${y - 9}Z`} />
+            </g>;
+          })}
+          <path d="M234 201 V190" /><circle cx="234" cy="188" r="2" fill={orange} stroke="none" />
+          <rect className="art-pulse" x="231" y="244" width="6" height="8" fill={orange} stroke="none" />
+        </g>
+        {/* Faroles rojos colgando. */}
+        {[[40, 58, 0], [84, 38, 1]].map(([x, y, i]) => <g key={x} className="art-task" style={{ "--delay": `${i * .4}s` }}>
+          <path d={`M${x} 0 V${y - 14}`} stroke={paper} strokeWidth="1.2" opacity=".7" />
+          <rect x={x - 6} y={y - 16} width="12" height="4" fill={orange} stroke="none" />
+          <ellipse cx={x} cy={y} rx="16" ry="13" fill={red} stroke="none" />
+          <path d={`M${x} ${y - 13} V${y + 13} M${x - 8} ${y - 11} Q${x - 13} ${y} ${x - 8} ${y + 11} M${x + 8} ${y - 11} Q${x + 13} ${y} ${x + 8} ${y + 11}`} stroke={orange} strokeWidth="1.2" />
+          <rect x={x - 6} y={y + 12} width="12" height="4" fill={orange} stroke="none" />
+          <path d={`M${x} ${y + 16} v12 M${x - 3} ${y + 18} v8 M${x + 3} ${y + 18} v8`} stroke={orange} strokeWidth="1.2" />
+        </g>)}
+        <Matasellos codigo="CN" />
+      </>;
+    }
+    // La postal en blanco del final: un hueco con silueta punteada para quien
+    // mira, centrado.
+    case "tu": return <>
+      <Cielo id="tu" horizonte={300} abajo={deep} />
+      <rect x="65" y="84" width="170" height="190" rx="10" fill={ink} fillOpacity=".45" stroke={paper} strokeOpacity=".7" strokeWidth="2" strokeDasharray="7 6" />
+      <g stroke={orange} strokeWidth="2.5" strokeDasharray="6 5">
+        <circle cx="150" cy="152" r="34" />
+        <path d="M90 274 V258 Q90 204 150 204 Q210 204 210 258 V274" />
+      </g>
+      <text className="art-pulse" x="150" y="166" textAnchor="middle" fill={orange} stroke="none" fontFamily="var(--font)" fontSize="44" fontWeight="800">?</text>
+      {[[81, 100], [221, 120], [213, 250]].map(([x, y], i) =>
+        <path key={x} className="art-pulse" style={{ "--delay": `${i * .3}s` }} d={`M${x} ${y - 7} L${x + 2} ${y - 2} L${x + 7} ${y} L${x + 2} ${y + 2} L${x} ${y + 7} L${x - 2} ${y + 2} L${x - 7} ${y} L${x - 2} ${y - 2}Z`} fill={paper} stroke="none" />)}
+      <Matasellos codigo="???" />
     </>;
     default: return null;
   }

@@ -2526,7 +2526,10 @@ body.is-anchored .about__float {
 /* Con las postales de viaje al lado, en abanico: se solapan y la de la foto
    queda encima, la ultima. Al pasar por una, sube al frente. */
 .footer__firma {
-  --carta-w: clamp(124px, 10.5vw, 180px);
+  --carta-w: clamp(120px, 8.8vw, 150px);
+  /* Letra de los titulos: todas las cartas guardan sitio para dos lineas,
+     asi miden lo mismo aunque tu nombre ocupe dos y los lugares una. */
+  --tit: clamp(11px, 0.82vw, 13px);
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
@@ -2534,7 +2537,28 @@ body.is-anchored .about__float {
 }
 
 .footer__firma > .poster + .poster {
-  margin-left: calc(var(--carta-w) * -0.32);
+  margin-left: calc(var(--carta-w) * -0.36);
+}
+
+/* Hasta ~1440 px no caben al lado de los enlaces sin partir sus columnas:
+   pasan a su propia fila, debajo, mas abiertas para que no se tapen los
+   titulos. */
+@media (min-width: 901px) and (max-width: 1440px) {
+  .footer__cuerpo {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .footer__firma {
+    --carta-w: clamp(124px, 11vw, 150px);
+    justify-content: flex-start;
+    /* La primera va inclinada: que su esquina no pase del borde de los enlaces. */
+    padding-left: 14px;
+  }
+
+  .footer__firma > .poster + .poster {
+    margin-left: calc(var(--carta-w) * -0.24);
+  }
 }
 
 .footer__firma > .poster:hover {
@@ -2547,11 +2571,25 @@ body.is-anchored .about__float {
   margin-top: calc(var(--carta-w) * 0.06);
 }
 
+/* Se leen de izquierda a derecha, cada una encima de la anterior; la de
+   la foto cierra la fila. "¿Y tu?" es un enlace: sin el color de enlace. */
+.footer__firma > .poster.footer__tu {
+  color: var(--poster-ink);
+  text-decoration: none;
+}
+
+.footer__tu:focus-visible {
+  outline: 2px solid var(--accent-a);
+  outline-offset: 3px;
+}
+
 /* La siguiente tapa el lado derecho: el titulo va a la izquierda para que
    se lea entero. */
-.footer__postal .poster__titulo {
+.footer__firma > .poster:not(:last-child) .poster__titulo {
   text-align: left;
 }
+
+
 
 .footer__firma > .poster.footer__postal:nth-child(even) {
   margin-top: calc(var(--carta-w) * 0.14);
@@ -2565,7 +2603,7 @@ body.is-anchored .about__float {
   padding: 7px;
   box-shadow: 0 14px 30px #000a;
   /* La postal: inclinada y un poco separada del borde derecho. */
-  margin-right: clamp(12px, 4vw, 64px);
+  margin-right: clamp(8px, 2vw, 32px);
   rotate: -6deg;
   /* Solo para mirar: nada de seleccionar, arrastrar ni el menu de guardar
      en el movil (Footer.jsx bloquea el menu contextual). */
@@ -2580,11 +2618,16 @@ body.is-anchored .about__float {
 
 /* El nombre completo, en dos lineas: mas pequeno que las siglas de antes. */
 .poster.footer__carta .poster__titulo {
-  font-size: clamp(11px, 0.82vw, 13px);
+  flex: 1 1 auto;
+  font-size: var(--tit);
   line-height: 1.12;
 }
 
 .poster.footer__carta .poster__cabeza {
+  display: flex;
+  align-items: center;
+  box-sizing: content-box;
+  height: calc(var(--tit) * 2.24);
   padding: 9px 6px 7px;
 }
 
@@ -2608,6 +2651,15 @@ body.is-anchored .about__float {
   height: 14px;
 }
 
+/* La postal ilustrada (Colombia): la siguiente carta tapa su tercio derecho,
+   justo donde va el oso. Ampliada desde la derecha, el oso cae en la parte
+   que queda a la vista. */
+.footer__postal img.poster__vector {
+  object-fit: cover;
+  transform: scale(1.18);
+  transform-origin: 100% 78%;
+}
+
 .footer__foto canvas {
   display: block;
   width: 100%;
@@ -2620,21 +2672,36 @@ body.is-anchored .about__float {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  /* En columna, las postales van bajo los enlaces, a la izquierda. */
+  /* En columna, las postales van bajo los enlaces, las siete en una fila:
+     mas pequenas y solapadas, con menos relleno y letra menor para que el
+     titulo se lea en lo que queda a la vista. */
   .footer__firma {
-    --carta-w: min(140px, 26vw);
+    --carta-w: 19.5vw;
+    --tit: 7px;
     justify-content: flex-start;
-    padding-left: 4px;
+    padding-left: 0;
   }
 
-  /* Algo mas solapadas que en escritorio para que las cinco quepan a lo
-     ancho, y el titulo mas pequeno para que se lea en lo que queda a la vista. */
   .footer__firma > .poster + .poster {
-    margin-left: calc(var(--carta-w) * -0.38);
+    margin-left: calc(var(--carta-w) * -0.39);
+  }
+
+  .poster.footer__carta {
+    padding: 4px;
+  }
+
+  .poster.footer__carta .poster__cabeza {
+    padding: 6px 3px 4px;
   }
 
   .poster.footer__carta .poster__titulo {
-    font-size: 9px;
+    font-stretch: 100%;
+  }
+
+  .poster.footer__carta .poster__pie {
+    margin: 0 2px;
+    padding: 4px 0 0;
+    font-size: 5.5px;
   }
 
   .poster.footer__carta:not(.footer__postal) {
@@ -2654,6 +2721,13 @@ body.is-anchored .about__float {
   display: grid;
   gap: 8px;
   align-content: flex-start;
+}
+
+/* El rol ("Technical Product Manager · Ingeniero mecatronico") en dos
+   lineas: en una sola, la columna media 318 px y no dejaba sitio a las
+   postales al lado. */
+.footer__col:last-child {
+  max-width: 230px;
 }
 
 .footer__col h4 {

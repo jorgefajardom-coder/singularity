@@ -23,13 +23,24 @@ function useInclinar(carta) {
 
 // Postales de viaje que acompanan a la de la foto, abiertas en abanico.
 const postales = [
-  { lugar: "canada", titulo: { es: "Canadá", en: "Canada" }, pie: "56° N", giro: -9 },
-  { lugar: "miami", titulo: { es: "Miami", en: "Miami" }, pie: "25° N", giro: 4 },
-  { lugar: "florida", titulo: { es: "Florida", en: "Florida" }, pie: "28° N", giro: -3 },
-  { lugar: "colombia", titulo: { es: "Colombia", en: "Colombia" }, pie: "4° N", giro: 7 },
+  { lugar: "canada", titulo: { es: "Canadá", en: "Canada" }, pie: "56° N", giro: 9 },
+  { lugar: "miami", titulo: { es: "Miami", en: "Miami" }, pie: "25° N", giro: -5 },
+  { lugar: "florida", titulo: { es: "Florida", en: "Florida" }, pie: "28° N", giro: 4 },
+  { lugar: "china", titulo: { es: "China", en: "China" }, pie: "40° N", giro: -6 },
+  // Colombia no es un dibujo: una ilustracion hecha aparte (Valle del Cocora
+  // con un oso de anteojos), con los mismos colores y matasellos.
+  { lugar: "colombia", titulo: { es: "Colombia", en: "Colombia" }, pie: "4° N", giro: 3,
+    imagen: "images/postal-colombia.webp" },
 ];
 
-function Postal({ lugar, titulo, pie, giro, vol }) {
+// La postal en blanco de quien mira, que puede ser la siguiente del album:
+// cierra el album por la izquierda, al otro lado de Canada. Lleva a Contacto.
+const postalTu = {
+  lugar: "tu", titulo: { es: "¿Y tú?", en: "You?" }, pie: { es: "PRÓXIMO", en: "NEXT" }, giro: -4,
+  href: "#contact", etiqueta: { es: "¿Y tú? Escríbeme y sé la próxima postal", en: "You? Write to me and be the next postcard" },
+};
+
+function Postal({ lugar, titulo, pie, giro, vol, imagen, href, etiqueta }) {
   const { tr } = useLang();
   const carta = useRef(null);
   useInclinar(carta);
@@ -43,20 +54,27 @@ function Postal({ lugar, titulo, pie, giro, vol }) {
     return () => observer.disconnect();
   }, []);
 
+  const Tag = href ? "a" : "article";
   return (
-    <article className="poster footer__carta footer__postal" ref={carta} style={{ "--giro": `${giro}deg` }}>
+    <Tag className={`poster footer__carta footer__postal${href ? " footer__tu" : ""}`} ref={carta}
+      style={{ "--giro": `${giro}deg` }} {...(href ? { href, "aria-label": tr(etiqueta) } : {})}>
       <div className="poster__arte" aria-hidden="true">
-        <PostalArt lugar={lugar} />
+        {imagen ? (
+          <img className="poster__vector" src={`${import.meta.env.BASE_URL}${imagen}`} alt=""
+            width="512" height="512" loading="lazy" decoding="async" draggable="false" />
+        ) : (
+          <PostalArt lugar={lugar} />
+        )}
       </div>
       <header className="poster__cabeza">
         <h3 className="poster__titulo">{tr(titulo)}</h3>
       </header>
       <footer className="poster__pie" aria-hidden="true">
-        <span>VOL. {String(vol).padStart(2, "0")}</span>
+        <span>VOL. {vol ? String(vol).padStart(2, "0") : "??"}</span>
         <span className="poster__estrellas">✦ ✦ ✦</span>
-        <span>{pie}</span>
+        <span>{typeof pie === "string" ? pie : tr(pie)}</span>
       </footer>
-    </article>
+    </Tag>
   );
 }
 
@@ -146,6 +164,7 @@ export default function Footer() {
         {/* Solo la tarjeta: ya lleva el nombre y la foto. El nombre en grande
             se quito (Jorge, 25-09-2026) para aprovechar el espacio. */}
         <div className="footer__firma">
+          <Postal {...postalTu} />
           {postales.map((p, i) => <Postal key={p.lugar} {...p} vol={i + 1} />)}
           <TarjetaFoto />
         </div>

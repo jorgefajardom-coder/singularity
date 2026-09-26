@@ -1,4 +1,4 @@
-import { Component, Suspense, use, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, use, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { View, Environment, Lightformer, PerspectiveCamera } from "@react-three/drei";
 import { Box3, Vector3 } from "three";
@@ -7,10 +7,12 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { assemblyRoot, planAssemblyIdle, prepareAssembly, poseAssembly, disposeAssembly, presentationTime } from "../lib/modelAssembly";
 import { useLang } from "../lib/i18n";
 import { asset } from "../lib/asset";
-import { prefersReducedMotion } from "../lib/anim";
+import { useReducedMotion } from "../lib/anim";
 import { useGpuFallo } from "../lib/gpu";
 import { useRegistrarVista } from "../lib/vistas";
 import { ui } from "../data/content";
+import Carga3D from "../components/Carga3D";
+import { Armazon, ErrorModelo } from "./Armazon";
 
 /**
  * Visor 3D para un proyecto que tiene modelo.
@@ -210,62 +212,6 @@ function Encajado({ url, repeticion, quieto, onReady, activo, montaje }) {
 }
 
 /**
- * Lo que se ve mientras el .glb no existe o todavia esta bajando. No es un
- * hueco vacio a proposito: un visor en blanco parece roto.
- */
-function Armazon({ quieto }) {
-  const piezas = useRef();
-  const anillos = useRef();
-  const tiempo = useRef(0);
-  useFrame((_, dt) => {
-    if (quieto) return;
-    tiempo.current += Math.min(dt, 0.05);
-    const t = tiempo.current;
-    if (anillos.current) {
-      anillos.current.rotation.y = t * 0.65;
-      anillos.current.rotation.z = t * 0.18;
-    }
-    piezas.current?.children.forEach((pieza, i) => {
-      const angle = i * Math.PI / 4 + t * 0.35;
-      const radius = 0.68 + Math.sin(t * 1.8 + i * 0.65) * 0.13;
-      pieza.position.set(Math.cos(angle) * radius, Math.sin(t * 1.8 + i) * 0.22, Math.sin(angle) * radius);
-      pieza.rotation.set(t * 0.4 + i, t * 0.55, 0);
-    });
-  });
-  return (
-    <group scale={0.85}>
-      <group ref={anillos} rotation={[0.5, 0, 0.2]}>
-        {[0, 1, 2].map(i => (
-          <mesh key={i} rotation={[i * Math.PI / 3, i * 0.6, 0]}>
-            <torusGeometry args={[0.95 + i * 0.1, 0.012, 6, 64, Math.PI * 1.5]} />
-            <meshBasicMaterial color={i === 1 ? "#ffd29b" : "#ff6a12"} />
-          </mesh>
-        ))}
-      </group>
-      <group ref={piezas}>
-        {Array.from({ length: 8 }, (_, i) => (
-          <mesh key={i} position={[Math.cos(i * Math.PI / 4) * 0.68, 0, Math.sin(i * Math.PI / 4) * 0.68]}>
-            <boxGeometry args={[0.16, 0.12, 0.2]} />
-            <meshStandardMaterial color={i % 2 ? "#ffb066" : "#ff6a12"} metalness={0.35} roughness={0.4} />
-          </mesh>
-        ))}
-      </group>
-      <mesh rotation={[Math.PI / 4, 0, Math.PI / 4]}>
-        <octahedronGeometry args={[0.22]} />
-        <meshBasicMaterial color="#fff0df" wireframe />
-      </mesh>
-    </group>
-  );
-}
-
-class ModelErrorBoundary extends Component {
-  state = { failed: false };
-  static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch() { this.props.onError(); }
-  render() { return this.state.failed ? null : this.props.children; }
-}
-
-/**
  * El giro.
  *
  * `mando` es un ref y no estado: se escribe desde los eventos de puntero y se
@@ -366,6 +312,10 @@ export default function ModelViewer({ model, label, hint }) {
   const [repeticion, setRepeticion] = useState(0);
   const onReady = useCallback(() => setModeloListo(model), [model]);
   const onError = useCallback(() => setModeloFallido(model), [model]);
+  // Cada reintento monta el cargador de nuevo (la promesa fallida ya se
+  // olvido, ver `cargar`).
+  const [intento, setIntento] = useState(0);
+  const reintentar = useCallback(() => { setModeloFallido(null); setIntento((n) => n + 1); }, []);
   const caja = useRef(null);
   const mando = useRef({ agarrado: false, dx: 0, dy: 0, giro: 0, x: 0, y: 0 });
   const montaje = useRef({ active: true, elapsed: 0 });
@@ -395,7 +345,9 @@ export default function ModelViewer({ model, label, hint }) {
   }, []);
 
   const estado = useHayArchivo(asomado ? url : null, yaPreparado);
-  const quieto = prefersReducedMotion();
+  // Reactivo: si el visitante cambia el ajuste con la pagina abierta, el
+  // visor deja de girar solo (o vuelve a hacerlo) sin recargar.
+  const quieto = useReducedMotion();
 
   // Pixeles de arrastre a radianes. Con la caja mas ancha hace falta mover mas
   // el raton para dar la misma vuelta, que es lo que espera la mano.
@@ -445,7 +397,7 @@ export default function ModelViewer({ model, label, hint }) {
       {gpuCaida ? (
         <>
           <div className="modelo__hueco" />
-          <div className="modelo__carga" role="status"><span>{tr(ui.sin3d)}</span></div>
+          <Carga3D fallo texto={tr(ui.sin3d)} />
         </>
       ) : <>
       {/* El lienzo global no recibe eventos (`pointer-events: none`), asi que
@@ -460,11 +412,11 @@ export default function ModelViewer({ model, label, hint }) {
         <LucesTaller />
         <Girado mando={mando} quieto={quieto} activo={enPantalla} repeticion={repeticion}>
           {estado === "si" ? (
-            <ModelErrorBoundary key={url} onError={onError}>
+            <ErrorModelo key={`${url}#${intento}`} onError={onError}>
               <Suspense fallback={<Armazon quieto={quieto || !enPantalla} />}>
                 <Encajado url={url} repeticion={repeticion} quieto={quieto} onReady={onReady} activo={enPantalla} montaje={montaje} />
               </Suspense>
-            </ModelErrorBoundary>
+            </ErrorModelo>
           ) : (
             <Armazon quieto={quieto || !enPantalla} />
           )}
@@ -474,12 +426,11 @@ export default function ModelViewer({ model, label, hint }) {
       {/* Precargado, el modelo tarda unos cientos de ms en montarse: avisar
           de que se esta preparando solo seria un parpadeo. */}
       {!listo && !yaPreparado && (
-        <div className="modelo__carga" role="status">
-          <span>{fallo || (asomado && estado === "no")
-            ? tr({ es: "No se pudo cargar el modelo", en: "Unable to load model" })
-            : tr({ es: "Preparando la celda 3D", en: "Preparing the 3D cell" })}</span>
-          {!fallo && estado !== "no" && <span className="modelo__progreso" aria-hidden="true" />}
-        </div>
+        fallo || (asomado && estado === "no") ? (
+          <Carga3D fallo texto={tr(ui.fallo3d)} reintentar={fallo ? reintentar : undefined} textoReintentar={tr(ui.reintentar3d)} />
+        ) : (
+          <Carga3D texto={tr({ es: "Preparando la celda 3D", en: "Preparing the 3D cell" })} />
+        )
       )}
       </>}
       <div className="modelo__pie">

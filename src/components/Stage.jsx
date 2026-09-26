@@ -61,6 +61,53 @@ const HOLE_SIZE = { about: 0.5, meditation: 0.62 };
 const span = ([a, b], p) => Math.min(1, Math.max(0, (p - a) / (b - a)));
 // Suaviza los extremos: sin esto cada fase arranca y frena de golpe.
 const ease = (x) => x * x * (3 - 2 * x);
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+
+/**
+ * La pose del agujero durante la orbita, como FUNCION del progreso `p` (y del
+ * reposo del hero, que depende del tamano de pantalla). Nada se acumula de un
+ * fotograma a otro: la misma `p` da siempre la misma pose, se llegue a ella
+ * bajando, subiendo o tras girar el telefono.
+ */
+function poseOrbita(p, rest, j) {
+  const q = clamp(Number.isFinite(p) ? p : 0, 0, 1);
+  const dive = ease(span(DIVE, q));
+  const turn = ease(span(TURN, q));
+  const exit = ease(span(EXIT, q));
+  j.p = q;
+  // Baja a la zona inferior y luego vuelve al centro ya vista desde
+  // arriba: de otro modo media órbita quedaría fuera de pantalla.
+  // El apoyo del hero se desvanece con el primer tramo, para que el
+  // viaje siga saliendo del mismo sitio en el que estaba parado.
+  j.cy = rest.cy * (1 - dive) - 0.46 * dive + 0.40 * turn;
+  j.cx = 0;
+  // En la vista cenital el agujero se queda del tamano de un sol en un
+  // esquema del sistema solar: el protagonista pasan a ser las marcas.
+  // Sale del tamano del hero y llega al de siempre (1.52) al acabar
+  // el primer tramo, para que el viaje no de un salto de escala.
+  j.scale = rest.scale * (1 - dive) + 1.52 * dive + 2.0 * turn + 1.1 * exit;
+  j.topDown = turn;
+  j.fall = span(FALL, q);
+  return j;
+}
+
+/**
+ * Ultima barrera antes de escribir un transform. Las medidas del DOM pueden
+ * llegar a cero o a valores absurdos (un scroll brusco que salta de seccion,
+ * una caja sin maquetar tras girar el telefono) y un `NaN` o un `Infinity` en
+ * un transform hace que el navegador tire la declaracion entera: el lienzo se
+ * quedaba a pantalla completa o desaparecia. Fuera de estos margenes no hay
+ * nada que ver, asi que recortar no cambia ningun fotograma bueno.
+ */
+function transformSeguro(x, y, s, sy, w, h) {
+  if (![x, y, s, sy].every(Number.isFinite)) return null;
+  return {
+    x: clamp(x, -2 * w, 2 * w),
+    y: clamp(y, -4 * h, 4 * h),
+    s: clamp(s, 0.005, 4),
+    sy: clamp(sy, 0.5, 1.5),
+  };
+}
 
 export default function Stage({ entered, warm, espejo }) {
   const stage = useRef(null);
@@ -74,24 +121,27 @@ export default function Stage({ entered, warm, espejo }) {
   // Estado compartido shader <-> DOM. `cx`/`cy` van en fracción de media
   // pantalla con la Y hacia arriba, que es como los quiere el shader.
   const base = heroBase();
-  const journey = useRef({ cx: 0, cy: base.cy, scale: base.scale, topDown: 0, fall: 0, lens: 1, p: 0 });
+  // `heroOut`: cuanto del hero ha salido ya por arriba (0 entero en pantalla,
+  // 1 fuera). La orbita no existe hasta que el hero se ha ido (ver Orbit.jsx).
+  const journey = useRef({ cx: 0, cy: base.cy, scale: base.scale, topDown: 0, fall: 0, lens: 1, p: 0, heroOut: 0 });
   const orbitPose = useRef({ cx: 0, cy: base.cy, scale: base.scale, topDown: 0, fall: 0, p: 0 });
 
   // Al girar el telefono o cambiar el tamano de la ventana, el reposo se
-  // recalcula. Solo mientras el agujero sigue quieto: en pleno viaje manda
-  // el scroll y pisarlo daria un salto.
+  // recalcula y la pose se rehace con el para el progreso en que este el
+  // viaje. Antes solo se hacia con el agujero quieto: girando el telefono a
+  // mitad de la orbita quedaba la geometria del formato anterior hasta el
+  // siguiente evento de scroll. Como la pose es funcion del progreso (ver
+  // `poseOrbita`), rehacerla no da ningun salto: es la que tocaba.
   //
   // Se escribe en `orbitPose` y solo ahi: `journey` lo recalcula `follow()` a
   // partir de el en el fotograma siguiente, asi que escribirlo aqui tambien
   // no hacia nada y hacia pensar que el reposo vive en dos sitios.
   useEffect(() => {
     const onResize = () => {
-      if (orbitPose.current.p > 0.001) return;
       // En vertical el reposo sale del titular medido (ver stagePose.js):
       // se vuelve a medir con el tamano nuevo y con las fuentes ya puestas.
       const next = recalcularHeroBase();
-      orbitPose.current.cy = next.cy;
-      orbitPose.current.scale = next.scale;
+      poseOrbita(orbitPose.current.p, next, orbitPose.current);
     };
     onResize();
     document.fonts?.ready.then(onResize);
@@ -102,6 +152,9 @@ export default function Stage({ entered, warm, espejo }) {
   // En desarrollo, para poder leer la fase desde la consola:
   // window.journey  ->  { p, cy, scale, topDown, fall }
   if (import.meta.env.DEV && typeof window !== "undefined") window.journey = journey;
+  // Y siempre, tambien en produccion, para las pruebas del viaje
+  // (tests/e2e/viaje.spec.js): se lee, no se escribe.
+  if (typeof window !== "undefined") window.__viaje = journey;
 
   useEffect(() => {
     if (!entered || !warm || reduced) return;
@@ -248,8 +301,11 @@ export default function Stage({ entered, warm, espejo }) {
       const frameTop = finalFrame.getBoundingClientRect().top;
       const origin = originalFrame.getBoundingClientRect();
       const stackBox = stackSection.getBoundingClientRect();
-      const coverRect = coverHole ? coverHole.getBoundingClientRect() : null;
-      const rowRect = coverHole ? stackRow.getBoundingClientRect() : null;
+      // La portada y su fila solo cuentan con el Stack ya asomando (ver
+      // `coverMix`): el resto del viaje no se miden.
+      const cercaStack = stackBox.top < innerHeight * 0.85;
+      const coverRect = coverHole && cercaStack ? coverHole.getBoundingClientRect() : null;
+      const rowRect = coverHole && cercaStack ? stackRow.getBoundingClientRect() : null;
       const t = ease(motion.progress);
       const closingProgress = ease(closing.progress);
       // Primero viaja y despues se transforma: con los dos tramos a la vez, a
@@ -342,7 +398,7 @@ export default function Stage({ entered, warm, espejo }) {
         }
       }
       coverHole?.style.setProperty("--stamp", String(stamp));
-      if (coverHole && coverMix > 0) {
+      if (coverRect && coverMix > 0) {
         const target = coverRect;
         for (const key of ["left", "top", "width", "height"]) hand[key] += (target[key] - hand[key]) * coverMix;
         const row = rowRect;
@@ -367,7 +423,11 @@ export default function Stage({ entered, warm, espejo }) {
       const arc = Math.sin(Math.PI * t) ** 2;
       const x = (hand.left + hand.width / 2 - w / 2) * t - w * 0.12 * arc;
       const y = (hand.top + hand.height / 2 - box.top - h / 2) * t - h * 0.16 * arc;
-      layer.style.transform = `translate3d(${x}px, ${y - windup * 24}px, 0) scale(${scale * (1 + windup * .24)}) scaleY(${1 - stamp * 0.22})`;
+      const seguro = transformSeguro(x, y - windup * 24, scale * (1 + windup * .24), 1 - stamp * 0.22, w, h);
+      // Una medida rota se salta el fotograma entero: el lienzo se queda en
+      // el ultimo sitio bueno en vez de irse de la pantalla.
+      if (!seguro) return;
+      layer.style.transform = `translate3d(${seguro.x}px, ${seguro.y}px, 0) scale(${seguro.s}) scaleY(${seguro.sy})`;
       // Vacia el shader mientras el lienzo todavia cubre el viewport, antes de
       // que ninguna traslacion ni escala ensenen sus bordes.
       journey.current.isolation = t > 0 ? 1 : ease(span([0.92, 1], pose.p));
@@ -380,14 +440,14 @@ export default function Stage({ entered, warm, espejo }) {
       layer.style.webkitMaskImage = mask;
       holder.style.zIndex = coverMix > 0 ? "20" : t > 0 ? "2" : "0";
       holder.style.pointerEvents = t > 0 ? "none" : "auto";
-      journey.current.cy = pose.cy * (1 - t);
+      journey.current.cy = clamp(pose.cy * (1 - t), -1.5, 1.5);
       // `uScale` multiplica las coordenadas del shader, asi que un valor MENOR
       // agranda el agujero (ver stagePose.js). Al aterrizar no se queda en 1
       // sino en LANDED: entre las manos el agujero tiene que leerse, y a 1
       // era una chispa. El lienzo es la propia caja del hueco, asi que el
       // disco se recorta contra sus bordes y lo que queda es el aro.
       const growth = HOLE_SIZE.about + (HOLE_SIZE.meditation - HOLE_SIZE.about) * handMix;
-      journey.current.scale = pose.scale * (1 - t) + (LANDED_SCALE * HAND_ROOM / growth) * t;
+      journey.current.scale = clamp(pose.scale * (1 - t) + (LANDED_SCALE * HAND_ROOM / growth) * t, 0.3, 8);
       journey.current.topDown = pose.topDown * (1 - t);
     };
     // El estado de reposo, escrito una vez al volver a el (la ruta rapida de
@@ -482,33 +542,24 @@ export default function Stage({ entered, warm, espejo }) {
         },
       });
 
+      // La salida del hero, medida sobre el hero de verdad (en el telefono no
+      // mide lo mismo que en escritorio). Es el estado que abre la orbita:
+      // con el progreso de la orbita a secas las esferas salian con el hero
+      // casi entero en pantalla, encima de su texto.
+      ScrollTrigger.create({
+        trigger: hero,
+        start: "top top",
+        end: "bottom top",
+        scrub: true,
+        onUpdate: (self) => { journey.current.heroOut = self.progress; },
+      });
+
       ScrollTrigger.create({
         trigger: runway,
         start: "top bottom",
         end: "bottom bottom",
         scrub: true,
-        onUpdate: (self) => {
-          const p = self.progress;
-          const dive = ease(span(DIVE, p));
-          const turn = ease(span(TURN, p));
-          const exit = ease(span(EXIT, p));
-          const j = orbitPose.current;
-          j.p = p;
-          // Baja a la zona inferior y luego vuelve al centro ya vista desde
-          // arriba: de otro modo media órbita quedaría fuera de pantalla.
-          // El apoyo del hero se desvanece con el primer tramo, para que el
-          // viaje siga saliendo del mismo sitio en el que estaba parado.
-          const rest = heroBase();
-          j.cy = rest.cy * (1 - dive) - 0.46 * dive + 0.40 * turn;
-          j.cx = 0;
-          // En la vista cenital el agujero se queda del tamano de un sol en un
-          // esquema del sistema solar: el protagonista pasan a ser las marcas.
-          // Sale del tamano del hero y llega al de siempre (1.52) al acabar
-          // el primer tramo, para que el viaje no de un salto de escala.
-          j.scale = rest.scale * (1 - dive) + 1.52 * dive + 2.0 * turn + 1.1 * exit;
-          j.topDown = turn;
-          j.fall = span(FALL, p);
-        },
+        onUpdate: (self) => { poseOrbita(self.progress, heroBase(), orbitPose.current); },
       });
     }, stage);
 

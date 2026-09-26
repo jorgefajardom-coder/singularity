@@ -5,6 +5,7 @@ import CompanyMark from "./CompanyMark";
 import { useTrasIntro } from "../lib/arranque";
 import { gpuFallo, revisarRenderer, useGpuFallo, vigilarContexto } from "../lib/gpu";
 import { createOrbitSpheresCss } from "../lib/esferasCss";
+import { centroAgujero, marcoAgujero } from "../lib/stagePose";
 
 /**
  * Las marcas en órbita alrededor del agujero negro, cada una en su anillo.
@@ -33,6 +34,11 @@ const INNER_RING = 0.2;
 // marca se lee sobre el naranja encendido y desaparece.
 const radiusOf = (i, n) => (n > 1 ? 0.46 + (i / (n - 1)) * 0.48 : 0.7);
 
+
+// La orbita espera a que el hero se vaya: empieza a aparecer con el 30 % del
+// hero fuera de pantalla y esta entera con el 60 %. Antes, ni se ve ni pinta
+// las esferas (en el telefono salian encima del texto del hero).
+const HERO_FUERA = [0.3, 0.6];
 
 // Vuelta completa en ~50 s. Es giro propio, independiente del scroll: las
 // marcas siguen orbitando aunque la página esté quieta.
@@ -66,9 +72,18 @@ export default function Orbit({ journey, items, note }) {
     let spheres = null;
     let cancelled = false;
     let vivaAntes = null;
+    // El marco del agujero se mide al montar y al cambiar de tamano, no en
+    // cada fotograma (ver `marcoAgujero`).
+    let marco = marcoAgujero();
+    const medir = () => { marco = marcoAgujero(); };
+    window.addEventListener("resize", medir);
 
+    // Logos y anillos son DOM y no esperan a nadie: el ticker va desde el
+    // principio. Las esferas se suman cuando existen. Antes el ticker entero
+    // se enganchaba al terminar de crear las esferas, asi que con la red
+    // lenta (el chunk de three tarda) o si fallaban, las marcas se quedaban
+    // sin colocar.
     const tick = (time) => {
-      if (!spheres) return;
       const j = journey.current;
       const t = time; // El ticker de GSAP entrega segundos.
 
@@ -77,26 +92,27 @@ export default function Orbit({ journey, items, note }) {
       // tamano y reescribir estilos en cada fotograma, con la orbita oculta,
       // obligaba a rehacer el layout de la pagina entera en cada fotograma
       // (~40 % del tiempo de CPU durante el cargador en la Intel).
-      const live = j.p > 0.001 && j.p < 0.999;
+      const salida = smooth(((j.heroOut ?? 1) - HERO_FUERA[0]) / (HERO_FUERA[1] - HERO_FUERA[0]));
+      const live = salida > 0 && j.p > 0.001 && j.p < 0.999;
       if (live !== vivaAntes) {
         vivaAntes = live;
         layer.style.setProperty("--hud", live ? "1" : "0");
         layer.style.visibility = live ? "visible" : "hidden";
       }
       if (!live) return;
-      // La capa es `fixed`: su caja ES el viewport, igual que la del lienzo.
-      const W = layer.clientWidth;
-      const H = layer.clientHeight;
+      // El mismo marco que el lienzo del agujero (100svh), no la caja de esta
+      // capa: ver `marcoAgujero`.
+      const W = marco.w;
+      const H = marco.h;
       if (!W || !H) return;
-      spheres.resize(W, H);
+      spheres?.resize(W, H);
       // El rotulo no aparece hasta que el hero ha salido del todo (si no, se
       // solapa con su pie) y se retira en cuanto empiezan a caer.
       const caption = clamp01((j.p - 0.34) / 0.1) * clamp01(1 - j.fall * 2.6);
       layer.style.setProperty("--note", caption.toFixed(3));
 
       // Mismo convenio que el shader: fracción de media pantalla, +Y arriba.
-      const cx = W * (0.5 + 0.5 * j.cx);
-      const cy = H * (0.5 - 0.5 * j.cy);
+      const { x: cx, y: cy } = centroAgujero(j, W, H);
       // De canto la órbita es ancha y baja; desde arriba se abre en círculo y
       // llega casi al borde, como en un esquema del sistema solar.
       // El limite en X deja sitio para la mitad de la marca mas grande, que va
@@ -111,7 +127,7 @@ export default function Orbit({ journey, items, note }) {
       // las marcas están a la misma distancia y ninguna puede tapar a otra.
       const persp = 1 - j.topDown;
       // Antes de que empiece el viaje las marcas no pintan nada en pantalla.
-      const present = clamp01(j.p / 0.16);
+      const present = clamp01(j.p / 0.16) * salida;
       // Los anillos solo se dibujan cuando hay algo que leer en ellos: de
       // canto serían rayas planas cruzando el disco encendido.
       const ringInk = j.topDown * j.topDown * present;
@@ -156,7 +172,7 @@ export default function Orbit({ journey, items, note }) {
         node.style.opacity = alpha.toFixed(3);
         node.style.setProperty("--logo-opacity", (1 - sphere).toFixed(3));
         node.style.setProperty("--logo-scale", (1 - sphere * 0.7).toFixed(3));
-        spheres.update(i, {
+        spheres?.update(i, {
           x, y, z: depth * r * Math.sqrt(1 - squash * squash),
           radius: logoSize * 0.14 * size * (0.55 + sphere * 0.45),
           opacity: alpha * sphere,
@@ -188,29 +204,29 @@ export default function Orbit({ journey, items, note }) {
         ring.setAttribute("ry", Math.max(r * squash, 0.1).toFixed(1));
         ring.style.opacity = (ringInk * (1 - drop)).toFixed(3);
       }
-      spheres.render();
+      spheres?.render();
     };
 
     // Si la GPU ya fallo, las esferas van en CSS (ver lib/esferasCss.js). En
     // el telefono tambien van en WebGL: en CSS se veian planas y encendidas
     // antes de tiempo (video de Jorge, 26-09-2026).
     let soltar = () => {};
+    gsap.ticker.add(tick);
     if (gpuFallo()) {
       spheres = createOrbitSpheresCss(sphereLayer.current, n);
-      gsap.ticker.add(tick);
     } else {
       import("../three/OrbitSpheres").then(({ createOrbitSpheres }) => {
         if (cancelled) return;
-        spheres = createOrbitSpheres(sphereLayer.current, n);
-        soltar = vigilarContexto(spheres.canvas, "esferas de la orbita");
-        revisarRenderer(spheres.gl);
-        gsap.ticker.add(tick);
+        const creadas = createOrbitSpheres(sphereLayer.current, n);
+        soltar = vigilarContexto(creadas.canvas, "esferas de la orbita");
+        spheres = creadas;
+        revisarRenderer(creadas.gl);
       }).catch((e) => {
-        // Sin el modulo de three (red cortada, chunk viejo) quedan las de CSS.
+        // Sin el modulo de three (red cortada, chunk viejo) o sin poder crear
+        // el contexto, quedan las de CSS; y si tampoco, las marcas solas.
         console.error("[singularity] esferas WebGL no disponibles", e);
         if (cancelled) return;
-        spheres = createOrbitSpheresCss(sphereLayer.current, n);
-        gsap.ticker.add(tick);
+        try { spheres = createOrbitSpheresCss(sphereLayer.current, n); } catch { spheres = null; }
       });
     }
 
@@ -218,6 +234,7 @@ export default function Orbit({ journey, items, note }) {
       cancelled = true;
       soltar();
       gsap.ticker.remove(tick);
+      window.removeEventListener("resize", medir);
       spheres?.dispose();
     };
   }, [journey, items.length, listo, caida]);

@@ -4,7 +4,8 @@ import { useLang } from "../lib/i18n";
 import { GhostHeading, Placeholder, VideoEmbed } from "./ui";
 import { asset } from "../lib/asset";
 import { scroller } from "../lib/anim";
-import { gpuFallo, perfil } from "../lib/gpu";
+import { PRESUPUESTO, gpuFallo, perfil, redCara } from "../lib/gpu";
+import Carga3D from "./Carga3D";
 
 // El visor arrastra consigo el stack 3D. Se carga aparte para que no entre en
 // el bundle principal de quien nunca abre un proyecto con modelo.
@@ -16,12 +17,21 @@ const PLEGADO_MS = 900;
 // Cualquier gesto del visitante suelta la correccion de posicion.
 const GESTOS = ["wheel", "touchstart", "pointerdown", "keydown"];
 
-/** El hueco de un visor mientras llega su codigo: mismo alto y lo dice. */
-function Espera3D({ tr }) {
-  return (
-    <div className="modelo escena__espera" role="status">
+/**
+ * El hueco de un visor mientras llega su codigo: mismo tamano que el visor
+ * que va a entrar (celda o producto) y el mismo aviso que el visor pone
+ * despues (Carga3D), asi que al llegar el chunk no cambia nada de sitio.
+ */
+function Espera3D({ tr, producto = false }) {
+  return producto ? (
+    <div className="producto escena__espera" aria-busy="true">
+      <div className="producto__hueco" />
+      <Carga3D texto={tr(ui.loading3d)} />
+    </div>
+  ) : (
+    <div className="modelo escena__espera" aria-busy="true">
       <div className="modelo__hueco" />
-      <span>{tr(ui.loading3d)}</span>
+      <Carga3D texto={tr(ui.loading3d)} />
     </div>
   );
 }
@@ -88,7 +98,7 @@ export default function Projects() {
    * se compensa en cada fotograma lo que se ha movido el boton tocado, asi
    * que se queda bajo el dedo.
    */
-  const anclar = useRef({ boton: null, antes: 0, hasta: 0, raf: 0 });
+  const anclar = useRef({ boton: null, antes: 0, hasta: 0, obs: null, tope: 0 });
   /**
    * La correccion NO compite con el dedo: en cuanto el visitante hace algo
    * (tocar, rueda, teclado) se suelta el ancla y manda el. Antes seguia
@@ -98,7 +108,9 @@ export default function Projects() {
   const soltarAncla = () => {
     const a = anclar.current;
     a.boton = null;
-    cancelAnimationFrame(a.raf);
+    a.obs?.disconnect();
+    a.obs = null;
+    clearTimeout(a.tope);
     for (const ev of GESTOS) window.removeEventListener(ev, soltarAncla, true);
   };
   const corregir = () => {
@@ -115,15 +127,21 @@ export default function Projects() {
   };
   const alternar = (i, boton) => {
     const a = anclar.current;
-    cancelAnimationFrame(a.raf);
+    a.obs?.disconnect();
+    clearTimeout(a.tope);
     a.boton = boton;
     a.antes = boton.getBoundingClientRect().top;
     a.hasta = performance.now() + PLEGADO_MS;
     setOpen((actual) => (actual === i ? -1 : i));
   };
   // Lo que cambia de golpe (el visor 3D de la fila que se cierra se desmonta
-  // al instante) se corrige antes de pintar; el plegado animado, fotograma a
-  // fotograma hasta que termina o hasta que el visitante toma el mando. Los
+  // al instante) se corrige antes de pintar. El plegado animado, con un
+  // `ResizeObserver` sobre las fichas: avisa DESPUES de maquetar y ANTES de
+  // pintar, solo en los fotogramas en que de verdad cambia algo de alto, asi
+  // que la correccion no depende del orden de los `requestAnimationFrame`
+  // (con un bucle propio, segun quien corriera antes, el boton se pintaba un
+  // fotograma corrido y se veia temblar) ni escribe el scroll sin motivo.
+  // Termina con el plegado o en cuanto el visitante toma el mando. Los
   // oyentes se ponen DESPUES del clic que abrio la fila, para no soltarse con
   // su propio evento.
   useLayoutEffect(() => {
@@ -131,58 +149,73 @@ export default function Projects() {
     if (!a.boton) return undefined;
     corregir();
     for (const ev of GESTOS) window.addEventListener(ev, soltarAncla, { capture: true, passive: true });
-    const seguir = () => {
-      corregir();
-      if (a.boton && performance.now() < a.hasta) a.raf = requestAnimationFrame(seguir);
-      else soltarAncla();
-    };
-    a.raf = requestAnimationFrame(seguir);
+    if (typeof ResizeObserver === "function") {
+      a.obs = new ResizeObserver(corregir);
+      seccion.current?.querySelectorAll(".proj__panel").forEach((el) => a.obs.observe(el));
+    }
+    a.tope = setTimeout(() => { corregir(); soltarAncla(); }, Math.max(0, a.hasta - performance.now()));
     return soltarAncla;
   }, [open]);
 
   /**
    * Los modelos 3D se bajan en segundo plano en cuanto aparece Areas (la
    * seccion de encima), no cuando abre el proyecto: son megabytes, y esperar a
-   * que los pida era ver "Preparando la celda 3D" cada vez. Antes arrancaba a
-   * 1500 px de Proyectos; desde Areas se gana todo el rato que se pasa
-   * leyendolas. Si alguien salta directo a Proyectos por el menu, el
-   * observador de la propia seccion lo cubre.
+   * que los pida era ver "Preparando la celda 3D" cada vez. Desde Areas se
+   * gana todo el rato que se pasa leyendolas. Si alguien salta directo a
+   * Proyectos por el menu, el observador de la propia seccion lo cubre.
    *
-   * Primero los productos (dron y empaque, ~4 MB) y DESPUES la celda (~15 MB):
-   * a la vez se reparten la conexion y el dron, que es el primero de la
-   * lista, tardaria lo que tarda la celda.
-   *
-   * Y con cabeza segun el aparato (ver `perfil` en lib/gpu.js):
-   *   - ahorro de datos, 2G/3G o la GPU ya caida: nada sin pedirlo.
-   *   - telefono o poca memoria: solo los productos, y solo con Proyectos a
-   *     menos de una pantalla. La celda (~15 MB) se baja al abrir su ficha:
-   *     en un movil son megas de datos y de memoria grafica para una seccion
-   *     que quiza no se abra.
+   * Con cabeza segun el aparato y contra el presupuesto de lib/gpu.js
+   * (`PRESUPUESTO.precargaMaxMB`, 20 MB en escritorio y 5 en el telefono):
+   *   - se va sumando el peso de cada modelo y el que no cabe se queda para
+   *     cuando abran su ficha. En el telefono entra el dron (~4 MB) y la
+   *     celda (~15 MB) no: megas de datos y de memoria grafica para una
+   *     seccion que quiza no se abra.
+   *   - el dron, que es la ficha que arranca abierta, va primero; los demas
+   *     arrancan cada uno por su lado cuando termina (o falla) el anterior,
+   *     sin esperar a un `Promise.all` que se para con el primero que falla.
+   *   - ahorro de datos o red 2G/3G, mirada JUSTO antes de cada descarga (se
+   *     puede haber salido del wifi entre tanto), o la GPU caida: nada.
    */
   useEffect(() => {
     const el = seccion.current;
-    const contenido = perfil.movil || perfil.memoriaBaja;
-    const modelos = contenido ? [] : projects.map((p) => p.model).filter(Boolean);
-    const productos = projects.map((p) => p.producto3d?.model).filter(Boolean);
-    if (!el || !(modelos.length || productos.length) || typeof IntersectionObserver !== "function") return undefined;
-    if (perfil.datosCaros || gpuFallo()) return undefined;
+    if (!el || typeof IntersectionObserver !== "function") return undefined;
+    const topeMB = perfil.movil || perfil.memoriaBaja ? PRESUPUESTO.precargaMaxMB.movil : PRESUPUESTO.precargaMaxMB.escritorio;
+    const cola = [
+      ...projects.filter((p) => p.producto3d?.model).map((p) => ({ tipo: "producto", model: p.producto3d.model, mb: p.producto3d.pesoMB ?? Infinity })),
+      ...projects.filter((p) => p.model).map((p) => ({ tipo: "celda", model: p.model, mb: p.modelPesoMB ?? Infinity })),
+    ];
+    const tocan = [];
+    let suma = 0;
+    for (const m of cola) {
+      if (suma + m.mb > topeMB) continue;
+      suma += m.mb;
+      tocan.push(m);
+    }
+    if (!tocan.length || perfil.datosCaros || gpuFallo()) return undefined;
+    let vivo = true;
+    const bajar = (m) => {
+      if (!vivo || gpuFallo() || redCara()) return Promise.resolve();
+      return m.tipo === "producto"
+        ? import("../three/ProductViewer").then(({ preloadProducto }) => preloadProducto(m.model))
+        : import("../three/ModelViewer").then(({ preloadModel }) => preloadModel(m.model));
+    };
     const precargar = () => {
       obs.disconnect();
-      if (gpuFallo()) return;
-      import("../three/ProductViewer")
-        .then(({ preloadProducto }) => Promise.all(productos.map(preloadProducto)))
-        .catch((e) => console.warn("[singularity] precarga de productos 3D", e))
-        .then(() => (modelos.length ? import("../three/ModelViewer") : null))
-        .then((m) => m && modelos.forEach(m.preloadModel))
-        .catch((e) => console.warn("[singularity] precarga de modelos 3D", e));
+      // Uno detras de otro para no repartir la conexion (el dron tardaria lo
+      // que tarda la celda), pero un fallo no para a los siguientes.
+      tocan.reduce(
+        (antes, m) => antes.then(() => bajar(m)).catch((e) => console.warn(`[singularity] precarga 3D (${m.model})`, e)),
+        Promise.resolve(),
+      );
     };
+    const contenido = perfil.movil || perfil.memoriaBaja;
     const obs = new IntersectionObserver((entradas) => {
       if (entradas.some((e) => e.isIntersecting)) precargar();
     }, { rootMargin: contenido ? "0px 0px 100% 0px" : "0px 0px 1500px 0px" });
     const areas = document.getElementById("services");
     if (areas && !contenido) obs.observe(areas);
     obs.observe(el);
-    return () => obs.disconnect();
+    return () => { vivo = false; obs.disconnect(); };
   }, []);
 
   const visible = useMemo(
@@ -320,7 +353,7 @@ export default function Projects() {
                         ha pedido. Al cerrar se desmonta y suelta la memoria. */}
                     {escena && isOpen ? <Escena p={p} name={name} /> : null}
                     {producto && isOpen ? (
-                      <Suspense fallback={<Espera3D tr={tr} />}>
+                      <Suspense fallback={<Espera3D tr={tr} producto />}>
                         <ProductViewer model={producto.model} despiece={producto.despiece} colores={producto.colores} giro={producto.giro} vaiven={producto.vaiven}
                           label={`${name} · ${tr(ui.model3d)} · ${tr(ui.dragToRotate)}`} />
                       </Suspense>

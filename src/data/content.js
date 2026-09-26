@@ -153,6 +153,8 @@ export const ui = {
   loading3d: t("Cargando el modelo 3D…", "Loading the 3D model…"),
   // Cuando la GPU del visitante no da para WebGL (ver lib/gpu.js).
   sin3d: t("El modelo 3D no está disponible en este dispositivo.", "The 3D model isn't available on this device."),
+  fallo3d: t("No se pudo cargar el modelo", "Unable to load model"),
+  reintentar3d: t("Reintentar", "Try again"),
   dragToRotate: t("Arrastra para girar", "Drag to rotate"),
   modelDrag: t("Arrastra para girar", "Drag to rotate"),
   playVideo: t("Ver la simulación", "Watch the simulation"),
@@ -622,6 +624,8 @@ export const projects = [
     // al lado del texto, sin recuadro, y se despieza (ver ProductViewer.jsx).
     producto3d: {
       model: "/models/dron.glb",
+      // Peso del .glb: lo mira la precarga contra su presupuesto (lib/gpu.js).
+      pesoMB: 4.2,
       despiece: [
         // Orden de salida: primero las helices y despues la tapa; al montar
         // se invierte (vuelve la tapa y luego las helices).
@@ -693,6 +697,7 @@ export const projects = [
     // La celda de verdad, la que se simulo en Unity. Se abre al desplegar el
     // proyecto y no antes: son megabytes. Ver ModelViewer.jsx.
     model: "/models/celda-pieces.glb?v=individual-3",
+    modelPesoMB: 14.8,
     // La simulacion en marcha, del repositorio del proyecto. Solo el ID: el
     // iframe no se monta hasta que lo piden (ver VideoEmbed en ui.jsx).
     video: "MrMugpJ7UEQ",

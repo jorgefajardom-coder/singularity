@@ -2153,17 +2153,10 @@ body.is-anchored .about__float {
 .escena__medios .modelo__hueco {
   aspect-ratio: 16 / 9;
 }
-/* El hueco del visor mientras su codigo y el .glb llegan (ver Escena). */
-.escena__espera > span {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-}
+/* El hueco del visor mientras llega su codigo (ver Espera3D en Projects):
+   mismo tamano que el visor que va a entrar y el mismo aviso (Carga3D). */
+.escena__espera { position: relative; }
+.escena__espera .carga3d { top: auto; bottom: 16px; }
 
 .escena__tabs {
   display: flex;
@@ -2286,7 +2279,8 @@ body.is-anchored .about__float {
 .modelo__repetir:hover { background: rgba(255, 106, 18, 0.12); }
 .modelo__repetir:focus-visible { outline: 2px solid #ffb066; outline-offset: 3px; }
 
-.modelo__carga {
+/* El aviso de carga de los dos visores 3D (components/Carga3D.jsx). */
+.carga3d {
   position: absolute;
   left: 16px;
   right: 16px;
@@ -2325,6 +2319,21 @@ body.is-anchored .about__float {
 @media (prefers-reduced-motion: reduce) {
   .modelo__progreso::after { animation: none; width: 100%; opacity: 0.6; }
 }
+
+.carga3d__reintentar {
+  pointer-events: auto;
+  padding: 7px 14px;
+  border: 1px solid rgba(255, 176, 102, 0.5);
+  border-radius: 999px;
+  background: transparent;
+  color: #ffd2ab;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.carga3d__reintentar:hover { background: rgba(255, 106, 18, 0.12); }
+.carga3d__reintentar:focus-visible { outline: 2px solid #ffb066; outline-offset: 3px; }
 
 /* Mientras el .glb no esta, lo que se ve es el armazon de alambre: se dice que
    es un aviso y no el modelo. */
@@ -4123,10 +4132,16 @@ body.is-anchored .about__float {
    primer pixel de scroll, y las marcas tienen que compartir ese mismo marco o
    las dos capas se desincronizan mientras la seccion aun no ha llegado arriba.
    Cubre la pantalla entera: solo las marcas reciben el puntero, el resto tiene
-   que llegar al agujero que hay debajo. */
+   que llegar al agujero que hay debajo. Mide lo mismo que el lienzo
+   (`.stage__void`, 100svh) y no el viewport de cada instante: en el movil
+   este crece al esconderse la barra del navegador y las dos capas dejaban
+   de compartir el centro (Orbit.jsx mide con `marcoAgujero`). */
 .orbit__hud {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100svh;
   z-index: 2;
   pointer-events: none;
   opacity: var(--hud, 0);
@@ -4422,7 +4437,6 @@ body.is-anchored .about__float {
 }
 
 /* Visores de producto: aviso mientras llega el modelo o si no hay 3D. */
-.producto__espera,
 .producto__sin3d {
   display: grid;
   place-items: center;
@@ -4434,12 +4448,16 @@ body.is-anchored .about__float {
   pointer-events: none;
 }
 
+/* El aviso, abajo del hueco: el armazon gira en el centro. */
 .producto__espera {
   position: absolute;
   inset: 0 0 auto 0;
   aspect-ratio: 16 / 9;
   max-height: 290px;
+  pointer-events: none;
 }
+.producto__espera .carga3d { top: auto; bottom: 8px; }
+.producto__sin3d .carga3d { position: static; color: var(--text-dim); }
 
 .producto__sin3d {
   border: 1px dashed rgba(255, 240, 228, 0.18);

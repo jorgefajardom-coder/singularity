@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useRef, useState, Suspense } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { View, useGLTF, Environment, Lightformer, PerspectiveCamera } from "@react-three/drei";
 import { Box3, Color, Vector3 } from "three";
 import { useLang } from "../lib/i18n";
 import { asset } from "../lib/asset";
-import { prefersReducedMotion } from "../lib/anim";
+import { useReducedMotion } from "../lib/anim";
 import { useGpuFallo } from "../lib/gpu";
 import { useRegistrarVista } from "../lib/vistas";
 import { ui } from "../data/content";
+import Carga3D from "../components/Carga3D";
+import { Armazon, ErrorModelo } from "./Armazon";
 
 /**
  * Visor de un PRODUCTO (el dron, su empaque): flota sobre la pagina, sin
@@ -101,10 +103,13 @@ const suave = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 
 function Modelo({ url, despiece, colores, abierto, onReady, giro, vaiven, alzado }) {
   const { scene: original } = useGLTF(url, DRACO());
-  const scene = useMemo(() => {
+  const { scene, clonados } = useMemo(() => {
     const copia = original.clone(true);
     // Los materiales se comparten con el original de la cache: se clonan
-    // antes de repintarlos.
+    // antes de repintarlos. Los clones son solo de este visor y se apuntan
+    // para soltarlos al cerrarlo (los de la cache no se tocan: los usa la
+    // proxima apertura).
+    const clonados = [];
     copia.traverse((o) => {
       if (!o.isMesh) return;
       const regla = colores.find((c) => c.materiales.includes(o.material.name) && deLaPieza(o, c.prefijo));
@@ -113,9 +118,11 @@ function Modelo({ url, despiece, colores, abierto, onReady, giro, vaiven, alzado
       o.material.color = new Color(regla.color);
       o.material.metalness = regla.metal ?? 1;
       o.material.roughness = regla.rugosidad ?? 0.35;
+      clonados.push(o.material);
     });
-    return copia;
+    return { scene: copia, clonados };
   }, [original, colores]);
+  useEffect(() => () => clonados.forEach((m) => m.dispose()), [clonados]);
   const size = useThree((s) => s.size);
 
   // Piezas con su posicion de reposo y hacia donde se apartan.
@@ -299,8 +306,20 @@ export default function ProductViewer({ model, label, despiece, colores = [], gi
   const abierto = useRef(0);
   const alzado = useRef(null);
   const [listo, setListo] = useState(false);
+  const [fallo, setFallo] = useState(false);
+  const [intento, setIntento] = useState(0);
   const [despiezado, setDespiezado] = useState(false);
-  const quieto = prefersReducedMotion();
+  // Reactivo, como en la celda: cambia al cambiar el ajuste del sistema.
+  const quieto = useReducedMotion();
+  const onReady = useCallback(() => setListo(true), []);
+  const onError = useCallback(() => setFallo(true), []);
+  // useGLTF guarda tambien el error en su cache: se borra antes de volver a
+  // pedirlo, o el reintento fallaria al instante con el error viejo.
+  const reintentar = useCallback(() => {
+    useGLTF.clear(url);
+    setFallo(false);
+    setIntento((n) => n + 1);
+  }, [url]);
   const gpuCaida = useGpuFallo();
   useRegistrarVista(caja);
 
@@ -350,25 +369,37 @@ export default function ProductViewer({ model, label, despiece, colores = [], gi
 
   return (
     <div className="producto" ref={caja} data-listo={listo ? "true" : "false"}
+      aria-busy={!gpuCaida && !listo && !fallo}
       onPointerDown={agarrar} onPointerMove={girar} onPointerUp={soltar}
       onPointerCancel={soltar} onPointerLeave={soltar}>
       {gpuCaida ? (
-        <div className="producto__hueco producto__sin3d" role="status"><span>{tr(ui.sin3d)}</span></div>
+        <div className="producto__hueco producto__sin3d"><Carga3D fallo texto={tr(ui.sin3d)} /></div>
       ) : (
       <View className="producto__hueco">
         <PerspectiveCamera makeDefault fov={35} position={[0, 0, 6]} onUpdate={(c) => c.lookAt(0, 0, 0)} />
         <Luces />
         <group ref={alzado}>
           <Girado mando={mando} quieto={quieto} giro={giro} vaiven={vaiven}>
-            <Suspense fallback={null}>
-              <Modelo url={url} despiece={despiece} colores={colores} abierto={abierto} onReady={() => setListo(true)} giro={giro} vaiven={vaiven} alzado={alzado} />
-            </Suspense>
+            {fallo ? null : (
+              <ErrorModelo key={`${url}#${intento}`} onError={onError}>
+                <Suspense fallback={<Armazon quieto={quieto} />}>
+                  <Modelo url={url} despiece={despiece} colores={colores} abierto={abierto} onReady={onReady} giro={giro} vaiven={vaiven} alzado={alzado} />
+                </Suspense>
+              </ErrorModelo>
+            )}
           </Girado>
         </group>
       </View>
       )}
-      {/* Mientras llega el modelo, el hueco lo dice (antes quedaba vacio). */}
-      {!gpuCaida && !listo && <div className="producto__espera" role="status"><span>{tr(ui.loading3d)}</span></div>}
+      {/* Mientras llega el modelo, el mismo aviso que la celda; si no llega,
+          el error y un reintento, sin tumbar la ficha. */}
+      {!gpuCaida && !listo && (
+        <div className="producto__espera">
+          {fallo
+            ? <Carga3D fallo texto={tr(ui.fallo3d)} reintentar={reintentar} textoReintentar={tr(ui.reintentar3d)} />
+            : <Carga3D texto={tr(ui.loading3d)} />}
+        </div>
+      )}
       <div className="producto__pie">
         <span className="producto__nombre">{label}</span>
         <button type="button" className="producto__boton" onPointerDown={(e) => e.stopPropagation()}

@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, advance, useThree } from "@react-three/fiber";
 import { View, Preload } from "@react-three/drei";
 import { PRESUPUESTO, marcarGpuFallo, perfil, revisarRenderer } from "../lib/gpu";
 import { useVistas } from "../lib/vistas";
+import { gsap } from "../lib/anim";
 
 /**
  * Un ÚNICO <Canvas> fijo a pantalla completa para todo el sitio.
@@ -30,15 +31,43 @@ const CANVAS_STYLE = {
 };
 
 /**
- * Sin ninguna vista en pantalla el lienzo deja de pintar en bucle. Antes de
- * parar hace UN fotograma mas: con las vistas fuera, ese fotograma limpia el
- * lienzo y no queda ningun objeto congelado encima de otra seccion.
+ * EL LIENZO PINTA DESPUES DEL SCROLL, EN EL MISMO FOTOGRAMA.
+ *
+ * Cada <View> se coloca leyendo la caja de su hueco en el DOM. Con el bucle
+ * propio de r3f (su `requestAnimationFrame`) el orden frente a Lenis —que
+ * mueve el scroll desde el ticker de GSAP— era cuestion de suerte: si r3f
+ * pintaba antes, leia la caja del fotograma anterior y el modelo iba un
+ * fotograma por detras de su hueco; con un scroll rapido eso son decenas de
+ * pixeles y el modelo se veia despegado. Aqui el lienzo no tiene bucle
+ * (`frameloop="never"`) y lo pinta el ticker de GSAP, que ya ha pasado por
+ * Lenis (se engancha antes, al montar App).
+ *
+ * Sin ninguna vista en pantalla no se pinta. Antes de parar se hace UN
+ * fotograma mas: con las vistas fuera, ese fotograma limpia el lienzo y no
+ * queda ningun objeto congelado encima de otra seccion.
  */
-function Pausa({ activo }) {
-  const invalidate = useThree((s) => s.invalidate);
+function Reloj({ activo }) {
+  const get = useThree((s) => s.get);
+  const estado = useRef({ activo, pendientes: 1, primero: true });
   useEffect(() => {
-    if (!activo) invalidate();
-  }, [activo, invalidate]);
+    const e = estado.current;
+    e.activo = activo;
+    if (!activo) e.pendientes = 1;
+  }, [activo]);
+  useEffect(() => {
+    const e = estado.current;
+    const pintar = (time) => {
+      if (!e.activo && e.pendientes <= 0) return;
+      if (!e.activo) e.pendientes--;
+      const s = get();
+      // El reloj de r3f arranca en 0 y el de GSAP no: sin igualarlos, el
+      // primer fotograma llegaria con un `delta` de minutos.
+      if (e.primero) { s.clock.elapsedTime = time; e.primero = false; }
+      advance(time, false, s);
+    };
+    gsap.ticker.add(pintar);
+    return () => gsap.ticker.remove(pintar);
+  }, [get]);
   return null;
 }
 
@@ -77,12 +106,12 @@ export default function ViewCanvas({ eventSource }) {
       eventSource={eventSource}
       eventPrefix="client"
       dpr={movil ? [1, PRESUPUESTO.dprMovil] : [1, 2]}
-      frameloop={activo ? "always" : "demand"}
+      frameloop="never"
       gl={opciones.current}
       camera={{ fov: 35, position: [0, 0, 6] }}
     >
       <Vigilar />
-      <Pausa activo={activo} />
+      <Reloj activo={activo} />
       <View.Port />
       {!movil && <Preload all />}
     </Canvas>

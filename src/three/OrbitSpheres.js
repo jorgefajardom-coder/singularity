@@ -3,15 +3,24 @@ import {
   MeshStandardMaterial, OrthographicCamera, Scene, ShaderMaterial,
   SphereGeometry, WebGLRenderer,
 } from "three";
+import { PRESUPUESTO, perfil } from "../lib/gpu";
 
 // Una sola escena para todas las esferas. Las coordenadas en píxeles permiten
 // compartir exactamente la trayectoria de los logos sin transformar el canvas.
 export function createOrbitSpheres(host, count) {
-  const renderer = new WebGLRenderer({ alpha: true, antialias: true });
+  // En el telefono, con el presupuesto de alli (ver lib/gpu.js): densidad 1,
+  // sin antialias (a esa densidad de pantalla apenas se nota y dobla las
+  // muestras) y sin pedir la GPU de alto consumo.
+  const movil = perfil.movil;
+  const renderer = new WebGLRenderer({
+    alpha: true,
+    antialias: !movil,
+    powerPreference: movil ? "default" : "high-performance",
+  });
   renderer.setClearColor(0x000000, 0);
   renderer.toneMapping = ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, movil ? PRESUPUESTO.dprMovil : 1.5));
   host.appendChild(renderer.domElement);
   const scene = new Scene();
   const camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 4000);

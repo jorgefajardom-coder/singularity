@@ -44,6 +44,17 @@ export function calcularPerfil(win = typeof window === "undefined" ? undefined :
 export const perfil = calcularPerfil();
 
 /**
+ * La red AHORA, no al cargar la pagina. El resto del perfil no cambia en una
+ * visita, pero la red si: se sale del wifi y se sigue con datos. Lo consulta
+ * quien va a lanzar una descarga grande justo antes de lanzarla.
+ */
+export function redCara(win = typeof window === "undefined" ? undefined : window) {
+  const red = win?.navigator?.connection;
+  if (!red) return perfil.datosCaros;
+  return Boolean(red.saveData) || /(^|-)(2g|3g)$/.test(red.effectiveType || "");
+}
+
+/**
  * Presupuesto de rendimiento. No es decorativo: lo leen el codigo (densidad,
  * pasos del shader) y las pruebas (tests/movil.spec.js), que fallan si la
  * pagina se sale de el.

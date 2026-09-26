@@ -86,6 +86,36 @@ function medirVertical() {
   return { cy, scale };
 }
 
+/**
+ * El marco fisico del agujero: la caja de `.stage__void` (100svh). Todo lo que
+ * se coloca sobre el agujero (marcas, anillos, esferas) mide con ESTE ancho y
+ * alto, no con el de su propia capa: en el movil una capa `fixed` mide el
+ * viewport de ese instante, que crece al esconderse la barra del navegador, y
+ * el centro se descolocaba media barra respecto al del shader.
+ */
+export function marcoAgujero() {
+  const lienzo = typeof document !== "undefined" ? document.querySelector(".stage__void") : null;
+  const w = lienzo?.clientWidth || (typeof window !== "undefined" ? window.innerWidth : 0);
+  const h = lienzo?.clientHeight || (typeof window !== "undefined" ? window.innerHeight : 0);
+  return { w, h };
+}
+
+/**
+ * Donde pinta el shader el CENTRO del agujero, en pixeles del marco.
+ *
+ * Es la misma conversion que hace el shader (`uCenter`, fraccion de media
+ * pantalla con la Y hacia arriba): el rayo del centro del lienzo sale por
+ * `uCenter` y la camara apunta al agujero, asi que su centro cae ahi con
+ * cualquier `scale` y cualquier inclinacion. OJO: no es el centro de la mancha
+ * negra. De canto, la mitad cercana del disco tapa la parte de abajo de la
+ * sombra y la mancha se ve mas alta (`SUBE_UV / scale`, lo que usa el reposo
+ * del titular); las orbitas giran alrededor del agujero, no de la mancha, y
+ * vistas desde arriba (donde se leen) las dos coinciden.
+ */
+export function centroAgujero(j, w, h) {
+  return { x: w * (0.5 + 0.5 * j.cx), y: h * (0.5 - 0.5 * j.cy) };
+}
+
 /** Recalcula (al montar, con las fuentes cargadas, al cambiar de tamano). */
 export function recalcularHeroBase() {
   cache = null;

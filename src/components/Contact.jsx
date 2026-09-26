@@ -7,15 +7,15 @@ const PropsView = lazy(() =>
 import { useLang } from "../lib/i18n";
 import { GhostHeading } from "./ui";
 import SplitText from "./SplitText";
+import { enlaceCorreo } from "../lib/correo";
 
-/** El mismo mensaje como enlace `mailto:`, para el respaldo. */
-function comoMailto(data) {
-  const subject = encodeURIComponent(`Portfolio: ${data.get("name") || ""}`);
+/** El mismo mensaje ya escrito, para el enlace de respaldo. */
+function comoCorreo(data) {
   const phone = String(data.get("phone") || "").trim();
-  const body = encodeURIComponent(
-    `${data.get("name") || ""}\n${data.get("email") || ""}${phone ? `\n${phone}` : ""}\n\n${data.get("message") || ""}`
-  );
-  return `mailto:${site.email}?subject=${subject}&body=${body}`;
+  return enlaceCorreo(site.email, {
+    asunto: `Portfolio: ${data.get("name") || ""}`,
+    cuerpo: `${data.get("name") || ""}\n${data.get("email") || ""}${phone ? `\n${phone}` : ""}\n\n${data.get("message") || ""}`,
+  });
 }
 
 /**
@@ -27,20 +27,21 @@ function comoMailto(data) {
  * `{ ok, error }` con `Access-Control-Allow-Origin: *`, asi que se puede leer.
  *
  * Si falla (sin red, el script caido, el limite de envios), el mensaje no se
- * pierde: aparece el correo con un enlace `mailto:` que ya lleva lo escrito.
+ * pierde: aparece el correo como enlace (Gmail en computador, la app de
+ * correo en el telefono, ver lib/correo.js) que ya lleva lo escrito.
  */
 export default function Contact() {
   const { tr } = useLang();
   // "listo" | "enviando" | "enviado" | "error" | "limite"
   const [estado, setEstado] = useState("listo");
-  const [respaldo, setRespaldo] = useState(`mailto:${site.email}`);
+  const [respaldo, setRespaldo] = useState(() => enlaceCorreo(site.email));
 
   const onSubmit = async (e) => {
     e.preventDefault();
     if (estado === "enviando") return;
     const form = e.currentTarget;
     const data = new FormData(form);
-    setRespaldo(comoMailto(data));
+    setRespaldo(comoCorreo(data));
     // Campo trampa: una persona no lo ve ni lo rellena.
     if (String(data.get("sitio") || "")) {
       setEstado("enviado");
@@ -92,7 +93,7 @@ export default function Contact() {
               {tr(sections.contact.heading)}
             </GhostHeading>
 
-            <a className="contact__mail" href={`mailto:${site.email}`}>
+            <a className="contact__mail" {...enlaceCorreo(site.email)}>
               {site.email}
             </a>
 
@@ -133,7 +134,7 @@ export default function Contact() {
               {estado === "error" || estado === "limite" ? (
                 <>
                   {tr(estado === "limite" ? ui.sendLimit : ui.sendError)}{" "}
-                  <a href={respaldo}>{site.email}</a>
+                  <a {...respaldo}>{site.email}</a>
                 </>
               ) : null}
             </p>

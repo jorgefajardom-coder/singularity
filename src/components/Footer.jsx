@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { site, socials, nav, ui } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { pintarFoto } from "../lib/fotoProtegida";
+import { enlaceCorreo } from "../lib/correo";
 import PostalArt from "./PostalArt";
 
 // Como las cartas del Stack: se levanta y se inclina hacia el puntero.
@@ -168,7 +169,7 @@ export default function Footer() {
 
           <div className="footer__col">
             <h4>{tr(ui.contact)}</h4>
-            <a href={`mailto:${site.email}`}>{site.email}</a>
+            <a {...enlaceCorreo(site.email)}>{site.email}</a>
             <span>{tr(site.location)}</span>
             <span>{tr(site.role)}</span>
           </div>

@@ -163,22 +163,25 @@ export default function Certifications() {
       <div className="shell">
         <div className="constels">
           {groups.map((g, i) => (
-            <Constelacion key={i} label={tr(g.label)} figura={FIGURAS[g.figure] ?? FIGURAS.birrete} items={g.items} />
+            <Constelacion key={i} label={tr(g.label)} figura={FIGURAS[g.figure] ?? FIGURAS.birrete} items={g.items}>
+              {/* La burbuja a LinkedIn cierra la ultima leyenda (bajo MATLAB
+                  Onramp), no la pagina: se lee como el paso siguiente. */}
+              {linkedin && i === groups.length - 1 ? (
+                <div className="certs__mas">
+                  <a className="proj__live" href={linkedin} target="_blank" rel="noreferrer noopener">
+                    {tr(sections.certifications.more)}
+                  </a>
+                </div>
+              ) : null}
+            </Constelacion>
           ))}
         </div>
-        {linkedin ? (
-          <div className="certs__mas">
-            <a className="proj__live" href={linkedin} target="_blank" rel="noreferrer noopener">
-              {tr(sections.certifications.more)}
-            </a>
-          </div>
-        ) : null}
       </div>
     </section>
   );
 }
 
-function Constelacion({ label, items, figura }) {
+function Constelacion({ label, items, figura, children }) {
   const { tr } = useLang();
   const ref = useRef(null);
   const [lit, setLit] = useState(false);
@@ -273,6 +276,7 @@ function Constelacion({ label, items, figura }) {
         </svg>
         </div>
 
+        <div className="constel__lado">
         <ol className="constel__legend">
           {lista.map((c, i) => {
             const title = tr(c.title);
@@ -328,6 +332,8 @@ function Constelacion({ label, items, figura }) {
             );
           })}
         </ol>
+        {children}
+        </div>
       </div>
     </div>
   );

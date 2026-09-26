@@ -3465,17 +3465,38 @@ body.is-anchored .about__float {
    movil van una debajo de otra, con la leyenda bajo la figura. */
 /* La burbuja de LinkedIn al pie de Formacion: la misma pastilla naranja de
    los enlaces de Proyectos, centrada bajo las constelaciones. */
+/* Bajo la ultima linea de la leyenda, alineada con los titulos (tras el
+   numeral), y entra detras de ellas. */
 .certs__mas {
   display: flex;
-  justify-content: center;
-  margin-top: clamp(28px, 5svh, 56px);
-  position: relative;
-  z-index: 2;
+  /* El numeral mide 2.2em de 11px, mas el hueco de 12px. */
+  margin: clamp(16px, 3svh, 26px) 0 0 calc(2.2 * 11px + 12px);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+  transition-delay: calc(0.35s + var(--n) * 0.22s);
 }
 
+.constel-group[data-lit="true"] .certs__mas {
+  opacity: 1;
+  transform: none;
+}
+
+/* Mas compacta que antes: ahora cabe en el ancho de la leyenda. */
 .certs__mas .proj__live {
-  font-size: 11px;
-  padding: 12px 24px;
+  max-width: 100%;
+  padding: 11px 16px;
+  letter-spacing: 0.1em;
+  line-height: 1.35;
+  /* Si la leyenda es estrecha (dos figuras lado a lado en ~1000 px), el
+     texto pasa a dos lineas en vez de salirse de la pagina. */
+  white-space: normal;
+}
+
+@media (min-width: 901px) and (max-width: 1240px) {
+  .certs__mas {
+    margin-left: 0;
+  }
 }
 
 .constels {
@@ -3879,7 +3900,7 @@ body.is-anchored .about__float {
     justify-items: center;
   }
 
-  .constel__legend {
+  .constel__lado {
     justify-self: stretch;
   }
 
@@ -3895,7 +3916,8 @@ body.is-anchored .about__float {
   .constel__core,
   .constel__halo,
   .constel__num,
-  .constel__legend li {
+  .constel__legend li,
+  .certs__mas {
     transition: none;
   }
 

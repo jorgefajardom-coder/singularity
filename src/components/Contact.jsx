@@ -83,7 +83,9 @@ export default function Contact() {
   return (
     <section id="contact" className="section">
       <div className="shell">
-        <div className="panel panel--paper contact">
+        {/* `data-encuadre`: lo que un enlace a #contact deja entero en pantalla
+            (ver `destinoAncla` en lib/anim.js), no el borde de la seccion. */}
+        <div className="panel panel--paper contact" data-encuadre>
           <Suspense fallback={null}>
             <PropsView className="contact__view" items={props3d.contact} parallax={0.3} />
           </Suspense>

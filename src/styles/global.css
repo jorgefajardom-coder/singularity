@@ -649,11 +649,22 @@ body.is-locked {
   width: 100%; height: 100%; min-height: 280px;
   background: radial-gradient(circle closest-side at center, #000 36%, var(--accent-a) 39%, var(--accent-c) 46%, var(--ember-deep) 62%, transparent 100%);
 }
-/* Los cuerpos del halo en el telefono: el mismo agujero, con el color del area. */
+/* Los cuerpos del halo en el telefono: un fotograma del mismo shader con el
+   color del area (ver Halo.jsx), que gira despacio como el disco de verdad. */
 .halo__plain {
   display: block;
-  background: radial-gradient(circle closest-side at center, #000 30%, #fff 33%, var(--body-ink) 42%, color-mix(in srgb, var(--body-ink) 35%, transparent) 64%, transparent 100%);
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: contain;
+  /* Mientras llega la imagen: el agujero en su color, como antes. */
+  background: radial-gradient(circle closest-side at center, #000 30%, color-mix(in srgb, var(--body-ink) 45%, transparent) 42%, transparent 70%);
+  border-radius: 50%;
 }
+@media (prefers-reduced-motion: no-preference) {
+  .halo__plain { animation: halo-giro 36s linear infinite; }
+}
+@keyframes halo-giro { to { rotate: -360deg; } }
 .loader__singularity {
   /* La misma caja que .hero__void: al fundirse el cargador, el agujero que
      queda detrás está exactamente donde estaba este. */
@@ -664,8 +675,10 @@ body.is-locked {
   height: 100svh;
   background: #000;
 }
-/* Durante la selección el canvas ya está vivo, solo que oculto: así llega
-   compilado y con su primer fotograma dibujado al momento de transformarse. */
+/* Durante la carga y la selección el canvas ya está vivo, solo que oculto: así
+   llega compilado y con su primer fotograma dibujado al momento de
+   transformarse (compilarlo es parte del porcentaje). */
+.loader[data-phase="loading"] .loader__singularity,
 .loader[data-phase="choose"] .loader__singularity { opacity: 0; pointer-events: none; }
 .loader__singularity .blackhole { height: 100%; border-radius: 0; }
 .loader__singularity .blackhole__surface { min-height: 0; }
@@ -1261,12 +1274,30 @@ body.is-locked {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* En el telefono el ancho manda: a 38vw (148 px en 390) el conjunto dejaba
+   medio marco vacio entre los contadores y la galaxia de arriba (Jorge,
+   26-09-2026). El techo lo pone el halo, que en escritorio mide 2,4 veces el
+   retrato y aqui topaba en 82vw (2,16 veces a 38vw). A 46vw con el halo hasta
+   96vw queda a 2,09: la misma proporcion que ya tenia el telefono, un 20 %
+   mas grande, con las galaxias de los lados y sus nombres dentro de la
+   pantalla. El tope en svh es para telefonos bajos. `--medita-w` lo
+   comparten el retrato y los contadores, que van pegados encima de la
+   aureola. */
+@media (max-width: 600px) {
+  .meditation__frame { --medita-w: min(46vw, 22svh); }
+  .meditation__portrait { width: var(--medita-w); }
+}
+
 /* En el telefono la figura ocupa el ancho de abajo y los contadores se le
    montaban en la rodilla: suben arriba, bajo la barra, centrados. */
 @media (max-width: 600px) {
   .meditation__stats {
-    right: 0; left: 0; bottom: auto;
-    top: calc(var(--alto-barra, 80px) + 4px);
+    right: 0; left: 0; top: auto;
+    /* Justo encima de la galaxia de arriba. El centro del halo queda a
+       1,4955 anchos de retrato del suelo (alto 1,5, subido un 19,7 %, centro
+       al 20 %) y la galaxia de arriba asoma 0,5564 anchos de halo por encima
+       (medido en 390x844). El ancho del halo es el de su regla en telefono. */
+    bottom: calc(var(--medita-w) * 1.4955 + min(var(--medita-w) * 2.4, 96vw, 90svh) * 0.5564 + 12px);
     justify-content: center;
     gap: 7px;
   }
@@ -1327,6 +1358,11 @@ body.is-locked {
   z-index: 4;
 }
 .halo { transition: transform 1s cubic-bezier(0.22, 0.61, 0.36, 1); }
+/* Telefono: el halo llega a 96vw en vez de 82vw (ver `--medita-w`). Va aqui,
+   DETRAS de la regla de `.halo`, o esta la pisa. */
+@media (max-width: 600px) {
+  .halo { width: min(240%, 96vw, 90svh); }
+}
 
 .halo__rings {
   position: absolute;
@@ -2611,6 +2647,28 @@ body.is-anchored .about__float {
   }
 }
 
+/* Pantallas de escritorio bajas (la de Jorge: 1536x639). La tarjeta medía
+   685 px y bajo la barra caben 561: el enlace a #contact la dejaba con el
+   boton de enviar fuera. Compacta, cabe entera y se centra en el hueco (ver
+   `destinoAncla` en lib/anim.js). */
+@media (min-width: 861px) and (max-height: 760px) {
+  .contact {
+    padding-top: clamp(36px, 4vw, 56px);
+    padding-bottom: clamp(28px, 3vw, 40px);
+  }
+  .contact .field {
+    margin-bottom: 12px;
+  }
+  .contact .field input,
+  .contact .field textarea {
+    padding: 8px 0;
+  }
+  .contact .field textarea {
+    min-height: 64px;
+    height: 72px;
+  }
+}
+
 /* ============================================================
    Footer
    ============================================================ */
@@ -3139,16 +3197,12 @@ body.is-anchored .about__float {
     letter-spacing: 0.02em;
   }
 
-  /* Un solo boton de idioma: el que NO esta activo, que es al que se
-     cambia. El activo y su indicador se quitan. */
-  .nav__controls .langtoggle__btn[aria-pressed="true"],
-  .nav__controls .langtoggle__knob {
-    display: none;
-  }
-
+  /* Los dos idiomas siguen a la vista, solo mas juntos. Antes se quitaba el
+     activo y quedaba un "EN" suelto que no decia en que idioma estaba la
+     pagina (Jorge, 26-09-2026). Medido: a 320 px los controles van de 81 a
+     239, con 12 px libres hasta el nombre y 31 hasta el sobre. */
   .nav__controls .langtoggle__btn {
-    color: var(--text);
-    padding-inline: 10px;
+    padding-inline: 7px;
   }
 }
 
@@ -3634,6 +3688,73 @@ body.is-anchored .about__float {
   background: var(--accent-b);
   color: var(--ink);
   transform: rotate(45deg);
+}
+
+/* La fila final "En documentacion": no se abre, asi que ni cursor ni +. El
+   borde discontinuo dice que la lista sigue abierta por abajo. */
+.proj__row--pronto {
+  border-bottom-style: dashed;
+}
+.proj__row--pronto .proj__btn {
+  cursor: default;
+}
+.proj__row--pronto .proj__num {
+  position: relative;
+  color: transparent;
+}
+.proj__row--pronto .proj__num::after {
+  content: "··";
+  position: absolute;
+  inset: 0;
+  text-align: center;
+  color: var(--text);
+}
+.proj__row--pronto .proj__client {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent-a);
+}
+.proj__row--pronto .proj__name {
+  opacity: 0.55;
+}
+.proj__nota {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+.proj__pulso {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-b);
+  box-shadow: 0 0 10px rgba(255, 106, 18, 0.7);
+}
+/* Cinta de obra en lugar del +: franjas naranjas que avanzan despacio. */
+.proj__obra {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border: 1.5px dashed var(--accent-b);
+  border-radius: 999px;
+  background: repeating-linear-gradient(-45deg, rgba(255, 106, 18, 0.35) 0 6px, transparent 6px 12px);
+  background-size: 17px 17px;
+  opacity: 0.8;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .proj__pulso {
+    animation: proj-brillo-pulso 1.6s ease-in-out infinite;
+  }
+  .proj__obra {
+    animation: proj-obra 1.2s linear infinite;
+  }
+}
+@keyframes proj-brillo-pulso {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+@keyframes proj-obra {
+  to { background-position: 17px 0; }
 }
 
 /* ============================================================

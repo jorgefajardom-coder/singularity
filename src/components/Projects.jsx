@@ -413,6 +413,25 @@ export default function Projects() {
               </article>
             );
           })}
+
+          {/* La ultima fila no se abre: avisa de que la lista sigue creciendo.
+              Mismo trazo que las fichas para que se lea como parte de ellas. */}
+          <div className="proj__row proj__row--pronto">
+            <div className="proj__btn">
+              {/* "00" invisible guarda el ancho de los numeros: con "··" el texto
+                  se corria a la izquierda de la columna de arriba. */}
+              <span className="proj__num" aria-hidden="true">00</span>
+              <span className="proj__id">
+                <span className="proj__client">
+                  <span className="proj__pulso" aria-hidden="true" />
+                  {tr(ui.projBuilding)}
+                </span>
+                <span className="proj__name">{tr(ui.projMore)}</span>
+                <span className="proj__nota">{tr(ui.projMoreNote)}</span>
+              </span>
+              <span className="proj__obra" aria-hidden="true" />
+            </div>
+          </div>
         </div>
       </div>
     </section>

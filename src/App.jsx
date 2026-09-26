@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 
 // El stack 3D (three + r3f, 1,16 MB) se carga aparte. Si se importa de forma
 // estatica, el navegador tiene que parsearlo entero ANTES de poder pintar el
@@ -19,7 +19,7 @@ import Aislado from "./components/Aislado";
 import { LangProvider } from "./lib/i18n";
 import { MusicProvider } from "./lib/music";
 import { marcarIntroTerminada, useTrasIntro } from "./lib/arranque";
-import { useSmoothScroll, useReveal, ScrollTrigger, scroller, altoBarra } from "./lib/anim";
+import { useSmoothScroll, useReveal, ScrollTrigger, scroller, destinoAncla } from "./lib/anim";
 import { perfil, useGpuFallo } from "./lib/gpu";
 import { useVistas } from "./lib/vistas";
 
@@ -47,18 +47,22 @@ export default function App() {
   const root = useRef(null);
   // El sitio no se recorre hasta que el cargador entrega el idioma elegido
   const [entered, setEntered] = useState(false);
-  // Los lienzos WebGL se montan ANTES de que el usuario elija idioma, detras
-  // del cargador, que es opaco y los tapa. Montarlos al empezar el morph
-  // costaba ~97 ms de parón justo en el fotograma mas visible.
+  // Los lienzos WebGL se montan mientras sube el porcentaje, detras del
+  // cargador, que es opaco y los tapa: son parte de la carga que cuenta.
+  // Montarlos al empezar el morph costaba ~97 ms de parón justo en el
+  // fotograma mas visible.
   const [warm, setWarm] = useState(false);
   // El cargador no se desmonta al entrar: se queda encima mientras se funde,
   // con el sitio ya montado debajo. Sin eso quedaría un negro entre los dos.
   const [introGone, setIntroGone] = useState(false);
   const [holeReady, setHoleReady] = useState(false);
+  // El agujero del hero ya compilado: el cargador no cierra su ∞ sin el.
+  const [heroListo, setHeroListo] = useState(false);
   // Durante la intro los dos lienzos del agujero negro estan vivos a la vez.
   // Aqui el del cargador publica su estado y el del hero lo copia, para que el
   // relevo no cruce dos imagenes distintas (ver BlackHole.jsx).
   const espejo = useRef(null);
+  const marcarHeroListo = useCallback(() => setHeroListo(true), []);
 
   useSmoothScroll();
   useReveal(root);
@@ -86,7 +90,7 @@ export default function App() {
     try { destino = location.hash ? document.querySelector(decodeURIComponent(location.hash)) : null; } catch { destino = null; }
     const lenis = scroller.current;
     if (destino) {
-      if (lenis) lenis.scrollTo(destino, { immediate: true, force: true, offset: -(altoBarra() + 8) });
+      if (lenis) lenis.scrollTo(destinoAncla(destino), { immediate: true, force: true });
       else destino.scrollIntoView();
     } else if (window.scrollY !== 0) {
       window.scrollTo({ top: 0, behavior: "instant" });
@@ -104,7 +108,7 @@ export default function App() {
   return (
     <LangProvider>
       <MusicProvider active={musica}>
-      {!introGone ? <Loader espejo={espejo} onWarm={() => setWarm(true)} onEnter={() => setEntered(true)} onDone={() => setIntroGone(true)} onReady={setHoleReady} /> : null}
+      {!introGone ? <Loader espejo={espejo} onWarm={() => setWarm(true)} onEnter={() => setEntered(true)} onDone={() => setIntroGone(true)} onReady={setHoleReady} heroListo={heroListo} /> : null}
 
       <Starfield />
 
@@ -114,7 +118,7 @@ export default function App() {
         <main>
           {/* Hero y orbita comparten un solo agujero negro, que viaja de uno
               a otra con el scroll. */}
-          <Aislado nombre="el hero"><Stage entered={entered} warm={warm} espejo={espejo} /></Aislado>
+          <Aislado nombre="el hero"><Stage entered={entered} warm={warm} espejo={espejo} onListo={marcarHeroListo} /></Aislado>
           <Aislado nombre="Areas"><Services /></Aislado>
           <Aislado nombre="Proyectos"><Projects /></Aislado>
           <Aislado nombre="Formacion"><Certifications /></Aislado>

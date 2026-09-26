@@ -147,6 +147,11 @@ export const ui = {
   stackNext: t("Pósters siguientes", "Next posters"),
   categories: t("Categorías", "Categories"),
   allProjects: t("Todos", "All"),
+  // La fila del final de Proyectos: hay varios terminados que aun no estan
+  // aqui porque se estan documentando.
+  projBuilding: t("En documentación", "Being documented"),
+  projMore: t("Más proyectos en camino", "More projects on the way"),
+  projMoreNote: t("Hay varios proyectos terminados que estoy documentando; se irán sumando a esta lista.", "Several finished projects are being documented and will be added to this list."),
 
   // Visor 3D de un proyecto
   model3d: t("Modelo 3D", "3D model"),

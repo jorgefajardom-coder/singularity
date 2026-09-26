@@ -60,6 +60,29 @@ export function altoBarra() {
  */
 export const scroller = { current: null };
 
+/** Un salto por enlace ancla en curso: los cerrojos de scroll no lo frenan. */
+export const navegacion = { activa: false };
+
+/**
+ * Adonde desplazarse para que el destino de un ancla se vea ENTERO.
+ *
+ * Si la seccion marca una pieza con `data-encuadre` (la tarjeta de Contacto),
+ * se encuadra esa y no el borde de la seccion, que lleva su propio margen.
+ * Cabe en lo que deja la barra: centrada en ese hueco. No cabe (el telefono):
+ * su borde de arriba justo debajo de la barra. La barra se mide por su borde
+ * de abajo, no por su alto, que no cuenta el margen que la separa del techo.
+ */
+export function destinoAncla(el) {
+  const caja = el.querySelector("[data-encuadre]") || el;
+  const bar = document.querySelector(".nav");
+  const techo = bar ? Math.ceil(bar.getBoundingClientRect().bottom) : 0;
+  const r = caja.getBoundingClientRect();
+  const libre = window.innerHeight - techo;
+  const margen = 12;
+  const arriba = r.height + margen * 2 <= libre ? (libre - r.height) / 2 : margen;
+  return Math.max(0, window.scrollY + r.top - techo - arriba);
+}
+
 export function useSmoothScroll() {
   useEffect(() => {
     if (prefersReducedMotion()) return;
@@ -83,7 +106,14 @@ export function useSmoothScroll() {
 
     // Enlaces ancla -> scroll suave. La URL se actualiza igual que con un
     // ancla normal (se puede copiar, compartir y volver atras), y el destino
-    // queda por debajo de la barra, que se mide.
+    // queda encuadrado bajo la barra (ver `destinoAncla`).
+    //
+    // Durante el viaje `navegacion.activa` esta arriba: el despliegue de las
+    // galaxias (Halo.jsx) y el reparto del Stack anclan la pagina al pasar, y
+    // un salto a Contacto se quedaba varado en Meditacion (medido: y = 6336
+    // con Contacto en 12022, el hash sin cambiar).
+    let soltarNav = 0;
+    const acabar = () => { clearTimeout(soltarNav); navegacion.activa = false; };
     const onClick = (e) => {
       const a = e.target.closest('a[href^="#"]');
       if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -93,16 +123,31 @@ export function useSmoothScroll() {
       try { el = document.querySelector(id); } catch { return; }
       if (!el) return;
       e.preventDefault();
-      lenis.scrollTo(el, {
-        offset: -(altoBarra() + 8),
+      navegacion.activa = true;
+      clearTimeout(soltarNav);
+      // Por si el viaje se interrumpe (rueda, dedo) y no llega su onComplete.
+      soltarNav = setTimeout(acabar, 4000);
+      lenis.start();
+      const llegar = () => {
+        if (location.hash !== id) history.pushState(null, "", id);
+        acabar();
+      };
+      lenis.scrollTo(destinoAncla(el), {
+        force: true,
         onComplete: () => {
-          if (location.hash !== id) history.pushState(null, "", id);
+          // Lo de encima puede haber cambiado de alto durante el viaje
+          // (fijados de ScrollTrigger, imagenes que llegan): se vuelve a
+          // medir y se corrige lo que falte.
+          const y = destinoAncla(el);
+          if (Math.abs(y - window.scrollY) > 2) lenis.scrollTo(y, { force: true, duration: 0.5, onComplete: llegar });
+          else llegar();
         },
       });
     };
     document.addEventListener("click", onClick);
 
     return () => {
+      acabar();
       document.removeEventListener("click", onClick);
       gsap.ticker.remove(raf);
       scroller.current = null;

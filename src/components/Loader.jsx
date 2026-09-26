@@ -72,7 +72,15 @@ const RADIO_UV = 0.62;
 const ESPERA_MAX = 3500;
 const SOMBRA_CY = 0.074;
 
-export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
+// Cuanto vale cada hito del porcentaje (suman 100). Los lienzos pesan mas:
+// compilar el shader es lo que mas tarda en una grafica integrada.
+const PESOS = { fuentes: 10, pagina: 15, codigo: 20, lienzo: 30, hero: 25 };
+// Lo mas rapido que sube el numero: de 0 a 100 en no menos de 1,5 s.
+const VELOCIDAD_MAX = 100 / 1.5;
+// Lo mas que se espera a la carga antes de dejar elegir idioma igualmente.
+const TOPE_CARGA = 15000;
+
+export default function Loader({ onWarm, onEnter, onDone, onReady, espejo, heroListo = false }) {
   const disco = useRef(null);
   const sinGpu = useGpuFallo();
   // El lienzo del cargador no llego a tiempo (ver `choose`): esta intro va
@@ -117,6 +125,33 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
 
   // Todas las capas comparten el mismo progreso de trazado.
   const strokes = useMemo(() => ({ es: [], en: [] }), []);
+
+  /**
+   * EL PORCENTAJE ES LA CARGA DEL SITIO, NO UN ADORNO.
+   *
+   * Antes era una animacion fija de 1,5 s: llegaba a 100 con el 3D sin
+   * descargar y los lienzos se montaban despues, detras del selector. Ahora
+   * todo empieza a cargar en cuanto aparece el cargador y el ∞ no se cierra
+   * hasta que lo que hay detras esta hecho (Jorge, 26-09-2026):
+   *   fuentes, la pagina (hojas e imagenes), el codigo 3D, el lienzo del
+   *   agujero del cargador compilado y el del hero compilado y pintado.
+   * Los lienzos van uno detras de otro (ver `warm` mas abajo): compilando el
+   * mismo shader a la vez se quitaban la GPU.
+   *
+   * TOPE_CARGA es la red de seguridad: un hito que no llega nunca (un lienzo
+   * que falla dentro de su Aislado) no deja a nadie atrapado en el cargador.
+   */
+  const hitos = useRef({ fuentes: false, pagina: false, codigo: false, lienzo: false, hero: false });
+  const progresoReal = () => {
+    let total = 0;
+    for (const [k, peso] of Object.entries(PESOS)) if (hitos.current[k]) total += peso;
+    return total;
+  };
+  const marcar = (k) => {
+    if (hitos.current[k]) return;
+    hitos.current[k] = true;
+    if (import.meta.env.DEV) console.info(`[carga] ${k} ${Math.round(performance.now())} ms`);
+  };
 
   /**
    * Plantar el ∞ donde y como lo va a dibujar el shader.
@@ -193,31 +228,40 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
       return;
     }
 
-    const counter = { v: 0 };
-    const tween = gsap.to(counter, {
-      v: 100,
-      duration: 1.5,
-      ease: "power1.inOut",
-      onUpdate() {
-        const p = counter.v / 100;
-        if (numRef.current) {
-          numRef.current.textContent = String(Math.round(counter.v)).padStart(3, "0");
-        }
-        // Primero el bucle izquierdo, luego el derecho. Cada trazado
-        // comienza y termina en el centro (M100 50), sin separar las piezas.
-        const leftProgress = Math.min(1, p * 2);
-        const rightProgress = Math.max(0, p * 2 - 1);
-        strokes.es.forEach((el) => {
-          el.style.strokeDashoffset = `${lengths.get(el) * (1 - leftProgress)}`;
-        });
-        strokes.en.forEach((el) => {
-          el.style.strokeDashoffset = `${lengths.get(el) * (1 - rightProgress)}`;
-        });
-      },
-      onComplete: () => setPhase("choose"),
-    });
+    const pintar = (v) => {
+      const p = v / 100;
+      if (numRef.current) {
+        numRef.current.textContent = String(Math.floor(v)).padStart(3, "0");
+      }
+      // Primero el bucle izquierdo, luego el derecho. Cada trazado
+      // comienza y termina en el centro (M100 50), sin separar las piezas.
+      const leftProgress = Math.min(1, p * 2);
+      const rightProgress = Math.max(0, p * 2 - 1);
+      strokes.es.forEach((el) => {
+        el.style.strokeDashoffset = `${lengths.get(el) * (1 - leftProgress)}`;
+      });
+      strokes.en.forEach((el) => {
+        el.style.strokeDashoffset = `${lengths.get(el) * (1 - rightProgress)}`;
+      });
+    };
 
-    return () => tween.kill();
+    // El numero persigue a la carga REAL (`objetivo`, ver `hitos`) sin
+    // adelantarla nunca, y como mucho a VELOCIDAD_MAX: con todo en cache
+    // el ∞ se sigue dibujando entero en vez de aparecer de golpe.
+    let mostrado = 0;
+    const avanzar = (_t, dt) => {
+      const objetivo = progresoReal();
+      if (mostrado >= objetivo) return;
+      mostrado = Math.min(objetivo, mostrado + (VELOCIDAD_MAX * dt) / 1000);
+      pintar(mostrado);
+      if (mostrado >= 100) {
+        gsap.ticker.remove(avanzar);
+        setPhase("choose");
+      }
+    };
+    gsap.ticker.add(avanzar);
+
+    return () => gsap.ticker.remove(avanzar);
   }, [strokes]);
 
   // Las juntas y las etiquetas aparecen manteniendo unida la silueta.
@@ -391,8 +435,40 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
     preparado.current = true;
     // Para las pruebas y para medir en produccion cuanto tarda (ms).
     if (typeof window !== "undefined") window.__introPreparado = performance.now();
+    marcar("lienzo");
+    // El agujero del cargador ya esta compilado: le toca al del hero, que
+    // compila el mismo shader y a la vez le quitaba la GPU.
+    warm.current?.();
     if (fase.current === "esperando") setPhase("transforming");
   }, []);
+
+  // Los hitos de la carga (ver `hitos`). Todo arranca con el cargador.
+  useEffect(() => {
+    let vivo = true;
+    const si = (k) => () => { if (vivo) marcar(k); };
+    if (document.fonts?.ready) document.fonts.ready.then(si("fuentes"), si("fuentes"));
+    else marcar("fuentes");
+    if (document.readyState === "complete") marcar("pagina");
+    else window.addEventListener("load", si("pagina"), { once: true });
+    // El codigo de los lienzos: el agujero (que trae three y r3f) y el lienzo
+    // compartido de las vistas 3D de mas abajo, que asi ya esta descargado
+    // cuando le llegue el turno.
+    Promise.all([import("./BlackHole"), import("../three/ViewCanvas")]).then(si("codigo"), si("codigo"));
+    const tope = setTimeout(() => {
+      if (!vivo) return;
+      if (import.meta.env.DEV) console.warn("[carga] tope alcanzado", { ...hitos.current });
+      Object.keys(PESOS).forEach(marcar);
+    }, TOPE_CARGA);
+    return () => { vivo = false; clearTimeout(tope); };
+  }, []);
+  // Sin GPU no hay lienzos que esperar: el hero entra igual (con su respaldo).
+  useEffect(() => {
+    if (!sinGpu) return;
+    marcar("lienzo");
+    marcar("hero");
+    warm.current?.();
+  }, [sinGpu]);
+  useEffect(() => { if (heroListo) marcar("hero"); }, [heroListo]);
   useEffect(() => {
     if (phase !== "esperando") return undefined;
     if (sinGpu) { setPhase("transforming"); return undefined; }
@@ -484,10 +560,10 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
 
   return (
     <div className="loader" ref={root} data-phase={phase}>
-      {/* Se monta ya en la pantalla de selección, invisible: compilar este
-          fragment shader cuesta varios fotogramas, y si el canvas arranca al
+      {/* Se monta desde el primer fotograma, invisible: compilarlo es parte
+          de la carga que cuenta el porcentaje, y si el canvas arranca al
           pulsar, el SVG se apaga antes de que haya nada dibujado debajo. */}
-      {(phase === "choose" || phase === "esperando" || phase === "transforming") && <div className="loader__singularity">
+      <div className="loader__singularity">
         {cssAhora ? (
           <div className="loader__disco" ref={disco} aria-hidden="true">
             <span className="loader__disco-sombra" />
@@ -498,7 +574,7 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
             <BlackHole formation={formation} journey={travel} espejo={espejo} espejoModo="publica" onPintado={avisarPintado} onPreparado={avisarPreparado} />
           </Suspense>
         )}
-      </div>}
+      </div>
       <svg className="loader__mark" viewBox="0 0 205 105" role="group" aria-label={lang === "en" ? "Choose your language" : "Elige tu idioma"}>
         <defs>
           <clipPath id="loaderClip-es"><rect x="-20" y="-20" width="120" height="150" /></clipPath>

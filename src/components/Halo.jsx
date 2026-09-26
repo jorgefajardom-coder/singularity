@@ -15,9 +15,10 @@ import { services, workAreas } from "../data/content";
 // que alguien deshizo esto.
 const BlackHole = lazy(() => import("./BlackHole"));
 import { useLang } from "../lib/i18n";
-import { prefersReducedMotion, scroller } from "../lib/anim";
+import { navegacion, prefersReducedMotion, scroller } from "../lib/anim";
 import { EnSuTurno } from "../lib/arranque";
 import { perfil, useGpuFallo } from "../lib/gpu";
+import { asset } from "../lib/asset";
 
 /**
  * El sistema que orbita al personaje que medita.
@@ -158,6 +159,9 @@ export default function Halo() {
     let lastY = window.scrollY;
     const sync = () => {
       if (document.body.classList.contains("is-anchored")) return;
+      // Un salto por ancla solo pasa por aqui: desplegar anclaria la pagina
+      // y lo dejaria varado a mitad de camino (ver `navegacion` en anim.js).
+      if (navegacion.activa) return;
       if (goingUp) {
         if (started) {
           started = false;
@@ -408,7 +412,12 @@ export default function Halo() {
                     fotones y lente— con el tono girado sobre el eje de los
                     grises, que es lo unico que cambia de uno a otro. */}
                 <span className="halo__hole">
-                  {telefono ? <span className="blackhole__fallback halo__plain" /> : <>
+                  {/* En el telefono, un FOTOGRAMA del mismo shader con el color
+                      del area (public/images/galaxias, capturado del lienzo
+                      ampliado a 608 px): el disco CSS de antes se leia como un
+                      circulo negro con brillo, no como una galaxia (Jorge,
+                      26-09-2026). Sin contextos WebGL de mas. */}
+                  {telefono ? <img className="halo__plain" src={asset(`/images/galaxias/${b.id}.webp`)} alt="" loading="lazy" decoding="async" draggable={false} /> : <>
                   {/* Seis lienzos WebGL que estan varias pantallas mas abajo:
                       entran despues de la intro y de uno en uno (ver
                       lib/arranque.js). Montados al arrancar, se compilaban

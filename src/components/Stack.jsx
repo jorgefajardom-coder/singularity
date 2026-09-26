@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { sections, stack, ui } from "../data/content";
 import { useLang } from "../lib/i18n";
-import { ScrollTrigger, gsap, prefersReducedMotion, scroller } from "../lib/anim";
+import { ScrollTrigger, gsap, navegacion, prefersReducedMotion, scroller } from "../lib/anim";
 import StackArt from "./StackArt";
 
 /**
@@ -75,7 +75,8 @@ export default function Stack({ sequence }) {
     // dejaba la pagina parada con la barra todavia entrando por abajo.
     const barraVisible = () => el.getBoundingClientRect().bottom <= window.innerHeight + 1;
     const bloquear = () => {
-      if (anclaje !== null || !barraVisible()) return;
+      // Un salto por ancla que cruza la seccion no se para a ver el reparto.
+      if (anclaje !== null || navegacion.activa || !barraVisible()) return;
       anclaje = window.scrollY;
       scroller.current?.stop();
       window.addEventListener("scroll", sujetar, { passive: true });

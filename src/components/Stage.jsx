@@ -57,6 +57,15 @@ const HAND_ROOM = 4.2;
 // en produccion se veia enorme. Asi queda en ~1,1 cabezas en Sobre mi y
 // ~1,15 en el que medita (medido en 1536x639 sobre los pixeles del disco).
 const HOLE_SIZE = { about: 0.5, meditation: 0.62 };
+// El disco de canto es ~3 huecos de ancho: a lo ANCHO el lienzo necesita
+// tambien sitio, HAND_ROOM x ANCHO_MANO huecos. En escritorio sobra (manda la
+// altura); en un telefono vertical el lienzo, con la proporcion de la
+// pantalla, quedaba mas estrecho que el disco y la mascara le borraba las
+// puntas.
+const ANCHO_MANO = 1.6;
+// El zoom con que el shader encoge la escena en marcos estrechos (el mismo
+// `clamp(1.85 / aspecto, 1, 2.2)` de BlackHole.jsx). Vale 1 en escritorio.
+const zoomShader = (aspecto) => clamp(1.85 / Math.max(aspecto, 0.35), 1, 2.2);
 
 const span = ([a, b], p) => Math.min(1, Math.max(0, (p - a) / (b - a)));
 // Suaviza los extremos: sin esto cada fase arranca y frena de golpe.
@@ -109,7 +118,7 @@ function transformSeguro(x, y, s, sy, w, h) {
   };
 }
 
-export default function Stage({ entered, warm, espejo }) {
+export default function Stage({ entered, warm, espejo, onListo }) {
   const stage = useRef(null);
   const stackSequence = useRef(0);
   const copy = useRef(null);
@@ -419,7 +428,9 @@ export default function Stage({ entered, warm, espejo }) {
       // se ignore, es que el navegador tira la declaracion entera, asi que el
       // lienzo se quedaba SIN transformar, a pantalla completa y encima de la
       // pagina. Mas adelante en el viaje daria `scale(0)` y desapareceria.
-      const scale = hand.height > 0 ? Math.exp(Math.log((hand.height * HAND_ROOM) / h) * t) : 1;
+      const escalaMano = hand.height > 0
+        ? Math.max((hand.height * HAND_ROOM) / h, (hand.height * HAND_ROOM * ANCHO_MANO) / w) : 0;
+      const scale = escalaMano > 0 ? Math.exp(Math.log(escalaMano) * t) : 1;
       const arc = Math.sin(Math.PI * t) ** 2;
       const x = (hand.left + hand.width / 2 - w / 2) * t - w * 0.12 * arc;
       const y = (hand.top + hand.height / 2 - box.top - h / 2) * t - h * 0.16 * arc;
@@ -447,7 +458,14 @@ export default function Stage({ entered, warm, espejo }) {
       // era una chispa. El lienzo es la propia caja del hueco, asi que el
       // disco se recorta contra sus bordes y lo que queda es el aro.
       const growth = HOLE_SIZE.about + (HOLE_SIZE.meditation - HOLE_SIZE.about) * handMix;
-      journey.current.scale = clamp(pose.scale * (1 - t) + (LANDED_SCALE * HAND_ROOM / growth) * t, 0.3, 8);
+      // El agujero tiene que medir lo mismo RESPECTO A LAS MANOS en cualquier
+      // pantalla. Lo que se ve crece con el alto del lienzo en pantalla y
+      // encoge con el zoom del shader; los HOLE_SIZE se ajustaron en
+      // 1536x639, donde el lienzo mide HAND_ROOM huecos de alto y el zoom es 1.
+      // En un telefono vertical el zoom es 2,2 y el agujero salia a menos de
+      // la mitad (Jorge, 26-09-2026: "muy pequeno"). En escritorio esto es 1.
+      const compensa = escalaMano > 0 ? (h * escalaMano) / (hand.height * HAND_ROOM) / zoomShader(w / h) : 1;
+      journey.current.scale = clamp(pose.scale * (1 - t) + (LANDED_SCALE * HAND_ROOM / growth) * compensa * t, 0.3, 8);
       journey.current.topDown = pose.topDown * (1 - t);
     };
     // El estado de reposo, escrito una vez al volver a el (la ruta rapida de
@@ -573,7 +591,9 @@ export default function Stage({ entered, warm, espejo }) {
           <div className="stage__traveler" ref={traveler}>
           <Aislado nombre="el agujero del hero" fallback={<div className="blackhole__fallback" />}>
           <Suspense fallback={<div className="blackhole__fallback" />}>
-            <BlackHole bare lensSource={copy} lensFrame={stage} journey={journey} onLensReady={setLensed} espejo={espejo} espejoModo="sigue" />
+            {/* `onPreparado`: compilado y con sus dos primeros fotogramas. Es el
+                ultimo hito del porcentaje del cargador (ver `hitos` en Loader). */}
+            <BlackHole bare lensSource={copy} lensFrame={stage} journey={journey} onLensReady={setLensed} onPreparado={onListo} espejo={espejo} espejoModo="sigue" />
           </Suspense>
           </Aislado>
           </div>

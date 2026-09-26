@@ -44,12 +44,60 @@
   box-sizing: border-box;
 }
 
+/* La barra de desplazamiento se queda (dice cuanto falta y se puede
+   arrastrar), pero fina y en el tono del sitio. En los moviles es la del
+   sistema, que ya se superpone y se esconde sola. */
 html {
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 154, 60, 0.4) transparent;
 }
 
 html::-webkit-scrollbar {
-  display: none;
+  width: 8px;
+}
+
+html::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb {
+  background: rgba(255, 154, 60, 0.35);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 154, 60, 0.6);
+}
+
+/* Los anclas (#contact, #projects...) quedan por debajo de la barra fija
+   tambien cuando salta el navegador solo (sin Lenis: movimiento reducido o
+   un enlace abierto desde fuera). */
+[id] {
+  scroll-margin-top: var(--alto-barra, 80px);
+}
+
+/* Si la aplicacion entera falla (ver Aislado.jsx), lo minimo: nombre y
+   contacto, legibles sin nada mas. */
+.respaldo-global {
+  min-height: 100svh;
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.respaldo-global h1 {
+  margin: 0;
+  font-size: clamp(28px, 7vw, 56px);
+}
+
+.respaldo-global a,
+.respaldo-global button {
+  color: var(--accent-a);
+  font: inherit;
 }
 
 body {
@@ -2835,9 +2883,8 @@ body.is-anchored .about__float {
   display: inline-block;
 }
 
-.split__move {
-  will-change: transform, opacity, filter;
-}
+/* Sin `will-change` fijo: lo pone SplitText.jsx solo mientras la pieza se
+   anima. Fijo, cada letra era una capa de composicion toda la visita. */
 
 /* El scrub arranca apagado incluso antes de que GSAP tome el control,
    para que no haya un parpadeo a pleno brillo en el primer frame. */
@@ -2978,40 +3025,33 @@ body.is-anchored .about__float {
   transform: translateY(-1px);
 }
 
-/* El boton de contacto se ocultaba en movil porque la barra iba llena de
-   enlaces de seccion. Ya no los lleva, asi que cabe y se queda: es el punto
-   de contacto principal. Solo se aprieta un poco para no empujar al resto. */
+/* Dentro de la barra, los botones del reproductor miden lo que mide la
+   capsula. Fuera de ella (reproductor suelto) llevan `min-height: 40px`, y
+   ese minimo dentro de una capsula de 30-34 px los hacia salirse por abajo. */
+.nav__controls .music-player button {
+  min-height: 0;
+  height: 100%;
+  min-width: calc(var(--control) - 8px);
+}
+
+.nav__contacto-icono { display: none; }
+
+/* ------------------------------------------------------------
+   Barra en el telefono: una maqueta propia, no la de escritorio encogida.
+
+   Antes se apretaba todo por escalones (letra de 8 px, controles de 30 px)
+   hasta que cabia, y en 320-380 px quedaban botones diminutos que costaba
+   acertar. Ahora las piezas cambian de forma en vez de encogerse:
+     - el contacto pasa a ser un sobre (su nombre accesible no cambia);
+     - la musica se queda en iconos;
+     - por debajo de 380 px el idioma es UN boton con el otro idioma.
+   Los controles miden 40 px de alto en todos los anchos.
+   ------------------------------------------------------------ */
 @media (max-width: 520px) {
-  /* El movil es una copia del escritorio: las mismas piezas, encogidas hasta
-     caber. En 360 px hay 332 utiles tras el relleno, menos 20 de huecos: 312
-     para marca + controles + boton. Cada regla de aqui abajo recorta una
-     parte de ese presupuesto. */
-  .nav .btn {
-    padding-inline: 10px;
-    font-size: 9px;
-    letter-spacing: 0.06em;
-    gap: 0;
-  }
-
-  /* En movil la capsula de musica se queda en iconos: con sus etiquetas
-     ocupaba 233 px de los 390 de pantalla y empujaba el boton de contacto
-     fuera del borde. Los botones conservan su `aria-label`, asi que un lector
-     de pantalla sigue oyendo que hacen. */
-  .nav__controls .music-player__track span:not(.music-player__icon),
-  .nav__controls .music-player__mute span {
-    display: none;
-  }
-
-  .nav__controls .music-player__track,
-  .nav__controls .music-player__mute {
-    padding-inline: 12px;
-  }
-
-  /* Las tres piezas tienen que caber en 390 px con sus huecos. Se aprieta
-     cada una un poco en vez de sacrificar ninguna. */
   .nav {
-    gap: 10px;
-    padding-inline: 14px;
+    --control: 40px;
+    gap: 8px;
+    padding-inline: 12px;
   }
 
   .nav__mark {
@@ -3019,39 +3059,46 @@ body.is-anchored .about__float {
     letter-spacing: 0.04em;
   }
 
-  /* Los controles bajan de 42 a 34 px de alto y se aprietan por los lados. */
-  .nav {
-    --control: 34px;
+  /* La musica en iconos: con sus etiquetas ocupaba 233 px de 390. Los
+     botones conservan su `aria-label`. */
+  .nav__controls .music-player__track span:not(.music-player__icon),
+  .nav__controls .music-player__mute span {
+    display: none;
   }
 
   .nav__controls .music-player__track,
-  .nav__controls .music-player__mute {
-    padding-inline: 9px;
+  .nav__controls .music-player__mute,
+  .nav__controls .music-player button {
+    padding-inline: 8px;
   }
 
   .nav__controls .music-player__icon {
-    font-size: 13px;
+    font-size: 15px;
   }
 
   .nav__controls .langtoggle {
-    padding: 2px;
+    padding: 3px;
   }
 
   .langtoggle__btn {
-    padding-inline: 8px;
-    font-size: 10px;
+    padding-inline: 9px;
+    font-size: 11px;
   }
+
+  /* Contacto como sobre: un circulo del alto de los controles. */
+  .nav .nav__contacto {
+    width: var(--control);
+    padding: 0;
+    justify-content: center;
+  }
+
+  .nav__contacto-texto { display: none; }
+  .nav__contacto-icono { display: block; }
 }
 
-/* Moviles muy estrechos (iPhone SE y parecidos). Un escalon mas de apriete
-   para que las mismas piezas sigan cabiendo en 320 px: 320 - 20 de relleno
-   - 16 de huecos = 284 utiles, y el contenido queda en torno a 276.
-   AVISO: esto esta calculado, no medido. El panel de pruebas no baja de
-   356 px, asi que conviene comprobarlo en un telefono real. */
 @media (max-width: 380px) {
   .nav {
-    --control: 30px;
-    gap: 8px;
+    gap: 6px;
     padding-inline: 10px;
   }
 
@@ -3060,19 +3107,16 @@ body.is-anchored .about__float {
     letter-spacing: 0.02em;
   }
 
-  .nav .btn {
-    padding-inline: 8px;
-    font-size: 8px;
+  /* Un solo boton de idioma: el que NO esta activo, que es al que se
+     cambia. El activo y su indicador se quitan. */
+  .nav__controls .langtoggle__btn[aria-pressed="true"],
+  .nav__controls .langtoggle__knob {
+    display: none;
   }
 
-  .nav__controls .music-player__track,
-  .nav__controls .music-player__mute {
-    padding-inline: 7px;
-  }
-
-  .langtoggle__btn {
-    padding-inline: 6px;
-    font-size: 9px;
+  .nav__controls .langtoggle__btn {
+    color: var(--text);
+    padding-inline: 10px;
   }
 }
 
@@ -4291,4 +4335,123 @@ body.is-anchored .about__float {
     -webkit-mask-image: none;
     mask-image: none;
   }
+}
+
+/* ============================================================
+   Respaldos sin WebGL y piezas moviles (ver lib/gpu.js)
+   ============================================================ */
+
+/* Las marcas con movimiento reducido: una copia de cada una, quietas y
+   repartidas (ver Companies.jsx). */
+.logorail--quieta {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.logorail--quieta .logorail__track {
+  animation: none;
+  will-change: auto;
+  flex-wrap: wrap;
+  width: 100%;
+  justify-content: center;
+  padding: 0;
+}
+
+/* La transformacion del cargador en el telefono: un disco CSS que nace en el
+   cruce del ∞ y crece hasta el sitio del agujero del hero (Loader.jsx). El
+   centro negro opaco y el borde que se funde al fondo del cargador: al
+   irse este, lo que queda debajo es el agujero de verdad en ese sitio. */
+.loader__disco {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40vmin;
+  height: 40vmin;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  /* El aro de luz alrededor de la sombra (medido sobre el del hero: sombra
+     de ~53 % del radio, aro hasta ~85 %). */
+  background: radial-gradient(circle closest-side at center,
+    transparent 50%, #ffd9a8 53%, var(--accent-a) 58%, var(--accent-c) 68%,
+    var(--ember-deep) 82%, transparent 100%);
+}
+
+.loader__disco-sombra,
+.loader__disco-plano {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.loader__disco-sombra {
+  width: 53%;
+  height: 53%;
+  background: #000;
+}
+
+/* El disco de acrecion visto casi de canto: una elipse ancha que cruza la
+   parte baja de la sombra, por delante. */
+.loader__disco-plano {
+  top: 60%;
+  width: 330%;
+  height: 26%;
+  background: radial-gradient(ellipse closest-side at center,
+    #ffe2b8 0%, var(--accent-a) 22%, var(--accent-c) 55%, rgba(120, 20, 0, 0.35) 80%, transparent 100%);
+}
+
+/* Las esferas de la orbita en CSS (lib/esferasCss.js): cuerpo blanco con
+   brillo propio y el halo alrededor, en la misma caja. */
+.orbit__esfera {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
+  visibility: hidden;
+  pointer-events: none;
+  background: radial-gradient(circle closest-side at center,
+    #fff 0 30%, rgba(255, 255, 255, 0.55) 34%, rgba(255, 255, 255, 0.12) 60%, transparent 100%);
+}
+
+/* Visores de producto: aviso mientras llega el modelo o si no hay 3D. */
+.producto__espera,
+.producto__sin3d {
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: center;
+  pointer-events: none;
+}
+
+.producto__espera {
+  position: absolute;
+  inset: 0 0 auto 0;
+  aspect-ratio: 16 / 9;
+  max-height: 290px;
+}
+
+.producto__sin3d {
+  border: 1px dashed rgba(255, 240, 228, 0.18);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+/* La tarjeta del pie sin foto: iniciales en vez de un hueco negro. */
+.footer__foto { position: relative; }
+
+.footer__iniciales {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: clamp(28px, 5vw, 44px);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--accent-a);
+  background: var(--ink-2);
 }

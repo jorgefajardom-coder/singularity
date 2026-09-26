@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
@@ -20,6 +20,31 @@ if (import.meta.env.DEV && typeof window !== "undefined") window.gsap = gsap;
 export const prefersReducedMotion = () =>
   typeof window !== "undefined" &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/**
+ * La misma pregunta, pero reactiva y compartida: una sola consulta `matchMedia`
+ * para toda la pagina, y los componentes que la usan se enteran si el
+ * visitante cambia el ajuste con la pagina abierta.
+ */
+const MOVIMIENTO = typeof window !== "undefined" ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+const suscribirMovimiento = (f) => {
+  MOVIMIENTO?.addEventListener("change", f);
+  return () => MOVIMIENTO?.removeEventListener("change", f);
+};
+const leerMovimiento = () => Boolean(MOVIMIENTO?.matches);
+export function useReducedMotion() {
+  return useSyncExternalStore(suscribirMovimiento, leerMovimiento, () => false);
+}
+
+/**
+ * Lo que tapa la barra fija por arriba. Se mide: la barra cambia de alto
+ * entre escritorio y telefono, y un numero fijo dejaba el titulo de la
+ * seccion debajo de ella o muy separado.
+ */
+export function altoBarra() {
+  const bar = document.querySelector(".nav");
+  return bar ? Math.ceil(bar.getBoundingClientRect().height) : 0;
+}
 
 /**
  * Scroll suave (Lenis) sincronizado con el ticker de GSAP, para que
@@ -56,16 +81,24 @@ export function useSmoothScroll() {
     gsap.ticker.add(raf);
     gsap.ticker.lagSmoothing(0);
 
-    // Enlaces ancla -> scroll suave
+    // Enlaces ancla -> scroll suave. La URL se actualiza igual que con un
+    // ancla normal (se puede copiar, compartir y volver atras), y el destino
+    // queda por debajo de la barra, que se mide.
     const onClick = (e) => {
       const a = e.target.closest('a[href^="#"]');
-      if (!a) return;
+      if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const id = a.getAttribute("href");
       if (!id || id === "#") return;
-      const el = document.querySelector(id);
+      let el;
+      try { el = document.querySelector(id); } catch { return; }
       if (!el) return;
       e.preventDefault();
-      lenis.scrollTo(el, { offset: -40 });
+      lenis.scrollTo(el, {
+        offset: -(altoBarra() + 8),
+        onComplete: () => {
+          if (location.hash !== id) history.pushState(null, "", id);
+        },
+      });
     };
     document.addEventListener("click", onClick);
 

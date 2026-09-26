@@ -26,3 +26,8 @@ README.md
 # Modelo de partida de la celda (33 MB). De aqui sale, con
 # tools/split-celda-pieces.mjs, el celda-pieces.glb que sirve el sitio.
 models-src/
+
+# Resultados de Playwright (las capturas de referencia SI se versionan:
+# tests/e2e/*-snapshots/)
+test-results/
+playwright-report/

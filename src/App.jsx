@@ -15,10 +15,33 @@ import Certifications from "./components/Certifications";
 import Contact from "./components/Contact";
 import Footer from "./components/Footer";
 import Loader from "./components/Loader";
+import Aislado from "./components/Aislado";
 import { LangProvider } from "./lib/i18n";
 import { MusicProvider } from "./lib/music";
 import { marcarIntroTerminada, useTrasIntro } from "./lib/arranque";
-import { useSmoothScroll, useReveal, ScrollTrigger } from "./lib/anim";
+import { useSmoothScroll, useReveal, ScrollTrigger, scroller, altoBarra } from "./lib/anim";
+import { perfil, useGpuFallo } from "./lib/gpu";
+import { useVistas } from "./lib/vistas";
+
+/**
+ * El lienzo 3D compartido solo existe si alguna vista lo necesita. En el
+ * telefono ademas espera a que haya una cerca: alli el unico 3D del lienzo
+ * son los visores de Proyectos, y abrir su contexto al cargar la pagina era
+ * un contexto WebGL mas, vivo durante todo el recorrido, para nada.
+ */
+function Lienzo3D({ eventSource }) {
+  const listo = useTrasIntro(2);
+  const fallo = useGpuFallo();
+  const { cerca } = useVistas();
+  const [pedido, setPedido] = useState(!perfil.movil);
+  useEffect(() => { if (cerca > 0) setPedido(true); }, [cerca]);
+  if (!listo || fallo || !pedido) return null;
+  return (
+    <Aislado nombre="el lienzo 3D">
+      <Suspense fallback={null}><ViewCanvas eventSource={eventSource} /></Suspense>
+    </Aislado>
+  );
+}
 
 export default function App() {
   const root = useRef(null);
@@ -36,17 +59,17 @@ export default function App() {
   // Aqui el del cargador publica su estado y el del hero lo copia, para que el
   // relevo no cruce dos imagenes distintas (ver BlackHole.jsx).
   const espejo = useRef(null);
-  // El lienzo 3D global solo pinta secciones de mas abajo (Sobre mi,
-  // Certificaciones, Contacto): entra despues de la intro, no detras del
-  // cargador, donde sus ~500 ms de compilacion paraban las etiquetas.
-  const vista3d = useTrasIntro(2);
 
   useSmoothScroll();
   useReveal(root);
 
-  // Bloqueamos el scroll mientras el cargador esta delante
+  // Bloqueamos el scroll mientras el cargador esta delante. El `overflow` del
+  // body no para a Lenis, que lleva el scroll por su cuenta: hay que pararlo.
   useEffect(() => {
     document.body.classList.toggle("is-locked", !introGone);
+    const lenis = scroller.current;
+    if (!introGone) lenis?.stop();
+    else lenis?.start();
   }, [introGone]);
 
   // El recalculo va SOLO aqui, cuando la pagina ya puede desplazarse. Hacerlo
@@ -55,38 +78,55 @@ export default function App() {
   // eran ~90 ms de parón en el fotograma mas visible de toda la intro.
   useEffect(() => {
     if (!introGone) return;
-    window.scrollTo({ top: 0, behavior: "instant" });
     ScrollTrigger.refresh();
+    // Si la URL trae un ancla (un enlace compartido a #contact, volver
+    // atras), se respeta: se va ahi en vez de al principio. Sin ancla, la
+    // intro termina en el hero, que es donde aterriza el agujero.
+    let destino;
+    try { destino = location.hash ? document.querySelector(decodeURIComponent(location.hash)) : null; } catch { destino = null; }
+    const lenis = scroller.current;
+    if (destino) {
+      if (lenis) lenis.scrollTo(destino, { immediate: true, force: true, offset: -(altoBarra() + 8) });
+      else destino.scrollIntoView();
+    } else if (window.scrollY !== 0) {
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
     // Da paso a los lienzos de mas abajo (ver lib/arranque.js).
     marcarIntroTerminada();
   }, [introGone]);
 
+  // La musica y su analisis arrancan con el agujero ya pintado. En el
+  // telefono, ademas, esperan a que termine la intro: decodificar audio y
+  // analizarlo cada fotograma encima de la parte mas pesada de la
+  // transformacion era competir por el mismo presupuesto de fotograma.
+  const musica = perfil.movil ? introGone : holeReady || introGone;
+
   return (
     <LangProvider>
-      <MusicProvider active={holeReady}>
+      <MusicProvider active={musica}>
       {!introGone ? <Loader espejo={espejo} onWarm={() => setWarm(true)} onEnter={() => setEntered(true)} onDone={() => setIntroGone(true)} onReady={setHoleReady} /> : null}
 
       <Starfield />
 
       <div ref={root} inert={!entered}>
-        <Nav />
+        <Aislado nombre="la barra"><Nav /></Aislado>
 
         <main>
           {/* Hero y orbita comparten un solo agujero negro, que viaja de uno
               a otra con el scroll. */}
-          <Stage entered={entered} warm={warm} espejo={espejo} />
-          <Services />
-          <Projects />
-          <Certifications />
-          <Contact />
+          <Aislado nombre="el hero"><Stage entered={entered} warm={warm} espejo={espejo} /></Aislado>
+          <Aislado nombre="Areas"><Services /></Aislado>
+          <Aislado nombre="Proyectos"><Projects /></Aislado>
+          <Aislado nombre="Formacion"><Certifications /></Aislado>
+          <Aislado nombre="Contacto"><Contact /></Aislado>
         </main>
 
-        <Footer />
+        <Aislado nombre="el pie"><Footer /></Aislado>
       </div>
 
       {/* Canvas único para todas las vistas 3D. Va al final para que
           `root.current` ya exista cuando se monte. */}
-      {vista3d && <Suspense fallback={null}><ViewCanvas eventSource={root} /></Suspense>}
+      <Lienzo3D eventSource={root} />
       </MusicProvider>
     </LangProvider>
   );

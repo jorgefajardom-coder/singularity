@@ -5,6 +5,9 @@ import { Box3, Color, Vector3 } from "three";
 import { useLang } from "../lib/i18n";
 import { asset } from "../lib/asset";
 import { prefersReducedMotion } from "../lib/anim";
+import { useGpuFallo } from "../lib/gpu";
+import { useRegistrarVista } from "../lib/vistas";
+import { ui } from "../data/content";
 
 /**
  * Visor de un PRODUCTO (el dron, su empaque): flota sobre la pagina, sin
@@ -298,6 +301,8 @@ export default function ProductViewer({ model, label, despiece, colores = [], gi
   const [listo, setListo] = useState(false);
   const [despiezado, setDespiezado] = useState(false);
   const quieto = prefersReducedMotion();
+  const gpuCaida = useGpuFallo();
+  useRegistrarVista(caja);
 
   // La primera vez que se ve: se despieza y se vuelve a montar solo, para que
   // se entienda que se puede explorar. Una vez; despues manda el boton.
@@ -347,6 +352,9 @@ export default function ProductViewer({ model, label, despiece, colores = [], gi
     <div className="producto" ref={caja} data-listo={listo ? "true" : "false"}
       onPointerDown={agarrar} onPointerMove={girar} onPointerUp={soltar}
       onPointerCancel={soltar} onPointerLeave={soltar}>
+      {gpuCaida ? (
+        <div className="producto__hueco producto__sin3d" role="status"><span>{tr(ui.sin3d)}</span></div>
+      ) : (
       <View className="producto__hueco">
         <PerspectiveCamera makeDefault fov={35} position={[0, 0, 6]} onUpdate={(c) => c.lookAt(0, 0, 0)} />
         <Luces />
@@ -358,6 +366,9 @@ export default function ProductViewer({ model, label, despiece, colores = [], gi
           </Girado>
         </group>
       </View>
+      )}
+      {/* Mientras llega el modelo, el hueco lo dice (antes quedaba vacio). */}
+      {!gpuCaida && !listo && <div className="producto__espera" role="status"><span>{tr(ui.loading3d)}</span></div>}
       <div className="producto__pie">
         <span className="producto__nombre">{label}</span>
         <button type="button" className="producto__boton" onPointerDown={(e) => e.stopPropagation()}

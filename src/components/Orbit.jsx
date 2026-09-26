@@ -3,6 +3,8 @@ import { gsap } from "../lib/anim";
 import { useLang } from "../lib/i18n";
 import CompanyMark from "./CompanyMark";
 import { useTrasIntro } from "../lib/arranque";
+import { gpuFallo, perfil, useGpuFallo, vigilarContexto } from "../lib/gpu";
+import { createOrbitSpheresCss } from "../lib/esferasCss";
 
 /**
  * Las marcas en órbita alrededor del agujero negro, cada una en su anillo.
@@ -51,6 +53,8 @@ export default function Orbit({ journey, items, note }) {
   // integrada. Al montar caian encima del ∞ dibujandose; la orbita no se ve
   // hasta despues del hero, asi que entran tras la intro (lib/arranque.js).
   const listo = useTrasIntro(1);
+  // Si la GPU cae con la orbita ya montada, se rehacen las esferas en CSS.
+  const caida = useGpuFallo();
 
   useEffect(() => {
     const layer = hud.current;
@@ -187,18 +191,34 @@ export default function Orbit({ journey, items, note }) {
       spheres.render();
     };
 
-    import("../three/OrbitSpheres").then(({ createOrbitSpheres }) => {
-      if (cancelled) return;
-      spheres = createOrbitSpheres(sphereLayer.current, n);
+    // En el telefono, o si la GPU ya fallo, las esferas van en CSS (ver
+    // lib/esferasCss.js): ni contexto WebGL propio ni three.js que bajar.
+    let soltar = () => {};
+    if (perfil.movil || gpuFallo()) {
+      spheres = createOrbitSpheresCss(sphereLayer.current, n);
       gsap.ticker.add(tick);
-    });
+    } else {
+      import("../three/OrbitSpheres").then(({ createOrbitSpheres }) => {
+        if (cancelled) return;
+        spheres = createOrbitSpheres(sphereLayer.current, n);
+        soltar = vigilarContexto(spheres.canvas, "esferas de la orbita");
+        gsap.ticker.add(tick);
+      }).catch((e) => {
+        // Sin el modulo de three (red cortada, chunk viejo) quedan las de CSS.
+        console.error("[singularity] esferas WebGL no disponibles", e);
+        if (cancelled) return;
+        spheres = createOrbitSpheresCss(sphereLayer.current, n);
+        gsap.ticker.add(tick);
+      });
+    }
 
     return () => {
       cancelled = true;
+      soltar();
       gsap.ticker.remove(tick);
       spheres?.dispose();
     };
-  }, [journey, items.length, listo]);
+  }, [journey, items.length, listo, caida]);
 
   if (!items.length) return null;
 

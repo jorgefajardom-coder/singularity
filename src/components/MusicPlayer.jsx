@@ -8,6 +8,8 @@ export default function MusicPlayer({ intro, inline }) {
   const { tr } = useLang();
   const input = useRef(null);
   const meter = useRef(null);
+  // El medidor no pide su propio analisis: lee el del fotograma (ver `sample`
+  // en lib/music.jsx), y con la pestaña oculta el rAF ya no corre.
   useEffect(() => {
     let frame;
     const update = () => {

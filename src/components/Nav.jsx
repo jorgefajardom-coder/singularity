@@ -26,23 +26,48 @@ export default function Nav() {
     // significa literalmente "esto esta ahora mismo debajo de la barra". La
     // altura se mide, no se estima: con un porcentaje fijo la franja quedaba
     // mas corta que la barra y los paneles pasaban por debajo sin detectarse.
-    const height = Math.ceil(bar.getBoundingClientRect().height) || 80;
-    const rest = Math.max(0, window.innerHeight - height);
-
+    //
+    // El recorte depende del alto de la ventana y del de la barra, asi que
+    // el observador se REHACE cuando cambia cualquiera de los dos: al girar
+    // el telefono, al aparecer o esconderse la barra del navegador movil o
+    // al cambiar la barra de alto (hay puntos de corte que la encogen).
+    let observer = null;
+    let medida = "";
     const visible = new Set();
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) visible.add(entry.target);
-          else visible.delete(entry.target);
-        }
-        setOnPaper(visible.size > 0);
-      },
-      { rootMargin: `0px 0px -${rest}px 0px`, threshold: 0 }
-    );
-
-    panels.forEach((panel) => observer.observe(panel));
-    return () => observer.disconnect();
+    const montar = () => {
+      const height = Math.ceil(bar.getBoundingClientRect().height) || 80;
+      const rest = Math.max(0, window.innerHeight - height);
+      const clave = `${height}/${rest}`;
+      if (clave === medida) return;
+      medida = clave;
+      // El alto real de la barra, para `scroll-margin-top` de los anclas.
+      document.documentElement.style.setProperty("--alto-barra", `${height + 8}px`);
+      observer?.disconnect();
+      visible.clear();
+      observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) visible.add(entry.target);
+            else visible.delete(entry.target);
+          }
+          setOnPaper(visible.size > 0);
+        },
+        { rootMargin: `0px 0px -${rest}px 0px`, threshold: 0 }
+      );
+      panels.forEach((panel) => observer.observe(panel));
+    };
+    montar();
+    let espera = 0;
+    const alCambiar = () => { cancelAnimationFrame(espera); espera = requestAnimationFrame(montar); };
+    window.addEventListener("resize", alCambiar);
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(alCambiar) : null;
+    ro?.observe(bar);
+    return () => {
+      cancelAnimationFrame(espera);
+      window.removeEventListener("resize", alCambiar);
+      ro?.disconnect();
+      observer?.disconnect();
+    };
   }, []);
 
   return (
@@ -68,8 +93,14 @@ export default function Nav() {
           y el contacto. El recorrido del sitio es el scroll, y el pie sigue
           teniendo la navegacion completa para quien la quiera. */}
       <div className="nav__right">
-        <a className="btn" href="#contact">
-          {tr(ui.contactCta)}
+        {/* En telefonos estrechos el texto se cambia por un sobre (ver
+            global.css); el nombre accesible es el mismo en los dos casos. */}
+        <a className="btn nav__contacto" href="#contact" aria-label={tr(ui.contactCta)}>
+          <span className="nav__contacto-texto" aria-hidden="true">{tr(ui.contactCta)}</span>
+          <svg className="nav__contacto-icono" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+            <rect x="3" y="5.5" width="18" height="13" rx="2" />
+            <path d="m3.5 7 8.5 6 8.5-6" />
+          </svg>
         </a>
       </div>
     </header>

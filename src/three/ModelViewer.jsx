@@ -8,6 +8,9 @@ import { assemblyRoot, planAssemblyIdle, prepareAssembly, poseAssembly, disposeA
 import { useLang } from "../lib/i18n";
 import { asset } from "../lib/asset";
 import { prefersReducedMotion } from "../lib/anim";
+import { useGpuFallo } from "../lib/gpu";
+import { useRegistrarVista } from "../lib/vistas";
+import { ui } from "../data/content";
 
 /**
  * Visor 3D para un proyecto que tiene modelo.
@@ -375,6 +378,8 @@ export default function ModelViewer({ model, label, hint }) {
   // Descargar y decodificar mientras el visitante se acerca a la seccion.
   const [asomado, setAsomado] = useState(yaPreparado);
   const [enPantalla, setEnPantalla] = useState(false);
+  const gpuCaida = useGpuFallo();
+  useRegistrarVista(caja);
 
   useEffect(() => {
     const el = caja.current;
@@ -435,6 +440,14 @@ export default function ModelViewer({ model, label, hint }) {
       onPointerCancel={soltar}
       onPointerLeave={soltar}
     >
+      {/* Sin GPU el hueco se queda con su aviso: el resto de la ficha (texto,
+          enlaces, video) no depende del 3D. */}
+      {gpuCaida ? (
+        <>
+          <div className="modelo__hueco" />
+          <div className="modelo__carga" role="status"><span>{tr(ui.sin3d)}</span></div>
+        </>
+      ) : <>
       {/* El lienzo global no recibe eventos (`pointer-events: none`), asi que
           el arrastre lo captura este div y el 3D solo lee el resultado. */}
       <View className="modelo__hueco">
@@ -468,6 +481,7 @@ export default function ModelViewer({ model, label, hint }) {
           {!fallo && estado !== "no" && <span className="modelo__progreso" aria-hidden="true" />}
         </div>
       )}
+      </>}
       <div className="modelo__pie">
         <span className="modelo__nombre">{label}</span>
         <span className="modelo__ayuda">{hint}</span>

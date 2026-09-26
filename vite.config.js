@@ -13,6 +13,12 @@ export default defineConfig({
 
   plugins: [react()],
 
+  // Vitest: solo la logica. Las pruebas en navegador (tests/e2e) son de
+  // Playwright y se lanzan aparte (`npm run test:e2e`).
+  test: {
+    include: ["tests/unit/**/*.test.js"],
+  },
+
   // El puerto puede venir del entorno: asi conviven varios servidores de dev.
   server: {
     port: Number(process.env.PORT) || 5191,

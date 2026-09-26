@@ -3,6 +3,11 @@
  * no es una imagen para nadie que lo descargue suelto. Aqui se descifra en
  * memoria y se pinta en un <canvas>, sin <img> ni URL de imagen que copiar,
  * enlazar o indexar. Encima va una marca de agua discreta con el nombre.
+ *
+ * OJO: esto es OFUSCACION, no proteccion. La clave y el algoritmo viajan en
+ * este mismo archivo, y cualquiera puede capturar la pantalla. Sirve para
+ * que la foto no aparezca en buscadores de imagenes ni se guarde con un clic
+ * derecho; no para impedir a alguien decidido. Por eso no se complica mas.
  */
 const SEMILLA = 0x4a41464d; // "JAFM", la misma que en el script
 
@@ -18,11 +23,19 @@ function descifrar(bytes) {
 
 let pendiente = null;
 
-/** Descarga y descifra una sola vez, aunque haya varias tarjetas. */
+/**
+ * Descarga y descifra una sola vez, aunque haya varias tarjetas. Si falla
+ * (red cortada, un 404 pasajero) la promesa rechazada NO se queda guardada:
+ * se olvida, y el siguiente intento vuelve a pedirla.
+ */
 function cargar() {
   pendiente ??= fetch(`${import.meta.env.BASE_URL}data/p.dat`)
-    .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
-    .then((buf) => createImageBitmap(new Blob([descifrar(new Uint8Array(buf))], { type: "image/webp" })));
+    .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`HTTP ${r.status}`))))
+    .then((buf) => createImageBitmap(new Blob([descifrar(new Uint8Array(buf))], { type: "image/webp" })))
+    .catch((error) => {
+      pendiente = null;
+      throw error;
+    });
   return pendiente;
 }
 

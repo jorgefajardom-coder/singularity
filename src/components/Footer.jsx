@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { site, socials, nav, ui } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { pintarFoto } from "../lib/fotoProtegida";
@@ -88,11 +88,19 @@ function TarjetaFoto() {
   const carta = useRef(null);
   const lienzo = useRef(null);
 
+  // Si la foto no llega, la tarjeta lo dice con sus iniciales en vez de
+  // quedarse con un hueco negro, y el error queda en la consola.
+  const [sinFoto, setSinFoto] = useState(false);
   useEffect(() => {
     const el = lienzo.current;
     if (!el) return undefined;
     let vivo = true;
-    const pintar = () => vivo && pintarFoto(el, `© ${site.name}`).catch(() => {});
+    const pintar = () => vivo && pintarFoto(el, `© ${site.name}`)
+      .then(() => { if (vivo) setSinFoto(false); })
+      .catch((error) => {
+        console.error("[singularity] no se pudo cargar la foto", error);
+        if (vivo) setSinFoto(true);
+      });
     pintar();
     const ro = new ResizeObserver(pintar);
     ro.observe(el);
@@ -101,18 +109,16 @@ function TarjetaFoto() {
 
   useInclinar(carta);
 
+  // El bloqueo va solo sobre la imagen, no sobre la tarjeta entera: el
+  // nombre y el texto de al lado se pueden seleccionar y copiar.
   const bloquear = (e) => e.preventDefault();
 
   return (
-    <article
-      className="poster footer__carta"
-      ref={carta}
-      onContextMenu={bloquear}
-      onDragStart={bloquear}
-      onCopy={bloquear}
-    >
-      <div className="poster__arte footer__foto">
+    <article className="poster footer__carta" ref={carta}>
+      <div className="poster__arte footer__foto" data-sin-foto={sinFoto ? "true" : undefined}
+        onContextMenu={bloquear} onDragStart={bloquear}>
         <canvas ref={lienzo} role="img" aria-label={site.name} />
+        {sinFoto && <span className="footer__iniciales" aria-hidden="true">JAFM</span>}
       </div>
       <header className="poster__cabeza">
         <h3 className="poster__titulo">{site.name}</h3>

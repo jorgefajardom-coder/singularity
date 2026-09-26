@@ -113,15 +113,23 @@
         function revisar() {
           try {
             // Este sitio no usa service worker ni Cache Storage. Lo que haya
-            // ahi es de alguna version anterior y solo puede estorbar.
+            // ahi es de alguna version anterior y solo puede estorbar. PERO
+            // el origen (usuario.github.io) lo comparten todos los sitios de
+            // Pages de la misma cuenta: se limpia solo lo de ESTE sitio (su
+            // ruta y sus nombres), nunca lo de los vecinos.
+            var base = new URL("./", location.href).href;
             if (navigator.serviceWorker) {
               navigator.serviceWorker.getRegistrations()
-                .then(function (rs) { rs.forEach(function (r) { r.unregister(); }); })
+                .then(function (rs) {
+                  rs.forEach(function (r) { if (r.scope.indexOf(base) === 0) r.unregister(); });
+                })
                 .catch(function () {});
             }
             if (window.caches) {
               caches.keys()
-                .then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); })
+                .then(function (ks) {
+                  ks.forEach(function (k) { if (/singularity|portfolio-3d/i.test(k)) caches.delete(k); });
+                })
                 .catch(function () {});
             }
 

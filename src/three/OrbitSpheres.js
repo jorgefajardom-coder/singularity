@@ -85,12 +85,18 @@ export function createOrbitSpheres(host, count) {
       ball.glowMaterial.uniforms.opacity.value = opacity;
     },
     render() { renderer.render(scene, camera); },
+    /** El lienzo, para vigilar si pierde el contexto (ver Orbit.jsx). */
+    canvas: renderer.domElement,
     dispose() {
       geometry.dispose();
       balls.forEach(({ material, glowMaterial }) => {
         material.dispose(); glowMaterial.dispose();
       });
       renderer.dispose();
+      // `dispose` suelta los recursos pero NO el contexto: el navegador lo
+      // mantiene vivo hasta que el recolector pase, y mientras cuenta para
+      // el tope de contextos. Se suelta a mano.
+      renderer.forceContextLoss();
       renderer.domElement.remove();
     },
   };

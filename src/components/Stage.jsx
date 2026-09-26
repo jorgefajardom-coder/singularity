@@ -8,7 +8,8 @@ import About from "./About";
 import Meditation from "./Meditation";
 import Stack from "./Stack";
 import { companies, sections } from "../data/content";
-import { gsap, ScrollTrigger, prefersReducedMotion } from "../lib/anim";
+import { gsap, ScrollTrigger, useReducedMotion } from "../lib/anim";
+import Aislado from "./Aislado";
 import { heroBase } from "../lib/stagePose";
 
 /**
@@ -68,7 +69,7 @@ export default function Stage({ entered, warm, espejo }) {
   const carrier = useRef(null);
   const traveler = useRef(null);
   const [lensed, setLensed] = useState(false);
-  const reduced = prefersReducedMotion();
+  const reduced = useReducedMotion();
 
   // Estado compartido shader <-> DOM. `cx`/`cy` van en fracción de media
   // pantalla con la Y hacia arriba, que es como los quiere el shader.
@@ -116,6 +117,14 @@ export default function Stage({ entered, warm, espejo }) {
     const stackRow = stage.current.querySelector(".posters");
     const stackSection = stage.current.querySelector("#stack");
     const impact = { fired: false };
+    // Lo que no cambia fotograma a fotograma se lee una vez (y al cambiar el
+    // tamano), no en cada tick: `getComputedStyle` fuerza a recalcular estilos.
+    const medidas = { figuraX: 0 };
+    const medir = () => { medidas.figuraX = parseFloat(getComputedStyle(finalImage).translate) || 0; };
+    medir();
+    window.addEventListener("resize", medir);
+    // Lo ultimo escrito, para corregir medidas y no reescribir sin cambios.
+    const antes = { reposo: false, dormido: false, borde: undefined, lift: 0 };
     // El texto de Sobre mi (titulo, parrafos, boton) y sus objetos 3D. No el
     // astronauta: ese es el que se transforma.
     const aboutParts = [
@@ -175,6 +184,54 @@ export default function Stage({ entered, warm, espejo }) {
       const layer = traveler.current;
       const holder = carrier.current;
       if (!layer || !holder) return;
+      const pose = orbitPose.current;
+      const sequence = stackSequence.current;
+      /**
+       * Dos tramos largos en los que no hace falta medir nada, y por los que
+       * pasa casi todo el recorrido:
+       *
+       *   REPOSO   todavia no ha empezado el viaje a Sobre mi (sin avance ni
+       *            cierre): el agujero sigue a la orbita y el astronauta esta
+       *            en su sitio. Basta con volcar la pose.
+       *   DORMIDO  ya se estampo en la portada del Stack y paso el rebote: el
+       *            lienzo queda con opacidad 0. Se deja de PINTAR (`oculto`,
+       *            ver BlackHole.jsx) y no se toca nada mas.
+       *
+       * Antes, en los dos, se hacian ~10 getBoundingClientRect por fotograma
+       * mezclados con escrituras de estilo, cada una obligando a recalcular,
+       * durante todo el scroll de la pagina; y el lienzo invisible seguia
+       * trazando rayos a pantalla completa.
+       */
+      if (motion.progress === 0 && closing.progress === 0) {
+        Object.assign(journey.current, pose);
+        journey.current.oculto = false;
+        journey.current.isolation = ease(span([0.92, 1], pose.p));
+        if (!antes.reposo) {
+          antes.reposo = true;
+          antes.dormido = false;
+          restaurar();
+        }
+        const edgeAlpha = 1 - ease(span([0.86, 0.96], pose.p));
+        if (antes.borde !== edgeAlpha) {
+          antes.borde = edgeAlpha;
+          const mask = `radial-gradient(ellipse 50% 50% at 50% 50%, #000 35%, rgba(0,0,0,${edgeAlpha}) 100%)`;
+          layer.style.maskImage = mask;
+          layer.style.webkitMaskImage = mask;
+        }
+        return;
+      }
+      antes.reposo = false;
+      antes.borde = undefined;
+      // Al dormirse se hace un fotograma completo (el primero), para dejar
+      // todo en su estado final; los siguientes ya no hacen nada.
+      const dormir = motion.progress === 1 && closing.progress === 1 && sequence >= 0.29;
+      if (dormir && antes.dormido) { journey.current.oculto = true; return; }
+      antes.dormido = dormir;
+      // Las lecturas van ANTES de escribir nada: una lectura tras una
+      // escritura obliga a recalcular. Solo quedan dos por detras, a
+      // proposito: el retrato (se mide despues de desplazarlo `lift`) y la
+      // mano de Sobre mi (se mide despues de mover la pose), porque dependen
+      // de lo que se acaba de escribir.
       // La caja del lienzo se mide ANTES de tocar nada: si todavia no tiene
       // tamano, el fotograma se salta entero. Estaba mas abajo, despues de
       // haber escrito ya la pose del astronauta y de haber volcado `pose` en
@@ -184,6 +241,11 @@ export default function Stage({ entered, warm, espejo }) {
       const w = holder.clientWidth;
       const h = holder.clientHeight;
       if (!w || !h) return;
+      const frameTop = finalFrame.getBoundingClientRect().top;
+      const origin = originalFrame.getBoundingClientRect();
+      const stackBox = stackSection.getBoundingClientRect();
+      const coverRect = coverHole ? coverHole.getBoundingClientRect() : null;
+      const rowRect = coverHole ? stackRow.getBoundingClientRect() : null;
       const t = ease(motion.progress);
       const closingProgress = ease(closing.progress);
       // Primero viaja y despues se transforma: con los dos tramos a la vez, a
@@ -207,14 +269,13 @@ export default function Stage({ entered, warm, espejo }) {
       // marco recorta, asi que mientras tanto deja ver lo que sale de el; y el
       // retrato, aun invisible, no puede quedarse interceptando clics encima
       // de Sobre mi.
-      const lift = Math.max(0, finalFrame.getBoundingClientRect().top);
+      const lift = Math.max(0, frameTop);
       portrait.style.transform = lift > 0 ? `translateY(var(--retrato-y)) translateY(${-lift}px)` : "";
       portrait.style.pointerEvents = lift > 0 ? "none" : "";
       // Los contadores salen con el astronauta (ver Meditation.jsx): esperan
       // con el en su sitio, o saldrian por debajo del borde de la pantalla.
       if (finalStats) finalStats.style.transform = lift > 0 ? `translateY(${-lift}px)` : "";
       finalFrame.style.overflow = lift > 0 ? "visible" : "";
-      const origin = originalFrame.getBoundingClientRect();
       const destination = portrait.getBoundingClientRect();
       // Lleva la cara del astronauta de Sobre mi hasta la del que medita,
       // con su tamano, y ahi los funde: se lee como que uno se convierte en el
@@ -226,7 +287,7 @@ export default function Stage({ entered, warm, espejo }) {
       const faceY = origin.top + origin.height * ABOUT_FACE.y * poseScale;
       // La figura va desplazada dentro de su caja (`--astronauta-x`): la cara
       // de destino, con ella.
-      const figuraX = parseFloat(getComputedStyle(finalImage).translate) || 0;
+      const figuraX = medidas.figuraX;
       const poseX = (destination.left + destination.width * MEDITATION_FACE.x + figuraX - faceX) * travel;
       const poseY = (destination.top + destination.height * MEDITATION_FACE.y - faceY) * travel;
       originalPose.style.transform = `translate3d(${poseX}px, ${poseY}px, 0) scale(${poseScale})`;
@@ -239,8 +300,9 @@ export default function Stage({ entered, warm, espejo }) {
       // La del que medita lleva su propio `brightness(0.75)` en el CSS.
       finalImage.style.filter = flare ? `brightness(${(0.75 * (1 + 0.9 * glow)).toFixed(3)}) blur(${(2.5 * glow).toFixed(2)}px)` : "";
       portrait.style.opacity = dissolve;
-      const pose = orbitPose.current;
       Object.assign(journey.current, pose);
+      // Dormido no pinta; en el fotograma que se duerme ya tampoco.
+      journey.current.oculto = dormir;
       const firstHand = anchor.getBoundingClientRect();
       const lastHand = finalHand.getBoundingClientRect();
       // Va en las manos de Sobre mi mientras viaja (el ancla se mueve con la
@@ -253,9 +315,7 @@ export default function Stage({ entered, warm, espejo }) {
         height: firstHand.height * (1 - handMix) + lastHand.height * handMix,
       };
       // El mismo lienzo termina en la portada y sigue su desplazamiento lateral.
-      const stackBox = stackSection.getBoundingClientRect();
       const coverMix = ease(Math.max(0, Math.min(1, (innerHeight * .85 - stackBox.top) / Math.max(1, stackBox.height - innerHeight * .15))));
-      const sequence = stackSequence.current;
       const stamp = ease(span([.115, .20], sequence));
       const recoilProgress = span([.115, .29], sequence);
       const recoil = Math.sin(recoilProgress * Math.PI * 3) * (1 - recoilProgress) ** 2;
@@ -267,9 +327,10 @@ export default function Stage({ entered, warm, espejo }) {
       // carta. Se lanza una vez al estamparse y se rearma al deshacerlo.
       if (coverHole) {
         if (stamp >= 0.95 && !impact.fired) {
+          // La clase ya se quito al rearmar (la rama de abajo), en un
+          // fotograma anterior: ponerla basta para que la onda arranque de
+          // cero, sin forzar un reflow con `offsetWidth`.
           impact.fired = true;
-          coverHole.classList.remove("is-impacto");
-          void coverHole.offsetWidth;
           coverHole.classList.add("is-impacto");
         } else if (stamp < 0.05 && impact.fired) {
           impact.fired = false;
@@ -278,9 +339,9 @@ export default function Stage({ entered, warm, espejo }) {
       }
       coverHole?.style.setProperty("--stamp", String(stamp));
       if (coverHole && coverMix > 0) {
-        const target = coverHole.getBoundingClientRect();
+        const target = coverRect;
         for (const key of ["left", "top", "width", "height"]) hand[key] += (target[key] - hand[key]) * coverMix;
-        const row = stackRow.getBoundingClientRect();
+        const row = rowRect;
         const cx = target.left + target.width / 2;
         const visibility = Math.min(1, Math.max(0, (cx - row.left) / target.width), Math.max(0, (row.right - cx) / target.width));
         layer.style.opacity = String((1 - coverMix + coverMix * visibility) * (1 - stamp));
@@ -319,9 +380,34 @@ export default function Stage({ entered, warm, espejo }) {
       journey.current.scale = pose.scale * (1 - t) + (LANDED_SCALE * HAND_ROOM / growth) * t;
       journey.current.topDown = pose.topDown * (1 - t);
     };
+    // El estado de reposo, escrito una vez al volver a el (la ruta rapida de
+    // REPOSO ya no lo reescribe en cada fotograma). Es lo que `follow`
+    // escribiria con el viaje a cero.
+    function restaurar() {
+      originalPose.style.transform = "";
+      originalPose.style.opacity = "";
+      originalImage.style.filter = "";
+      finalImage.style.filter = "";
+      portrait.style.transform = "";
+      portrait.style.pointerEvents = "";
+      portrait.style.opacity = "";
+      if (finalStats) finalStats.style.transform = "";
+      finalFrame.style.overflow = "";
+      for (const el of aboutParts) { el.style.opacity = ""; el.style.pointerEvents = ""; }
+      const layer = traveler.current;
+      if (layer) { layer.style.transform = ""; layer.style.opacity = ""; }
+      const holder = carrier.current;
+      if (holder) { holder.style.zIndex = "0"; holder.style.pointerEvents = "auto"; }
+      coverHole?.style.setProperty("--stamp", "0");
+      coverCard?.style.setProperty("--impact-y", "0px");
+      coverCard?.style.setProperty("--impact-scale", "1");
+      if (impact.fired) { impact.fired = false; coverHole?.classList.remove("is-impacto"); }
+    }
     gsap.ticker.add(follow);
     return () => {
       gsap.ticker.remove(follow);
+      window.removeEventListener("resize", medir);
+      journey.current.oculto = false;
       tween.scrollTrigger.kill();
       tween.kill();
       closeTween.scrollTrigger.kill();
@@ -424,23 +510,27 @@ export default function Stage({ entered, warm, espejo }) {
       {warm && (
         <div className="stage__void" ref={carrier}>
           <div className="stage__traveler" ref={traveler}>
-          <Suspense fallback={null}>
+          <Aislado nombre="el agujero del hero" fallback={<div className="blackhole__fallback" />}>
+          <Suspense fallback={<div className="blackhole__fallback" />}>
             <BlackHole bare lensSource={copy} lensFrame={stage} journey={journey} onLensReady={setLensed} espejo={espejo} espejoModo="sigue" />
           </Suspense>
+          </Aislado>
           </div>
         </div>
       )}
 
       <Hero entered={entered} copyRef={copy} lensed={lensed} />
 
-      {reduced ? (
-        <Companies />
-      ) : (
-        <Orbit journey={journey} items={companies.items ?? []} note={sections.companies.note} />
-      )}
-      <About sharedHole={!reduced} />
-      <Meditation reduced={reduced} />
-      <Stack sequence={stackSequence} />
+      <Aislado nombre="la orbita">
+        {reduced ? (
+          <Companies />
+        ) : (
+          <Orbit journey={journey} items={companies.items ?? []} note={sections.companies.note} />
+        )}
+      </Aislado>
+      <Aislado nombre="Sobre mi"><About sharedHole={!reduced} /></Aislado>
+      <Aislado nombre="Meditacion"><Meditation reduced={reduced} /></Aislado>
+      <Aislado nombre="el Stack"><Stack sequence={stackSequence} /></Aislado>
     </div>
   );
 }

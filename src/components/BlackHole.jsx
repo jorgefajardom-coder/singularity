@@ -28,11 +28,17 @@ const GRUPOS = (() => {
   }
   return out;
 })();
-import { ui } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { useMusic } from "../lib/music";
-import { useTelefono } from "../lib/telefono";
+import { PRESUPUESTO, marcarGpuFallo, perfil, useGpuFallo } from "../lib/gpu";
 import { curvaParaShader } from "../lib/curvaInfinito";
+
+// Pasos por rayo. En el telefono, menos: el coste del shader va con el area
+// por los pasos, y los que se quitan son los del final, que solo recorren los
+// rayos que rozan la esfera de fotones (y esos se apagan igual, ver `wound`).
+// La precision se queda en highp: la integracion eleva r a la quinta, y en
+// mediump (16 bits en muchas GPU moviles) eso desborda con r = 26.
+const PASOS = perfil.movil ? PRESUPUESTO.pasosAgujero.movil : PRESUPUESTO.pasosAgujero.escritorio;
 
 const vertexShader = `
   varying vec2 vUv;
@@ -72,7 +78,7 @@ const float DISK_OUT = 15.0;
 const float CAM_DIST = 26.0;   // la cámara mira desde fuera del disco
 const float LENSE    = 3.00;   // distancia focal: encuadra la sombra en pantalla
 float gOut;
-const int   STEPS    = 180;
+const int   STEPS    = ${PASOS};
 const float SPIN     = 0.17;   // arrastre de marco: el agujero gira de verdad
 const float TILT0    = 0.092;  // el plano arranca mirando a la cámara
 const float LEM_A    = 10.4;   // semianchura del ∞: cuadra con la del SVG del cargador
@@ -734,9 +740,16 @@ function paintLensText(source, box, group) {
   return texture;
 }
 
+// Si el shader no compila o la escena revienta, no basta con pintar el
+// respaldo aqui dentro: el titular tiene que volver al DOM y el resto de la
+// pagina tiene que saber que la GPU no responde (ver `romper`).
 class SceneBoundary extends Component {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(error) {
+    console.error("[singularity] el agujero negro fallo", error);
+    this.props.onFallo?.();
+  }
   render() { return this.state.failed ? <div className="blackhole__fallback" /> : this.props.children; }
 }
 
@@ -787,7 +800,9 @@ function pintaBlanco(ctx) {
   return (blancos(fila, w) + blancos(columna, h)) / (w + h);
 }
 
-function Scene({ interaction, reduced, formation, sample, visual, lens, journey, espejo, espejoModo, hue = 0, disk = 1, white = 0, onRoto, ajusta = false }) {
+const ahoraMs = () => performance.now();
+
+function Scene({ interaction, reduced, formation, sample, visual, lens, journey, espejo, espejoModo, hue = 0, disk = 1, white = 0, onRoto, onPintado, ajusta = false }) {
   const elapsed = useRef(0);
   const rigid = useRef(0);
   const wound = useRef(0);
@@ -842,7 +857,9 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
      * ya no cruza nada: lo unico que cambia durante el relevo es el titular,
      * que solo dibuja el del hero.
      */
-    const copia = espejoModo === "sigue" ? espejo?.current : null;
+    // Sin lienzo en el cargador (telefono, ver Loader.jsx) el espejo solo
+    // lleva `cubre`: no hay reloj que copiar.
+    const copia = espejoModo === "sigue" && espejo?.current?.time !== undefined ? espejo.current : null;
     if (copia) {
       elapsed.current = copia.time;
       rigid.current = copia.rigid;
@@ -959,30 +976,43 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
    * cuando este lienzo asoma ya lleva la imagen al dia.
    */
   const pintados = useRef(0);
+  const revision = useRef({ tramo: null, t: 0 });
 
   /**
    * Resolucion que se adapta en el telefono. Cada pixel lanza un rayo de
-   * hasta 180 pasos, asi que el coste va con el area del lienzo: si la media
-   * de un tramo de fotogramas pasa de 1/40 s, la resolucion baja un 15 %,
-   * hasta 0,6. Solo baja, nunca sube: subir y bajar se veria como un
-   * parpadeo de nitidez. Se mide desde el fotograma 10 para no contar la
-   * compilacion.
+   * cientos de pasos, asi que el coste va con el area del lienzo.
+   *
+   * Empieza BAJA (ver `DPR_MOVIL` abajo) y sube solo si sobra: antes
+   * arrancaba en 1 y bajaba al ver que no llegaba, y para cuando lo veia la
+   * intro ya se habia pasado a tirones. Ahora, cada 20 fotogramas:
+   *   - media por encima del presupuesto movil (33 ms): baja un 15 %, hasta
+   *     0,5, y ya no vuelve a subir (subir y bajar se veria como un parpadeo
+   *     de nitidez);
+   *   - media por debajo de 1/50 s y sin haber bajado nunca: sube un escalon,
+   *     hasta 1, que es el techo del presupuesto.
+   * Se mide desde el fotograma 10 para no contar la compilacion, y no se mide
+   * lo que no se pinta (`tapado`).
    */
   const { setDpr, viewport: { dpr: dprActual } } = useThree();
-  const medida = useRef({ n: 0, t: 0 });
+  const medida = useRef({ n: 0, t: 0, bajo: false });
   const dprVivo = useRef(dprActual);
   useFrame((_, delta) => {
-    if (!ajusta || !listo.current || pintados.current < 10) return;
+    if (!ajusta || !listo.current || pintados.current < 10 || tapadoAhora.current) return;
     const m = medida.current;
     m.n++; m.t += Math.min(delta, 0.25);
-    if (m.n < 30) return;
+    if (m.n < 20) return;
     const media = m.t / m.n;
     m.n = 0; m.t = 0;
-    if (media > 1 / 40 && dprVivo.current > 0.6) {
-      dprVivo.current = Math.max(0.6, dprVivo.current * 0.85);
+    if (media > PRESUPUESTO.fotogramaMs.movil / 1000 && dprVivo.current > 0.5) {
+      m.bajo = true;
+      dprVivo.current = Math.max(0.5, dprVivo.current * 0.85);
+      setDpr(dprVivo.current);
+    } else if (!m.bajo && media < 1 / 50 && dprVivo.current < PRESUPUESTO.dprMovil) {
+      dprVivo.current = Math.min(PRESUPUESTO.dprMovil, dprVivo.current + 0.125);
       setDpr(dprVivo.current);
     }
   });
+  const tapadoAhora = useRef(false);
 
   /**
    * Compilar sin congelar la pagina. Este shader tarda 0,5-3 s en compilar en
@@ -1012,17 +1042,33 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
   // grafica integrada lo dejaban en ~10 fps.
   useFrame(({ gl, scene, camera }) => {
     if (!listo.current) return;
-    const tapado = espejoModo === "sigue" ? espejo?.current?.cubre : journey?.current?.oculto;
+    // `oculto` tambien vale para el del hero: Stage lo levanta cuando el
+    // lienzo, ya estampado en la portada del Stack, queda con opacidad 0.
+    // Pintar a pantalla completa lo que nadie ve era el mayor gasto de GPU
+    // de todo el recorrido de abajo.
+    const tapado = (espejoModo === "sigue" && espejo?.current?.cubre) || journey?.current?.oculto;
+    tapadoAhora.current = Boolean(tapado);
     if (tapado && pintados.current > 1) return;
     pintados.current++;
     gl.render(scene, camera);
-    // Al arrancar, y despues una vez por segundo mas o menos: el blanco puede
-    // salir solo en algun tramo del viaje (en el video, al llegar a Sobre mi).
+    // `readPixels` detiene la tuberia de la GPU hasta que termina el
+    // fotograma, asi que NO va en cada fotograma ni cada segundo. Se mira al
+    // arrancar (fotogramas 3 a 6) y despues solo cuando el viaje cambia de
+    // tramo —el blanco salio en un tramo concreto, al llegar a Sobre mi—, y
+    // como mucho una vez cada dos segundos.
     const n = pintados.current;
-    if ((n >= 3 && n <= 12) || n % 60 === 0) {
+    const trip = journey?.current;
+    const tramo = trip ? Math.round((trip.isolation ?? 0) * 2) * 10 + Math.round((trip.topDown ?? 0) * 2) : 0;
+    const revisa = revision.current;
+    const cambiaTramo = n > 6 && tramo !== revisa.tramo && ahoraMs() - revisa.t > 2000;
+    if ((n >= 3 && n <= 6) || cambiaTramo) {
+      revisa.tramo = tramo;
+      revisa.t = ahoraMs();
       const blanco = pintaBlanco(gl.getContext());
       if (import.meta.env.DEV) (window.__blanco ??= []).push(+blanco.toFixed(3));
-      if (blanco > LIMITE_BLANCO) onRoto?.();
+      if (blanco > LIMITE_BLANCO) { onRoto?.("pinta blanco"); return; }
+      // El agujero ya esta compilado y pintando bien: ahora si esta listo.
+      if (n === 6) onPintado?.();
     }
   }, 1);
 
@@ -1038,6 +1084,12 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
  * rotacion es la diferencia; en radianes, que es lo que toma la formula.
  */
 const AMBAR = 25;
+
+// Densidad inicial en el telefono (sube sola hasta PRESUPUESTO.dprMovil).
+const DPR_MOVIL = 0.75;
+// La GPU de alto consumo solo donde hay de donde tirar: en un telefono pedirla
+// no da mas GPU, da mas calor y mas bateria.
+const GL_OPCIONES = { antialias: false, alpha: true, powerPreference: perfil.movil ? "default" : "high-performance" };
 function hueOf(hex) {
   if (!hex) return 0;
   const n = parseInt(hex.slice(1), 16);
@@ -1063,8 +1115,8 @@ function hueOf(hex) {
  * dpr a la misma proporcion, el lienzo se repinta a tamano real y queda
  * nitido. Ver `entrar()` en Halo.jsx.
  */
-export default function BlackHole({ bare = false, className = "", formation, journey, lensSource, lensFrame, onLensReady, tint, dpr, disk = 1, white = 0, espejo, espejoModo }) {
-  const { lang, tr } = useLang();
+export default function BlackHole({ bare = false, className = "", formation, journey, lensSource, lensFrame, onLensReady, onPintado, tint, dpr, disk = 1, white = 0, espejo, espejoModo }) {
+  const { lang } = useLang();
   const { sample } = useMusic();
   const root = useRef(null);
   const visual = useRef({time:0,x:0,y:0,bass:0,mid:0,treble:0});
@@ -1080,25 +1132,36 @@ export default function BlackHole({ bare = false, className = "", formation, jou
    * El titular vuelve al <h1> del DOM (`onLensReady(false)`), si no el nombre
    * desapareceria con el lienzo.
    */
-  const [roto, setRoto] = useState(false);
-  // En el telefono, 1 y no 1,25: son muchos pixeles por rayo en una GPU de
-  // movil, y la densidad de la pantalla ya disimula la diferencia. Ademas la
-  // escena la baja sola si no llega (ver `ajusta` en Scene).
-  const telefono = useTelefono();
-  const dprLienzo = dpr ?? (telefono ? 1 : [1, 1.25]);
+  const [rotoAqui, setRoto] = useState(false);
+  // Si cae cualquier otro lienzo de la pagina, este tambien pasa a su
+  // respaldo (ver lib/gpu.js): quedarse vivo era esperar su turno para caer.
+  const gpuCaida = useGpuFallo();
+  const roto = rotoAqui || gpuCaida;
+  // En el telefono arranca a 0,75 y sube hasta 1 solo si le sobra (ver
+  // `ajusta` en Scene). Son muchos pixeles por rayo en una GPU de movil, y la
+  // densidad de la pantalla ya disimula la diferencia.
+  const movil = perfil.movil;
+  const dprLienzo = dpr ?? (movil ? DPR_MOVIL : [1, 1.25]);
   const rotoRef = useRef(false);
-  const romper = useCallback(() => {
+  rotoRef.current = roto;
+  const romper = useCallback((motivo = "lienzo roto") => {
     if (rotoRef.current) return;
     rotoRef.current = true;
     setRoto(true);
+    marcarGpuFallo(`agujero negro: ${motivo}`);
   }, []);
+  // Si ya no hay lienzo (roto o caido), nadie va a avisar de que pinto: el
+  // respaldo cuenta como listo, para no dejar a nadie esperando (la musica).
+  useEffect(() => {
+    if (roto) onPintado?.();
+  }, [roto, onPintado]);
   useEffect(() => {
     if (roto) onLensReady?.(false);
   }, [roto, onLensReady]);
   useEffect(() => {
     const holder = root.current;
     if (!holder) return undefined;
-    const perdido = () => romper();
+    const perdido = () => romper("contexto perdido");
     holder.addEventListener("webglcontextlost", perdido, true);
     return () => holder.removeEventListener("webglcontextlost", perdido, true);
   }, [romper]);
@@ -1156,16 +1219,30 @@ export default function BlackHole({ bare = false, className = "", formation, jou
       return { left: box.left, right: box.right, width: box.width, height: box.height, top, bottom: top + box.height };
     };
 
-    // Mientras siga encogido se conserva la textura buena y se vuelve a mirar
-    // en el fotograma siguiente. El sondeo se apaga solo en cuanto pinta.
+    // Mientras siga encogido se conserva la textura buena y se vuelve a
+    // mirar cuando algo pueda haberlo cambiado: el siguiente desplazamiento
+    // (el lienzo solo se encoge con el scroll) o, como mucho, un reintento
+    // cada medio segundo durante unos segundos. Antes era un rAF que se
+    // renovaba solo: con el agujero en la mano del astronauta y la pagina
+    // quieta, sondeaba cada fotograma indefinidamente.
+    let intentos = 0;
+    const alDesplazar = () => { cancelar(); repaint(); };
+    const cancelar = () => {
+      if (esperando) clearTimeout(esperando);
+      esperando = 0;
+      window.removeEventListener("scroll", alDesplazar);
+    };
     const reintentar = () => {
       if (esperando || !alive) return;
-      esperando = requestAnimationFrame(() => { esperando = 0; repaint(); });
+      window.addEventListener("scroll", alDesplazar, { passive: true, once: true });
+      if (intentos++ < 8) esperando = setTimeout(() => { esperando = 0; window.removeEventListener("scroll", alDesplazar); repaint(); }, 500);
+      else esperando = -1;
     };
 
     const repaint = () => {
       if(!alive || !root.current || rotoRef.current) return;
       if(!enReposo()) { reintentar(); return; }
+      intentos = 0;
       const box = cajaEnReposo();
       if(!target.querySelector('[data-lens-line][data-lens-group="title"]')) return;
       const title = paintLensText(target, box, "title");
@@ -1189,7 +1266,7 @@ export default function BlackHole({ bare = false, className = "", formation, jou
     return () => {
       alive = false; observer.disconnect();
       holder.removeEventListener("webglcontextrestored", repaint, true);
-      if (esperando) cancelAnimationFrame(esperando);
+      cancelar();
       lens.current.title?.dispose(); lens.current.copy?.dispose();
       lens.current.title = null; lens.current.copy = null;
       onLensReady?.(false);
@@ -1201,21 +1278,16 @@ export default function BlackHole({ bare = false, className = "", formation, jou
 
   const reset = () => { interaction.current.down = false; interaction.current.point.set(0,0); };
   return <div ref={root} className={`blackhole ${bare ? "blackhole--bare" : ""} ${className}`}>
-    <div className="blackhole__surface" role="button" tabIndex={0}
-      aria-label={tr(ui.a11y.blackHole)}
+    {/* Decorativo: pulsarlo acelera el disco, pero no es una accion. Sin
+        `role="button"` ni foco, que anunciaban un boton que no hace nada y
+        metian una parada de teclado en la primera pantalla. */}
+    <div className="blackhole__surface" aria-hidden="true"
       onPointerMove={(e) => {
         const r=e.currentTarget.getBoundingClientRect();
         interaction.current.point.set((e.clientX-r.left)/r.width*2-1,1-(e.clientY-r.top)/r.height*2);
       }}
       onPointerDown={(e) => { if(e.button !== 0) return; interaction.current.down=true; e.currentTarget.setPointerCapture(e.pointerId); }}
-      onPointerUp={reset} onPointerCancel={reset} onLostPointerCapture={reset} onPointerLeave={reset} onBlur={reset}
-      // Solo Enter. Con Espacio tambien puesto, quien navega con teclado se
-      // quedaba sin poder avanzar la pagina: este control es enfocable, esta
-      // en la primera pantalla, y el preventDefault se comia el scroll. El
-      // efecto es un adorno —acelera el disco mientras se mantiene—, asi que
-      // no compensa quedarse con la tecla de avanzar pagina.
-      onKeyDown={(e) => { if(e.key === "Enter") {e.preventDefault();interaction.current.down=true;} }}
-      onKeyUp={(e) => {if(e.key === "Enter") {e.preventDefault();reset();}}}
+      onPointerUp={reset} onPointerCancel={reset} onLostPointerCapture={reset} onPointerLeave={reset}
     >
       {/* `scroll: false` no es un detalle de rendimiento. react-use-measure
           vuelve a medir la caja TRANSFORMADA en cada desplazamiento, y
@@ -1226,11 +1298,11 @@ export default function BlackHole({ bare = false, className = "", formation, jou
           hasta abajo, sin recuperarse al subir. El lienzo siempre cubre el
           viewport entero, asi que al desplazarse no hay nada que volver a
           medir; de los cambios de tamano ya se encarga el ResizeObserver. */}
-      {roto ? <div className="blackhole__fallback" /> : <SceneBoundary><Canvas key="transparent-context" dpr={dprLienzo} resize={{ offsetSize: true, scroll: false }} frameloop={active ? "always" : "never"}
-        gl={{antialias:false,alpha:true,powerPreference:"high-performance"}}
+      {roto ? <div className="blackhole__fallback" /> : <SceneBoundary onFallo={() => romper("la escena lanzo un error")}><Canvas key="transparent-context" dpr={dprLienzo} resize={{ offsetSize: true, scroll: false }} frameloop={active ? "always" : "never"}
+        gl={GL_OPCIONES}
         onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
         fallback={<div className="blackhole__fallback" />}>
-        <Scene interaction={interaction} reduced={reduced} formation={formation} journey={journey} sample={sample} visual={visual} lens={lens} espejo={espejo} espejoModo={espejoModo} hue={hueOf(tint)} disk={disk} white={white} onRoto={romper} ajusta={telefono && dpr === undefined} />
+        <Scene interaction={interaction} reduced={reduced} formation={formation} journey={journey} sample={sample} visual={visual} lens={lens} espejo={espejo} espejoModo={espejoModo} hue={hueOf(tint)} disk={disk} white={white} onRoto={romper} onPintado={onPintado} ajusta={movil && dpr === undefined} />
       </Canvas></SceneBoundary>}
     </div>
   </div>;

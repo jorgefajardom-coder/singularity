@@ -82,12 +82,21 @@ export default function SplitText({
       return;
     }
 
+    // `will-change` solo mientras la pieza se puede estar moviendo. Puesto en
+    // la hoja de estilos para siempre, cada letra de cada titulo era una capa
+    // de composicion propia durante toda la visita: en un telefono, cientos
+    // de capas y su memoria grafica sin que nada se moviera.
+    const capas = (on) => gsap.set(pieces, { willChange: on ? "transform, opacity" : "auto" });
+
     const ctx = gsap.context(() => {
       const scrubbed = variant === "scrub";
       gsap.fromTo(pieces, scrubbed ? { ...spec.from, opacity: dimOpacity } : spec.from, {
         ...spec.to,
         delay: scrubbed ? 0 : delay,
         stagger: stagger ?? spec.stagger,
+        onStart: () => capas(true),
+        onComplete: () => capas(false),
+        onReverseComplete: () => capas(false),
         scrollTrigger:
           trigger === "mount"
             ? undefined
@@ -99,6 +108,8 @@ export default function SplitText({
                 // Sin `once`: al volver a subir el texto se repliega y puede
                 // entrar de nuevo, en cualquiera de los dos idiomas.
                 toggleActions: scrubbed ? undefined : "play none none reverse",
+                // Con scroll el tramo que anima es el que esta en pantalla.
+                onToggle: (self) => capas(self.isActive),
               },
       });
     }, el);

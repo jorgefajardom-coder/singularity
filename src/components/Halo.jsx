@@ -17,7 +17,7 @@ const BlackHole = lazy(() => import("./BlackHole"));
 import { useLang } from "../lib/i18n";
 import { prefersReducedMotion, scroller } from "../lib/anim";
 import { EnSuTurno } from "../lib/arranque";
-import { useTelefono } from "../lib/telefono";
+import { perfil, useGpuFallo } from "../lib/gpu";
 
 /**
  * El sistema que orbita al personaje que medita.
@@ -136,7 +136,11 @@ export default function Halo() {
   // seis compilaciones del shader mas pesado de la pagina y seis contextos,
   // y en Android sumados a los demas pasaban el tope del navegador, que
   // suelta primero los mas viejos (el del hero). Ahi van pintados en CSS.
-  const telefono = useTelefono();
+  // Es cuestion de lo que aguanta el APARATO, no del ancho: un telefono en
+  // horizontal pasaba de 600 px y abria los seis (ver lib/gpu.js). Y si la
+  // GPU ya fallo en esta visita, tampoco.
+  const gpuCaida = useGpuFallo();
+  const telefono = perfil.movil || gpuCaida;
 
   // Activa la apertura de los anillos y, despues, el destello de los cuerpos.
   useEffect(() => {

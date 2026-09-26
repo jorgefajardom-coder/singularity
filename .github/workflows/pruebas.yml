@@ -1,0 +1,43 @@
+name: Pruebas en navegador
+
+# La pagina en anchos de telefono (320-412 y horizontal) y en escritorio, con
+# WebGL por software: que se entra, que cabe, que no pasa del presupuesto de
+# contextos y que sobrevive a perder la GPU. No bloquea el despliegue (va
+# aparte y es lenta); si falla, se ve en la pestana de Actions.
+#
+# Las capturas de referencia se generan en Windows (la maquina de Jorge), asi
+# que aqui se ignoran: en Linux las fuentes rasterizan distinto.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --ignore-snapshots
+        env:
+          CI: "true"
+
+      - uses: actions/upload-artifact@v5
+        if: failure()
+        with:
+          name: playwright
+          path: test-results/
+          retention-days: 7

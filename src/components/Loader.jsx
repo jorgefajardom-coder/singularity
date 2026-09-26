@@ -4,6 +4,7 @@ import { gsap, prefersReducedMotion } from "../lib/anim";
 import { heroBase } from "../lib/stagePose";
 import { MITADES } from "../lib/curvaInfinito";
 import { useMusic } from "../lib/music";
+import { perfil } from "../lib/gpu";
 
 // El infinito es SVG y se dibuja sin tocar WebGL. El agujero negro llega
 // despues, mientras el contador sube, para no bloquear el primer pintado.
@@ -54,7 +55,26 @@ const VB_H = 105;
 // la cinta lo mismo, para que sigan midiendo igual (ver `arranque`).
 const MARGEN = 0.94;
 
+/**
+ * En el telefono la transformacion va en CSS, sin lienzo propio.
+ *
+ * El agujero del cargador era un SEGUNDO contexto WebGL con el shader mas
+ * pesado de la pagina, vivo a la vez que el del hero y compilado durante la
+ * seleccion de idioma. En un movil eso es la mitad del tope de contextos y el
+ * doble de compilacion justo en la parte mas cara de la intro. Alli el ∞ se
+ * apaga sobre un disco CSS que crece hasta el sitio y el tamano del agujero
+ * del hero, y al fundirse el cargador lo que aparece debajo es el agujero de
+ * verdad, ya compilado: un solo contexto WebGL en toda la intro.
+ *
+ * RADIO_UV es el radio del disco en coordenadas del shader (medido sobre el
+ * agujero del hero), para que el disco CSS termine del mismo tamano.
+ */
+const INTRO_CSS = perfil.movil;
+const RADIO_UV = 0.62;
+const SOMBRA_CY = 0.074;
+
 export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
+  const disco = useRef(null);
   const { lang, setLang } = useLang();
   const { prepare } = useMusic();
   const root = useRef(null);
@@ -224,6 +244,9 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
     // Mientras el cargador sea opaco tapa al lienzo del hero, que entonces no
     // se pinta (ver `cubre` en BlackHole.jsx). Se baja antes de irse.
     travel.current.cubre = true;
+    // Sin lienzo aqui nadie publica el espejo: el del hero lee `cubre` de
+    // este objeto (y nada mas, no hay reloj que copiar).
+    if (INTRO_CSS && espejo) espejo.current = travel.current;
     // A la escala a la que se esta viendo el ∞, que en pantallas estrechas no
     // es 1 (ver `encajar`). Arrancando siempre en 1, la cinta del shader salia
     // mas grande que el SVG justo en el fotograma del relevo.
@@ -272,6 +295,28 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
       timeline.to(mark, { opacity: 0, duration: 0.15, ease: "none" }, 0.05);
 
       const rest = heroBase();
+      if (INTRO_CSS && disco.current) {
+        // El mismo recorrido que el agujero del shader: nace en el cruce del
+        // ∞ y, en la segunda mitad, baja a su sitio de reposo en el hero.
+        const alto = window.innerHeight;
+        const aspecto = window.innerWidth / Math.max(alto, 1);
+        const zoom = Math.min(2.2, Math.max(1, 1.85 / Math.max(aspecto, 0.35)));
+        const pxPorUnidad = alto / (2 * zoom);
+        const radio = (RADIO_UV / rest.scale) * pxPorUnidad;
+        // La sombra del agujero no cae en `cy`: la camara lo mira un poco
+        // desde arriba y la sombra sale mas alta. Medido en 375x812: 0,074
+        // de media pantalla por encima.
+        const bajada = (rest.cy + SOMBRA_CY) * pxPorUnidad * zoom;
+        const plano = disco.current.querySelector(".loader__disco-plano");
+        gsap.set(disco.current, { width: radio * 2, height: radio * 2, xPercent: -50, yPercent: -50, scale: 0.08, opacity: 0, y: 0 });
+        gsap.set(plano, { xPercent: -50, yPercent: -50, x: 0, y: 0, opacity: 0, scaleX: 0.3 });
+        timeline.to(disco.current, { opacity: 1, duration: MORPH_DUR * 0.3, ease: "power1.out" }, MORPH_AT + 0.05);
+        timeline.to(disco.current, { scale: 1, duration: MORPH_DUR * 0.8, ease: "power2.inOut" }, MORPH_AT + 0.05);
+        timeline.to(disco.current, { y: -bajada, duration: MORPH_DUR * 0.41, ease: "power1.inOut" }, MORPH_AT + MORPH_DUR * 0.44);
+        // El anillo se tumba: aparece el disco plano que cruza la sombra,
+        // como en el agujero del hero.
+        timeline.to(plano, { opacity: 1, scaleX: 1, duration: MORPH_DUR * 0.45, ease: "power2.out" }, MORPH_AT + MORPH_DUR * 0.48);
+      }
       timeline.to(motion,{
         p:1, duration:MORPH_DUR, ease:"none",
         onUpdate() {
@@ -303,9 +348,22 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
     return () => { ctx.kill(); formation.current=1; travel.current.cubre = false; };
   },[phase]);
 
+  // "Listo" es el agujero PINTADO, no la fase: lo avisa el lienzo tras
+  // compilar y comprobar sus primeros fotogramas (ver `onPintado` en
+  // BlackHole.jsx). Sin lienzo en el cargador, lo que hay es el disco CSS.
+  const pintado = useRef(false);
+  const fase = useRef(phase);
+  fase.current = phase;
+  const listoRef = useRef(onReady);
+  listoRef.current = onReady;
+  const avisarPintado = useMemo(() => () => {
+    pintado.current = true;
+    if (fase.current === "transforming") listoRef.current(true);
+  }, []);
   useEffect(() => {
-    if (phase === "transforming") onReady(true);
+    if (phase === "transforming" && (INTRO_CSS || pintado.current)) onReady(true);
   },[phase,onReady]);
+  useEffect(() => () => { if (INTRO_CSS && espejo) espejo.current = null; }, [espejo]);
 
   // Montar los lienzos del portafolio cuesta ~90 ms de hilo principal: son dos
   // contextos WebGL con sus shaders. Se pagan detras del cargador, que es
@@ -376,9 +434,16 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo }) {
           fragment shader cuesta varios fotogramas, y si el canvas arranca al
           pulsar, el SVG se apaga antes de que haya nada dibujado debajo. */}
       {(phase === "choose" || phase === "transforming") && <div className="loader__singularity">
-        <Suspense fallback={null}>
-          <BlackHole formation={formation} journey={travel} espejo={espejo} espejoModo="publica" />
-        </Suspense>
+        {INTRO_CSS ? (
+          <div className="loader__disco" ref={disco} aria-hidden="true">
+            <span className="loader__disco-sombra" />
+            <span className="loader__disco-plano" />
+          </div>
+        ) : (
+          <Suspense fallback={<div className="blackhole__fallback" />}>
+            <BlackHole formation={formation} journey={travel} espejo={espejo} espejoModo="publica" onPintado={avisarPintado} />
+          </Suspense>
+        )}
       </div>}
       <svg className="loader__mark" viewBox="0 0 205 105" role="group" aria-label={lang === "en" ? "Choose your language" : "Elige tu idioma"}>
         <defs>

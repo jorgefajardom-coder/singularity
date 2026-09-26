@@ -104,11 +104,20 @@ export function MusicProvider({ children, active }) {
     if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
   }, []);
 
+  // Un solo analisis por fotograma. Lo piden el agujero negro (en su bucle de
+  // r3f) y el medidor del reproductor (en el suyo), y cada peticion era una
+  // FFT de 1024 bandas: dentro del mismo fotograma se devuelve la ultima.
+  const ultimo = useRef({ t: -1, bandas: SILENCE });
   const sample = useCallback(() => {
     const g = graph.current;
     if (!g || audio.current?.paused || g.context.state !== "running") return SILENCE;
+    const ahora = performance.now();
+    const u = ultimo.current;
+    if (ahora - u.t < 12) return u.bandas;
     g.analyser.getByteFrequencyData(g.bins);
-    return audioBands(g.bins, g.context.sampleRate, g.analyser.fftSize);
+    u.t = ahora;
+    u.bandas = audioBands(g.bins, g.context.sampleRate, g.analyser.fftSize);
+    return u.bandas;
   }, []);
   const api = useMemo(() => ({src, title, playing, muted, error, loadFile, togglePlay,
     toggleMute: () => setMuted(v => !v), sample, prepare}), [src,title,playing,muted,error,loadFile,togglePlay,sample,prepare]);

@@ -141,6 +141,8 @@ export const ui = {
   // Visor 3D de un proyecto
   model3d: t("Modelo 3D", "3D model"),
   loading3d: t("Cargando el modelo 3D…", "Loading the 3D model…"),
+  // Cuando la GPU del visitante no da para WebGL (ver lib/gpu.js).
+  sin3d: t("El modelo 3D no está disponible en este dispositivo.", "The 3D model isn't available on this device."),
   dragToRotate: t("Arrastra para girar", "Drag to rotate"),
   modelDrag: t("Arrastra para girar", "Drag to rotate"),
   playVideo: t("Ver la simulación", "Watch the simulation"),

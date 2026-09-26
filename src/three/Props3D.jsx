@@ -11,6 +11,7 @@ import {
 } from "@react-three/drei";
 import { asset } from "../lib/asset";
 import { useTelefono } from "../lib/telefono";
+import { useRegistrarVista } from "../lib/vistas";
 
 /* ------------------------------------------------------------------
    Iluminación compartida.
@@ -270,6 +271,8 @@ export function PropsView(props) {
 
 function PropsViewFull({ items = [], className, parallax = 0 }) {
   const track = useRef(null);
+  // El lienzo compartido pinta en bucle solo mientras alguna vista se ve.
+  useRegistrarVista(track);
 
   // <View> renderiza el div que marca el hueco y reenvía la ref;
   // los píxeles los pinta el canvas global.

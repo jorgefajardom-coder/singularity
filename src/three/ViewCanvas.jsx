@@ -1,6 +1,8 @@
-import { Canvas } from "@react-three/fiber";
+import { useEffect, useRef } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
 import { View, Preload } from "@react-three/drei";
-import { useTelefono } from "../lib/telefono";
+import { PRESUPUESTO, marcarGpuFallo, perfil } from "../lib/gpu";
+import { useVistas } from "../lib/vistas";
 
 /**
  * Un ÚNICO <Canvas> fijo a pantalla completa para todo el sitio.
@@ -22,28 +24,66 @@ const CANVAS_STYLE = {
   pointerEvents: "none",
   // Capa 3: por ENCIMA del contenido normal (z 1-2) para que los objetos
   // floten sobre los paneles claros, y por DEBAJO del titular del hero (4)
-  // y del nav (50). Si quieres que el objeto del hero tape el texto,
-  // quita el z-index de .hero__title en global.css.
+  // y del nav (50). No intercepta el puntero, y si WebGL cae se desmonta
+  // entero (ver App.jsx), asi que nunca puede quedar un lienzo roto encima.
   zIndex: 3,
 };
 
+/**
+ * Sin ninguna vista en pantalla el lienzo deja de pintar en bucle. Antes de
+ * parar hace UN fotograma mas: con las vistas fuera, ese fotograma limpia el
+ * lienzo y no queda ningun objeto congelado encima de otra seccion.
+ */
+function Pausa({ activo }) {
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    if (!activo) invalidate();
+  }, [activo, invalidate]);
+  return null;
+}
+
+/**
+ * Si el contexto se pierde, la GPU se da por caida en toda la visita (ver
+ * lib/gpu.js): App desmonta este lienzo y cada visor enseña su respaldo.
+ */
+function Vigilar() {
+  const gl = useThree((s) => s.gl);
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const perdido = () => marcarGpuFallo("contexto perdido (lienzo 3D)");
+    canvas.addEventListener("webglcontextlost", perdido);
+    return () => canvas.removeEventListener("webglcontextlost", perdido);
+  }, [gl]);
+  return null;
+}
+
 export default function ViewCanvas({ eventSource }) {
-  // El lienzo cubre la pantalla entera y se limpia en cada fotograma aunque
-  // no haya nada a la vista: en un telefono de densidad 3, a 2x eran ~2,5
-  // millones de pixeles por fotograma. Con 1,5 el dron y la celda siguen
-  // nitidos y el coste baja casi a la mitad.
-  const telefono = useTelefono();
+  const { visibles } = useVistas();
+  const activo = visibles > 0;
+  // En el telefono: densidad 1 como maximo, sin antialias (a esa densidad de
+  // pantalla apenas se nota y es el doble de muestras) y la GPU por defecto,
+  // no la de alto consumo. Tampoco se precompila todo al montar (`Preload`):
+  // es un pico de trabajo por escenas que quiza no se vean nunca.
+  const movil = perfil.movil;
+  const opciones = useRef({
+    antialias: !movil,
+    alpha: true,
+    powerPreference: movil ? "default" : "high-performance",
+  });
   return (
     <Canvas
       style={CANVAS_STYLE}
       eventSource={eventSource}
       eventPrefix="client"
-      dpr={telefono ? [1, 1.5] : [1, 2]}
-      gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+      dpr={movil ? [1, PRESUPUESTO.dprMovil] : [1, 2]}
+      frameloop={activo ? "always" : "demand"}
+      gl={opciones.current}
       camera={{ fov: 35, position: [0, 0, 6] }}
     >
+      <Vigilar />
+      <Pausa activo={activo} />
       <View.Port />
-      <Preload all />
+      {!movil && <Preload all />}
     </Canvas>
   );
 }

@@ -26,6 +26,9 @@ jobs:
           cache: npm
 
       - run: npm ci
+      # Lint y pruebas de logica antes de publicar: si fallan, no se despliega.
+      - run: npm run lint
+      - run: npm test
       - run: npm run build
 
       - uses: actions/configure-pages@v6

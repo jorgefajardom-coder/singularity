@@ -2523,18 +2523,45 @@ body.is-anchored .about__float {
   gap: clamp(32px, 5vw, 80px);
 }
 
-/* A la derecha, la tarjeta sola, como una postal inclinada. */
+/* Con las postales de viaje al lado, en abanico: se solapan y la de la foto
+   queda encima, la ultima. Al pasar por una, sube al frente. */
 .footer__firma {
+  --carta-w: clamp(124px, 10.5vw, 180px);
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-top: 6px;
+}
+
+.footer__firma > .poster + .poster {
+  margin-left: calc(var(--carta-w) * -0.32);
+}
+
+.footer__firma > .poster:hover {
+  z-index: 5;
+}
+
+.footer__firma > .poster.footer__postal {
+  rotate: var(--giro, 0deg);
+  margin-right: 0;
+  margin-top: calc(var(--carta-w) * 0.06);
+}
+
+/* La siguiente tapa el lado derecho: el titulo va a la izquierda para que
+   se lea entero. */
+.footer__postal .poster__titulo {
+  text-align: left;
+}
+
+.footer__firma > .poster.footer__postal:nth-child(even) {
+  margin-top: calc(var(--carta-w) * 0.14);
 }
 
 /* Regla propia de esta carta: las del Stack miden 290-360 px y aqui, junto
    a una firma, sobraba. Mas estrecha, con menos relleno y la foto contenida. */
 .poster.footer__carta {
   flex: none;
-  width: clamp(150px, 12vw, 190px);
+  width: var(--carta-w);
   padding: 7px;
   box-shadow: 0 14px 30px #000a;
   /* La postal: inclinada y un poco separada del borde derecho. */
@@ -2567,6 +2594,16 @@ body.is-anchored .about__float {
   font-size: 7.5px;
 }
 
+/* En cartas tan pequenas el pie no cabe entero: fuera las estrellas y cada
+   dato en una linea. */
+.poster.footer__carta .poster__estrellas {
+  display: none;
+}
+
+.poster.footer__carta .poster__pie span {
+  white-space: nowrap;
+}
+
 .poster.footer__carta .poster__arte::after {
   height: 14px;
 }
@@ -2583,14 +2620,26 @@ body.is-anchored .about__float {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  /* En columna, la postal va bajo los enlaces, a la izquierda. */
+  /* En columna, las postales van bajo los enlaces, a la izquierda. */
   .footer__firma {
-    align-items: flex-start;
+    --carta-w: min(140px, 26vw);
+    justify-content: flex-start;
+    padding-left: 4px;
   }
 
-  .poster.footer__carta {
-    width: min(180px, 50vw);
-    margin: 8px 0 0 10px;
+  /* Algo mas solapadas que en escritorio para que las cinco quepan a lo
+     ancho, y el titulo mas pequeno para que se lea en lo que queda a la vista. */
+  .footer__firma > .poster + .poster {
+    margin-left: calc(var(--carta-w) * -0.38);
+  }
+
+  .poster.footer__carta .poster__titulo {
+    font-size: 9px;
+  }
+
+  .poster.footer__carta:not(.footer__postal) {
+    margin-top: 8px;
+    margin-right: 0;
   }
 }
 

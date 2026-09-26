@@ -2,6 +2,63 @@ import { useEffect, useRef } from "react";
 import { site, socials, nav, ui } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { pintarFoto } from "../lib/fotoProtegida";
+import PostalArt from "./PostalArt";
+
+// Como las cartas del Stack: se levanta y se inclina hacia el puntero.
+function useInclinar(carta) {
+  useEffect(() => {
+    const el = carta.current;
+    if (!el || !window.matchMedia("(hover: hover)").matches) return undefined;
+    const mover = (e) => {
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--ry", `${(((e.clientX - r.left) / r.width - 0.5) * 10).toFixed(2)}deg`);
+      el.style.setProperty("--rx", `${(-((e.clientY - r.top) / r.height - 0.5) * 8).toFixed(2)}deg`);
+    };
+    const soltar = () => { el.style.removeProperty("--rx"); el.style.removeProperty("--ry"); };
+    el.addEventListener("pointermove", mover);
+    el.addEventListener("pointerleave", soltar);
+    return () => { el.removeEventListener("pointermove", mover); el.removeEventListener("pointerleave", soltar); };
+  }, [carta]);
+}
+
+// Postales de viaje que acompanan a la de la foto, abiertas en abanico.
+const postales = [
+  { lugar: "canada", titulo: { es: "Canadá", en: "Canada" }, pie: "56° N", giro: -9 },
+  { lugar: "miami", titulo: { es: "Miami", en: "Miami" }, pie: "25° N", giro: 4 },
+  { lugar: "florida", titulo: { es: "Florida", en: "Florida" }, pie: "28° N", giro: -3 },
+  { lugar: "colombia", titulo: { es: "Colombia", en: "Colombia" }, pie: "4° N", giro: 7 },
+];
+
+function Postal({ lugar, titulo, pie, giro, vol }) {
+  const { tr } = useLang();
+  const carta = useRef(null);
+  useInclinar(carta);
+
+  // Como en el Stack: las piezas del dibujo se animan al entrar en pantalla.
+  useEffect(() => {
+    const el = carta.current;
+    if (!el) return undefined;
+    const observer = new IntersectionObserver(([e]) => el.classList.toggle("is-art-visible", e.isIntersecting), { threshold: 0.55 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <article className="poster footer__carta footer__postal" ref={carta} style={{ "--giro": `${giro}deg` }}>
+      <div className="poster__arte" aria-hidden="true">
+        <PostalArt lugar={lugar} />
+      </div>
+      <header className="poster__cabeza">
+        <h3 className="poster__titulo">{tr(titulo)}</h3>
+      </header>
+      <footer className="poster__pie" aria-hidden="true">
+        <span>VOL. {String(vol).padStart(2, "0")}</span>
+        <span className="poster__estrellas">✦ ✦ ✦</span>
+        <span>{pie}</span>
+      </footer>
+    </article>
+  );
+}
 
 /**
  * Tarjeta con la foto, igual que las del Stack. La foto va PROTEGIDA: llega
@@ -24,20 +81,7 @@ function TarjetaFoto() {
     return () => { vivo = false; ro.disconnect(); };
   }, []);
 
-  // Como las cartas del Stack: se levanta y se inclina hacia el puntero.
-  useEffect(() => {
-    const el = carta.current;
-    if (!el || !window.matchMedia("(hover: hover)").matches) return undefined;
-    const mover = (e) => {
-      const r = el.getBoundingClientRect();
-      el.style.setProperty("--ry", `${(((e.clientX - r.left) / r.width - 0.5) * 10).toFixed(2)}deg`);
-      el.style.setProperty("--rx", `${(-((e.clientY - r.top) / r.height - 0.5) * 8).toFixed(2)}deg`);
-    };
-    const soltar = () => { el.style.removeProperty("--rx"); el.style.removeProperty("--ry"); };
-    el.addEventListener("pointermove", mover);
-    el.addEventListener("pointerleave", soltar);
-    return () => { el.removeEventListener("pointermove", mover); el.removeEventListener("pointerleave", soltar); };
-  }, []);
+  useInclinar(carta);
 
   const bloquear = (e) => e.preventDefault();
 
@@ -102,6 +146,7 @@ export default function Footer() {
         {/* Solo la tarjeta: ya lleva el nombre y la foto. El nombre en grande
             se quito (Jorge, 25-09-2026) para aprovechar el espacio. */}
         <div className="footer__firma">
+          {postales.map((p, i) => <Postal key={p.lugar} {...p} vol={i + 1} />)}
           <TarjetaFoto />
         </div>
         </div>

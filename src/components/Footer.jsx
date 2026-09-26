@@ -22,6 +22,44 @@ function useInclinar(carta) {
   }, [carta]);
 }
 
+/**
+ * El abanico se DESPLIEGA al entrar en pantalla: las postales empiezan
+ * apiladas debajo de la tarjeta de la foto (la primera) y salen hacia su
+ * sitio de una en una, de izquierda a derecha. Al salir de la pantalla se
+ * recogen, para volver a desplegarse la proxima vez.
+ *
+ * Cada carta lleva en `--desde` cuanto le falta para quedar debajo de la
+ * primera (se mide su `offsetLeft`, que no cambia con `translate`), y en
+ * `--i` su turno; el movimiento lo hace el CSS con transiciones.
+ */
+function useDesplegar(fila) {
+  useEffect(() => {
+    const el = fila.current;
+    if (!el) return undefined;
+    const cartas = [...el.children];
+    const medir = () => {
+      const base = cartas[0]?.offsetLeft ?? 0;
+      cartas.forEach((c, i) => {
+        c.style.setProperty("--i", String(i));
+        c.style.setProperty("--desde", `${base - c.offsetLeft}px`);
+      });
+    };
+    medir();
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || typeof IntersectionObserver !== "function") {
+      el.classList.add("is-desplegada");
+      return undefined;
+    }
+    el.classList.add("is-plegable");
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) medir();
+      el.classList.toggle("is-desplegada", e.isIntersecting);
+    }, { threshold: 0.35 });
+    obs.observe(el);
+    window.addEventListener("resize", medir);
+    return () => { obs.disconnect(); window.removeEventListener("resize", medir); };
+  }, [fila]);
+}
+
 // Postales de viaje que acompanan a la de la foto, abiertas en abanico.
 const postales = [
   { lugar: "canada", titulo: { es: "Canadá", en: "Canada" }, pie: "56° N", giro: 9 },
@@ -142,6 +180,8 @@ function TarjetaFoto() {
 
 export default function Footer() {
   const { tr } = useLang();
+  const firma = useRef(null);
+  useDesplegar(firma);
 
   return (
     <footer className="footer">
@@ -175,12 +215,14 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Solo la tarjeta: ya lleva el nombre y la foto. El nombre en grande
-            se quito (Jorge, 25-09-2026) para aprovechar el espacio. */}
-        <div className="footer__firma">
-          <Postal {...postalTu} />
-          {postales.map((p, i) => <Postal key={p.lugar} {...p} vol={i + 1} />)}
+        {/* Se leen de izquierda a derecha: primero la tarjeta de Jorge,
+            despues los viajes y al final "¿Y tu?" (Jorge, 26-09-2026). Cada
+            una va por DEBAJO de la anterior, y al llegar al pie salen de
+            debajo de la tarjeta de una en una (ver `useDesplegar`). */}
+        <div className="footer__firma" ref={firma}>
           <TarjetaFoto />
+          {postales.map((p, i) => <Postal key={p.lugar} {...p} vol={i + 1} />)}
+          <Postal {...postalTu} />
         </div>
         </div>
 

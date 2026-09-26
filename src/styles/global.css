@@ -2648,7 +2648,7 @@ body.is-anchored .about__float {
 }
 
 .footer__firma > .poster:hover {
-  z-index: 5;
+  z-index: 30;
 }
 
 .footer__firma > .poster.footer__postal {
@@ -2657,8 +2657,7 @@ body.is-anchored .about__float {
   margin-top: calc(var(--carta-w) * 0.06);
 }
 
-/* Se leen de izquierda a derecha, cada una encima de la anterior; la de
-   la foto cierra la fila. "¿Y tu?" es un enlace: sin el color de enlace. */
+/* "¿Y tu?" es un enlace: sin el color de enlace. */
 .footer__firma > .poster.footer__tu {
   color: var(--poster-ink);
   text-decoration: none;
@@ -2669,10 +2668,10 @@ body.is-anchored .about__float {
   outline-offset: 3px;
 }
 
-/* La siguiente tapa el lado derecho: el titulo va a la izquierda para que
-   se lea entero. */
-.footer__firma > .poster:not(:last-child) .poster__titulo {
-  text-align: left;
+/* Cada postal va por debajo de la anterior, que le tapa el lado IZQUIERDO:
+   su titulo va a la derecha, que es lo que asoma. */
+.footer__firma > .poster.footer__postal .poster__titulo {
+  text-align: right;
 }
 
 
@@ -4541,7 +4540,7 @@ body {
   white-space: nowrap;
 }
 
-.footer__firma > .poster:not(:last-child) .poster__titulo {
+.footer__firma > .poster.footer__postal .poster__titulo {
   white-space: nowrap;
   font-size: min(var(--tit), 70cqi / 7.6);
 }
@@ -4571,4 +4570,39 @@ body {
 .contact__form button[disabled] {
   opacity: 0.6;
   cursor: progress;
+}
+
+/* ------------------------------------------------------------
+   Postales del pie: de izquierda a derecha, la tarjeta de Jorge primero y
+   encima de todas; cada postal por debajo de la anterior. Al entrar en
+   pantalla salen de debajo de la tarjeta de una en una (Footer.jsx,
+   `useDesplegar`: `--i` es el turno y `--desde` lo que le falta a cada
+   carta para quedar debajo de la primera).
+   ------------------------------------------------------------ */
+.footer__firma > .poster {
+  position: relative;
+  z-index: calc(20 - var(--i, 0));
+}
+
+.footer__firma > .poster:first-child {
+  margin-right: 0;
+}
+
+.footer__firma.is-plegable > .poster {
+  transition:
+    translate 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) calc(0.15s + var(--i, 0) * 0.11s),
+    rotate 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) calc(0.15s + var(--i, 0) * 0.11s);
+}
+
+/* Recogidas: todas debajo de la primera, rectas. Se recogen de golpe y sin
+   escalonar, para que al volver esten listas para desplegarse. */
+.footer__firma.is-plegable:not(.is-desplegada) > .poster:not(:first-child) {
+  translate: var(--desde, 0px) 0;
+  rotate: 0deg;
+  transition-duration: 0.35s;
+  transition-delay: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .footer__firma.is-plegable > .poster { transition: none; }
 }

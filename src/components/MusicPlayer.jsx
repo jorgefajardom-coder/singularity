@@ -10,11 +10,19 @@ export default function MusicPlayer({ intro, inline }) {
   const meter = useRef(null);
   // El medidor no pide su propio analisis: lee el del fotograma (ver `sample`
   // en lib/music.jsx), y con la pestaña oculta el rAF ya no corre.
+  //
+  // Es una barra que ESCALA, no un <meter>: cambiar el `value` de un control
+  // de formulario 60 veces por segundo recalculaba estilo y maquetacion cada
+  // fotograma mientras sonaba la musica (medido: un tercio del recalculo de la
+  // pagina en el telefono). `transform` lo compone la GPU; misma barra, mismos
+  // colores. Y solo se escribe si el nivel se ha movido de verdad.
   useEffect(() => {
     let frame;
+    let ultimo = -1;
     const update = () => {
       const bands=sample();
-      if(meter.current) meter.current.value=Math.max(bands.bass,bands.mid,bands.treble);
+      const nivel=Math.round(Math.max(bands.bass,bands.mid,bands.treble)*200)/200;
+      if(meter.current && nivel!==ultimo) { ultimo=nivel; meter.current.style.transform=`scaleX(${nivel})`; }
       if(playing) frame=requestAnimationFrame(update);
     };
     update();
@@ -41,7 +49,7 @@ export default function MusicPlayer({ intro, inline }) {
         <span>{tr(muted ? ui.player.mutedShort : ui.player.muteShort)}</span>
       </button>
     </div>
-    {src && <meter ref={meter} className="music-player__level" min="0" max="1" value="0" aria-label={tr(ui.player.level)} />}
+    {src && <span className="music-player__level" aria-hidden="true"><i ref={meter} /></span>}
     {error && <p className="music-player__error" role="status">{tr(ui.player.error)}</p>}
   </aside>;
 }

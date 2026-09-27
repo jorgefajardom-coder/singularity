@@ -4,6 +4,8 @@ import App from "./App";
 import Aislado, { RespaldoGlobal } from "./components/Aislado";
 import { site } from "./data/content";
 import "./styles/global.css";
+// Despues del general: lo de telefono pisa, nunca al reves.
+import "./styles/movil.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

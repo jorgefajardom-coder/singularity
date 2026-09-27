@@ -640,6 +640,9 @@ body.is-locked {
 .blackhole__surface:active { cursor: grabbing; }
 .blackhole__surface:focus-visible { outline: 1px solid var(--accent-b); outline-offset: -4px; }
 .blackhole__surface > div { pointer-events: none; }
+/* El agujero de viaje, fuera del hero, no recibe nada (ver Stage.jsx): el
+   `!important` es para ganarle al `pointer-events: auto` en linea de r3f. */
+.stage__void[data-inerte="true"] * { pointer-events: none !important; }
 /* Lo que queda si WebGL no carga, se pierde o pinta mal (ver `pintaBlanco`
    en BlackHole.jsx). Circulo y no elipse: la caja del hero en un telefono es
    alta y estrecha. Acaba en TRANSPARENTE porque este mismo lienzo viaja a las
@@ -872,10 +875,9 @@ body.is-locked {
 .music-player__track > span:last-child { max-width: 135px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .music-player__icon { color: var(--accent-a); font-size: 21px; }
 .music-player__mute[aria-pressed="true"] { color: var(--accent-a); }
-.music-player__level { display: block; width: calc(100% - 36px); margin: 3px 18px 0; height: 4px; border: 0; background: var(--ember-deep); border-radius: 4px; }
-.music-player__level::-webkit-meter-bar { background: var(--ember-deep); border: 0; border-radius: 4px; }
-.music-player__level::-webkit-meter-optimum-value { background: var(--accent-b); }
-.music-player__level::-moz-meter-bar { background: var(--accent-b); }
+.music-player__level { display: block; width: calc(100% - 36px); margin: 3px 18px 0; height: 4px; background: var(--ember-deep); border-radius: 4px; overflow: hidden; }
+/* El relleno escala desde la izquierda (ver MusicPlayer.jsx): lo compone la GPU. */
+.music-player__level > i { display: block; height: 100%; background: var(--accent-b); transform: scaleX(0); transform-origin: left center; }
 .music-player__error { margin: 7px 5px 0; max-width: 290px; font-size: 11px; color: var(--accent-a); background: var(--ink-3); border-radius: 8px; padding: 8px; }
 @media (max-width: 520px) {
   .music-player { right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); max-width: calc(100vw - 24px); }
@@ -907,21 +909,25 @@ body.is-locked {
 /* Franja para cuando por debajo pasa un panel claro: sin ella, la marca y los
    enlaces —que son de color claro— desaparecian sobre el papel. Aparece y se
    retira con una transicion para que el cambio no sea un corte seco. */
+/* Y siempre, un degradado oscuro: sin el, los titulos que suben por debajo
+   de la barra se montaban sobre la marca y la capsula de musica, texto claro
+   sobre texto claro (Jorge, 27-09-2026). Sin `backdrop-filter` fuera del
+   papel: un desenfoque permanente encima del lienzo WebGL del hero se
+   recalcula en cada fotograma. */
 .nav::before {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: 0 0 -18px 0;
   z-index: -1;
-  background: rgba(8, 7, 10, 0.82);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(255, 154, 60, 0.16);
-  opacity: 0;
-  transition: opacity 0.35s var(--ease);
+  background: linear-gradient(to bottom, rgba(8, 7, 10, 0.96) 0, rgba(8, 7, 10, 0.9) calc(100% - 18px), rgba(8, 7, 10, 0) 100%);
   pointer-events: none;
 }
 
 .nav[data-on-paper="true"]::before {
-  opacity: 1;
+  inset: 0;
+  background: rgba(8, 7, 10, 0.82);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255, 154, 60, 0.16);
 }
 
 /* El nombre completo manda; el monograma solo aparece cuando la barra no da
@@ -1132,6 +1138,14 @@ body.is-locked {
 .about {
   position: relative;
   text-align: center;
+}
+/* El titulo, POR DELANTE del agujero que viaja a la mano (capa 2 durante el
+   viaje, ver Stage.jsx): cruzandolo por encima tapaba media palabra, "BRE" en
+   el telefono y la "S" en escritorio (video de Jorge, 26-09-2026). Por detras
+   se lee como profundidad y el texto no se pierde. */
+.about .shell > .display {
+  position: relative;
+  z-index: 3;
 }
 
 .about__view {
@@ -3267,6 +3281,31 @@ body.is-anchored .about__float {
 .stack__flecha:disabled { opacity: 0.3; cursor: default; }
 .stack__flecha:focus-visible { outline: 2px solid var(--accent-a); outline-offset: 3px; }
 
+/* Pantalla baja con raton: con la baraja fijada la fila ocupa todo el alto
+   bajo la barra y la cabecera, con las flechas, quedaba DEBAJO de la barra
+   (medido en 1536x639: flechas en y=-17). Hasta ~740 px de alto no caben las
+   dos cosas nunca, asi que ahi las flechas pasan a los lados de la fila, a
+   media altura de las cartas. 8 + 26 px: el relleno de abajo de la seccion y
+   el de la fila (sombra y barra); `min(...)`, el alto de la portada. */
+@media (hover: hover) and (pointer: fine) and (max-height: 740px) {
+  .section.stack { position: relative; }
+  .stack__head {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(8px + 26px + min(510px, calc(100svh - 133px)) / 2 - 22px);
+    z-index: 3;
+    pointer-events: none;
+  }
+  .stack__nav { width: 100%; justify-content: space-between; padding: 0; }
+  .stack__flecha {
+    pointer-events: auto;
+    background: rgba(8, 7, 10, 0.72);
+    border-color: rgba(255, 238, 224, 0.28);
+  }
+  .stack__flecha:disabled { opacity: 0; pointer-events: none; }
+}
+
 /* La fila. Empieza alineada con el titulo (el mismo margen que el `shell`)
    y llega hasta el borde de la pantalla, para que se vea que sigue. El
    relleno vertical deja sitio a la inclinacion y al levantarse al pasar. */
@@ -3317,10 +3356,15 @@ body.is-anchored .about__float {
 @property --rx { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 @property --ry { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 @property --alza { syntax: "<length>"; inherits: false; initial-value: 0px; }
-@property --flota { syntax: "<length>"; inherits: false; initial-value: 0px; }
+/* Flotar va por `translate`, no por una variable dentro de `transform`. Con
+   `--flota` el vaiven era una animacion del hilo principal: recalcular estilo
+   y repintar las cartas en CADA fotograma de la visita, aunque el Stack
+   estuviera a diez pantallas (medido en el telefono: el 85 % de todo el
+   recalculo de estilos de la pagina). `translate` lo anima la GPU sola. Mismo
+   movimiento: 6 px, 5,5 s, la misma curva. */
 @keyframes poster-flota {
-  0%, 100% { --flota: 0px; }
-  50% { --flota: -6px; }
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -6px; }
 }
 
 /* Laminas de exploracion: tinta plana, papel crema y arte serigrafiado. */
@@ -3342,13 +3386,16 @@ body.is-anchored .about__float {
   scroll-snap-align: start;
   /* El reparto (Stack.jsx) va por `translate`/`rotate`/`scale`; esto es lo
      de cada carta: flotar, levantarse e inclinarse hacia el puntero. */
-  transform: perspective(1000px) translateY(calc(var(--alza) + var(--flota))) rotateX(var(--rx)) rotateY(var(--ry));
+  transform: perspective(1000px) translateY(var(--alza)) rotateX(var(--rx)) rotateY(var(--ry));
   transition: --rx .35s var(--ease), --ry .35s var(--ease), --alza .45s var(--ease), box-shadow .45s var(--ease);
 }
 .poster:hover { --alza: -10px; box-shadow: 0 26px 46px #0009; }
 @media (prefers-reduced-motion: no-preference) {
   /* Cada carta a su compas, como si flotaran sueltas. */
   .poster { animation: poster-flota 5.5s ease-in-out infinite; animation-delay: calc(var(--i, 0) * -0.8s); }
+  /* El reparto (Stack.jsx) escribe `translate` en linea y una animacion le
+     ganaria: flotan solo con la baraja ya repartida. */
+  .posters:not([data-repartida="true"]) .poster { animation: none; }
 }
 /* El hueco para la siguiente carta: solo el contorno. */
 .poster--vacia {

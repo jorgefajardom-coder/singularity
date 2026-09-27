@@ -16,12 +16,28 @@ import { gsap } from "../lib/anim";
  * width/height 100%), y esos ganan a cualquier clase CSS. Por eso el
  * posicionamiento va en la prop `style` y no en `className`.
  */
+/**
+ * ANCLADO A LA PAGINA, NO A LA PANTALLA.
+ *
+ * Era `position: fixed`. Con el dedo en el telefono el scroll lo hace el
+ * navegador por su cuenta, sin esperar al JavaScript: la pagina se movia al
+ * instante y el lienzo seguia pintado donde estaba hasta el siguiente
+ * fotograma del hilo principal. Los modelos se despegaban de su hueco y
+ * acababan encima del texto (Jorge, 26-09-2026: "anclalo"). Ahora el lienzo
+ * es parte del documento: en cada fotograma se recoloca en `scrollY` y se
+ * pinta (ver Reloj), y entre fotograma y fotograma, si el navegador desplaza
+ * la pagina, se lleva el lienzo con ella, pegado al texto. Mide el alto de la
+ * ventana (`innerHeight`, no 100vh), asi que nunca sobresale del documento.
+ */
 const CANVAS_STYLE = {
-  position: "fixed",
+  position: "absolute",
   top: 0,
   left: 0,
-  width: "100vw",
+  // 100%, no 100vw: ya no es `fixed`, y 100vw incluye la barra de scroll y
+  // abriria scroll horizontal.
+  width: "100%",
   height: "100vh",
+  willChange: "transform",
   pointerEvents: "none",
   // Capa 3: por ENCIMA del contenido normal (z 1-2) para que los objetos
   // floten sobre los paneles claros, y por DEBAJO del titular del hero (4)
@@ -56,7 +72,19 @@ function Reloj({ activo }) {
   }, [activo]);
   useEffect(() => {
     const e = estado.current;
+    const lienzo = document.getElementById("lienzo-3d");
+    let alto = 0;
+    // Justo donde se esta viendo, antes de pintar: las vistas se colocan
+    // con la caja de su hueco en la ventana, y el lienzo tiene que estar
+    // arriba del todo de la ventana en ese momento.
+    const anclar = () => {
+      if (!lienzo) return;
+      if (alto !== window.innerHeight) { alto = window.innerHeight; lienzo.style.height = `${alto}px`; }
+      lienzo.style.transform = `translate3d(0, ${window.scrollY}px, 0)`;
+    };
+    anclar();
     const pintar = (time) => {
+      anclar();
       if (!e.activo && e.pendientes <= 0) return;
       if (!e.activo) e.pendientes--;
       const s = get();
@@ -102,6 +130,7 @@ export default function ViewCanvas({ eventSource }) {
   });
   return (
     <Canvas
+      id="lienzo-3d"
       style={CANVAS_STYLE}
       eventSource={eventSource}
       eventPrefix="client"

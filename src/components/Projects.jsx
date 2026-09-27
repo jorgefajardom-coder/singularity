@@ -3,7 +3,7 @@ import { projects, projectCategories, sections, ui } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { GhostHeading, Placeholder, VideoEmbed } from "./ui";
 import { asset } from "../lib/asset";
-import { scroller } from "../lib/anim";
+import { destinoAncla, prefersReducedMotion, scroller } from "../lib/anim";
 import { PRESUPUESTO, gpuFallo, perfil, redCara } from "../lib/gpu";
 import { useTrasIntro } from "../lib/arranque";
 import Carga3D from "./Carga3D";
@@ -99,7 +99,7 @@ export default function Projects() {
    * se compensa en cada fotograma lo que se ha movido el boton tocado, asi
    * que se queda bajo el dedo.
    */
-  const anclar = useRef({ boton: null, antes: 0, hasta: 0, obs: null, tope: 0 });
+  const anclar = useRef({ boton: null, antes: 0, hasta: 0, obs: null, tope: 0, abre: -1 });
   /**
    * La correccion NO compite con el dedo: en cuanto el visitante hace algo
    * (tocar, rueda, teclado) se suelta el ancla y manda el. Antes seguia
@@ -126,10 +126,60 @@ export default function Projects() {
     if (lenis) lenis.scrollTo(destino, { immediate: true, force: true });
     else window.scrollTo(0, destino);
   };
+  /**
+   * Y al terminar de abrir, que el visor se VEA.
+   *
+   * Sujetar el boton bajo el dedo no basta: el visor abre DEBAJO del boton y
+   * en una pantalla baja se quedaba casi entero fuera. Medido en 1536x639 con
+   * la celda: boton en y=352 y el visor en 509..968, o sea 130 px de celda a
+   * la vista (Jorge, 26-09-2026: "salta a una posicion donde no se ve la
+   * celda"). Si no esta entero, la pagina se desliza hasta encuadrarlo igual
+   * que un enlace del menu (`destinoAncla`: centrado bajo la barra si cabe,
+   * pegado a ella si no). Solo al abrir, y solo si nadie ha tocado nada
+   * durante el plegado: con un gesto de por medio manda el visitante.
+   */
+  const encuadrar = (idx) => {
+    if (idx < 0) return;
+    const panel = seccion.current?.querySelector(`#proj-panel-${idx}`);
+    const visor = panel?.querySelector(".modelo, .producto");
+    if (!visor) return;
+    const r = visor.getBoundingClientRect();
+    // Solo si el visor es lo primero de la ficha (escritorio, a dos
+    // columnas). En pantalla estrecha va DESPUES de la descripcion: saltar
+    // hasta el se comeria el texto, que es lo que se lee primero.
+    if (r.top - panel.getBoundingClientRect().top > window.innerHeight * 0.3) return;
+    const bar = document.querySelector(".nav");
+    const techo = bar ? bar.getBoundingClientRect().bottom : 0;
+    if (!r.height || (r.top >= techo - 1 && r.bottom <= window.innerHeight + 1)) return;
+    // La cabecera de la ficha justo bajo la barra: el titulo se lee y el
+    // visor queda debajo. Encuadrando solo el visor (con `destinoAncla`), en
+    // 639 px de alto el titulo acababa debajo de la barra, pisando la marca y
+    // la capsula de musica. Si todo cabe de sobra, el conjunto se centra.
+    const cabecera = seccion.current.querySelector(`#proj-btn-${idx}`) ?? visor;
+    const arriba = cabecera.getBoundingClientRect().top;
+    const alto = r.bottom - arriba;
+    const libre = window.innerHeight - techo;
+    const margen = 12;
+    const hueco = alto + margen * 2 <= libre ? (libre - alto) / 2 : margen;
+    const destino = alto > 0 ? Math.max(0, window.scrollY + arriba - techo - hueco) : destinoAncla(visor);
+    const lenis = scroller.current;
+    const inmediato = prefersReducedMotion();
+    // Un gesto durante el deslizamiento lo corta en seco, sin pelear con el.
+    const cortar = () => {
+      for (const ev of GESTOS) window.removeEventListener(ev, cortar, true);
+      if (lenis) lenis.scrollTo(window.scrollY, { immediate: true, force: true });
+    };
+    for (const ev of GESTOS) window.addEventListener(ev, cortar, { capture: true, passive: true, once: true });
+    const fin = () => { for (const ev of GESTOS) window.removeEventListener(ev, cortar, true); };
+    if (lenis) lenis.scrollTo(destino, { duration: inmediato ? 0 : 0.9, immediate: inmediato, force: true, onComplete: fin });
+    else { window.scrollTo({ top: destino, behavior: inmediato ? "auto" : "smooth" }); setTimeout(fin, 1000); }
+  };
   const alternar = (i, boton) => {
     const a = anclar.current;
     a.obs?.disconnect();
     clearTimeout(a.tope);
+    // Se abre (y se encuadrara al acabar) o se cierra la que ya estaba abierta.
+    a.abre = open === i ? -1 : i;
     a.boton = boton;
     a.antes = boton.getBoundingClientRect().top;
     a.hasta = performance.now() + PLEGADO_MS;
@@ -154,7 +204,7 @@ export default function Projects() {
       a.obs = new ResizeObserver(corregir);
       seccion.current?.querySelectorAll(".proj__panel").forEach((el) => a.obs.observe(el));
     }
-    a.tope = setTimeout(() => { corregir(); soltarAncla(); }, Math.max(0, a.hasta - performance.now()));
+    a.tope = setTimeout(() => { corregir(); soltarAncla(); encuadrar(a.abre); }, Math.max(0, a.hasta - performance.now()));
     return soltarAncla;
   }, [open]);
 

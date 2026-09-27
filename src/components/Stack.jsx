@@ -31,6 +31,9 @@ export default function Stack({ sequence }) {
   // `transform` del CSS, que es el de flotar y el de inclinarse al pasar.
   useEffect(() => {
     const el = fila.current;
+    // Sin movimiento no hay reparto: las cartas estan en su sitio desde el
+    // principio (y en tactil la fila solo se desliza repartida, ver el CSS).
+    if (reduced && el) el.dataset.repartida = "true";
     if (reduced || !el || !seccion.current) return undefined;
     const cartas = [...el.querySelectorAll(".poster")];
     // Donde queda cada carta en la fila. Se mide al empezar cada reparto y al
@@ -42,6 +45,10 @@ export default function Stack({ sequence }) {
       const n = cartas.length;
       if (!sitios) medirSitios();
       const base = sitios[0];
+      // Con la baraja entera en su sitio las cartas pueden flotar (ver el CSS:
+      // el vaiven va por `translate`, el mismo que se escribe aqui).
+      const repartida = p >= 1 ? "true" : "false";
+      if (el.dataset.repartida !== repartida) el.dataset.repartida = repartida;
       cartas.forEach((carta, i) => {
         const retraso = n > 1 ? (i / (n - 1)) * 0.5 : 0;
         const t = Math.min(1, Math.max(0, (p - retraso) / 0.5));

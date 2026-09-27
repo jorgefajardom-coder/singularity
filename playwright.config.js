@@ -12,12 +12,21 @@ import { defineConfig, devices } from "@playwright/test";
 const CI = Boolean(process.env.CI);
 const PUERTO = 4173;
 
+// Local: las DOS graficas del portatil a la vez. Chrome elige la Intel
+// integrada por defecto; `--force_high_performance_gpu` le hace usar la
+// NVIDIA, sin tocar ningun ajuste de Windows. Escritorio se queda en la Intel
+// (es la que tiene casi cualquier visitante, ver la memoria de rendimiento);
+// los telefonos van a la NVIDIA y asi no se pelean por la misma GPU.
+const GPU_LOCAL = ["--use-angle=d3d11", "--enable-gpu", "--ignore-gpu-blocklist"];
+const conGpu = (extra = []) => (CI ? {} : { launchOptions: { args: [...GPU_LOCAL, ...extra] } });
+
 const telefono = (nombre, width, height) => ({
   name: nombre,
   use: {
     ...devices["Pixel 7"],
     viewport: { width, height },
     screen: { width, height },
+    ...conGpu(["--force_high_performance_gpu"]),
   },
 });
 
@@ -28,7 +37,8 @@ export default defineConfig({
   fullyParallel: true,
   // Los runners de GitHub para repos publicos traen 4 nucleos: 3 navegadores
   // a la vez y uno libre para el servidor de preview.
-  workers: CI ? 3 : 2,
+  // En local, 16 hilos y dos graficas (ver `conGpu`): 4 navegadores.
+  workers: CI ? 3 : 4,
   retries: CI ? 1 : 0,
   reporter: CI ? [["github"], ["list"]] : "list",
   use: {
@@ -51,7 +61,7 @@ export default defineConfig({
     telefono("movil-390", 390, 844),
     telefono("movil-412", 412, 915),
     telefono("movil-horizontal", 844, 390),
-    { name: "escritorio", use: { viewport: { width: 1536, height: 639 } } },
+    { name: "escritorio", use: { viewport: { width: 1536, height: 639 }, ...conGpu() } },
   ],
   webServer: {
     command: `npx vite build && npx vite preview --port ${PUERTO} --strictPort`,

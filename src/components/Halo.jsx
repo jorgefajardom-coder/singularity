@@ -111,6 +111,46 @@ const BLANCO = 0.8;
  */
 const ZOOM_FILL = 1.15;
 
+/** Lo que tarda la galaxia del telefono en crecer o volver (lo mismo que el
+ *  `transition` de `.halo`, para que se lea igual que en escritorio). */
+const ZOOM_MS = 1000;
+
+/**
+ * La galaxia ampliada del telefono. La caja ya tiene el tamano FINAL (el lado
+ * corto de la pantalla por ZOOM_FILL, como el acercamiento de escritorio) y se
+ * dibuja encogida sobre su sitio en la orbita; un fotograma despues se suelta
+ * y la transicion la lleva al centro. Al volver, el camino inverso. Solo se
+ * mueve `transform` de una capa de ~450 px: nada que rasterizar de nuevo.
+ */
+function GalaxiaAmpliada({ id, origen, volviendo }) {
+  const [abierta, setAbierta] = useState(false);
+  useLayoutEffect(() => {
+    // Dos fotogramas: el primero pinta la posicion de salida.
+    let b;
+    const a = requestAnimationFrame(() => { b = requestAnimationFrame(() => setAbierta(true)); });
+    return () => { cancelAnimationFrame(a); cancelAnimationFrame(b); };
+  }, []);
+  const lado = Math.min(window.innerWidth, window.innerHeight) * ZOOM_FILL;
+  const fuera = volviendo || !abierta;
+  const dx = origen.x - window.innerWidth / 2;
+  const dy = origen.y - window.innerHeight / 2;
+  return (
+    <div
+      className="halo__zoom"
+      aria-hidden="true"
+      style={{
+        width: `${lado}px`,
+        height: `${lado}px`,
+        transform: fuera
+          ? `translate(-50%, -50%) translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(${(origen.w / lado).toFixed(4)})`
+          : "translate(-50%, -50%)",
+      }}
+    >
+      <img className="halo__plain" src={asset(`/images/galaxias/${id}.webp`)} alt="" decoding="async" draggable={false} />
+    </div>
+  );
+}
+
 const BY_ID = new Map(services.map((s) => [s.id, s]));
 const AREAS = workAreas.map((area) => ({
   ...area,
@@ -244,6 +284,13 @@ export default function Halo() {
     return () => window.clearTimeout(timer);
   }, [deploying, reduced]);
 
+  // Telefono: de donde sale la galaxia ampliada (ver `entrar`) y si esta
+  // volviendo a su sitio.
+  const [origen, setOrigen] = useState(null);
+  const [volviendo, setVolviendo] = useState(false);
+  const volverTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(volverTimer.current), []);
+
   const salir = useCallback(() => {
     const node = root.current;
     if (node) {
@@ -252,8 +299,19 @@ export default function Halo() {
       node.style.removeProperty("--zoom-y");
     }
     setZoom(1);
+    if (telefono) {
+      // La galaxia vuelve a su orbita y solo entonces se suelta la escena.
+      setVolviendo(true);
+      window.clearTimeout(volverTimer.current);
+      volverTimer.current = window.setTimeout(() => {
+        setVolviendo(false);
+        setOrigen(null);
+        setFocus(null);
+      }, reduced ? 0 : ZOOM_MS);
+      return;
+    }
     setFocus(null);
-  }, []);
+  }, [telefono, reduced]);
 
   useEffect(() => {
     if (!focus) return undefined;
@@ -332,6 +390,21 @@ export default function Halo() {
     const f = marco.getBoundingClientRect();
     if (!b.width) return;
 
+    // En el telefono no se escala el halo entero. Eran 7,5 aumentos de una
+    // capa con seis galaxias girando dentro: miles de pixeles de lado que la
+    // GPU del telefono tenia que rasterizar al entrar y otra vez al volver, y
+    // al pulsar "Volver" la pestana se caia (Jorge, 26-09-2026). Ahi crece
+    // SOLO la galaxia pulsada, en una capa fija del tamano final, desde su
+    // sitio en la orbita (ver `.halo__zoom`). Es la misma imagen de 608 px que
+    // antes se ampliaba con el halo: no pierde nitidez.
+    if (telefono) {
+      window.clearTimeout(volverTimer.current);
+      setVolviendo(false);
+      setOrigen({ x: b.left + b.width / 2, y: b.top + b.height / 2, w: b.width });
+      setFocus(id);
+      return;
+    }
+
     const escala = (Math.min(f.width, f.height) * ZOOM_FILL) / b.width;
     const hx = h.left + h.width / 2;
     const hy = h.top + h.height / 2;
@@ -343,7 +416,7 @@ export default function Halo() {
     node.style.setProperty("--zoom-x", `${(f.left + f.width / 2 - hx - escala * (bx - hx)).toFixed(1)}px`);
     node.style.setProperty("--zoom-y", `${(f.top + f.height / 2 - hy - escala * (by - hy)).toFixed(1)}px`);
     setFocus(id);
-  }, []);
+  }, [telefono]);
 
   return (
     <>
@@ -353,6 +426,7 @@ export default function Halo() {
         data-drawn={drawn ? "true" : "false"}
         data-formed={formed ? "true" : "false"}
         data-focus={focus ? "true" : "false"}
+        data-zoom={telefono ? "capa" : "halo"}
         style={{ "--ring-count": RINGS.length }}
         // Mientras no se ha trazado, la seccion esta fuera de pantalla y sus
         // botones no deben poder recibir el foco del teclado.
@@ -480,6 +554,10 @@ export default function Halo() {
               el rotulo— cae fuera y el nombre desaparecia. Aqui van fijos al
               pie de la ventana, que es donde se leen pase lo que pase con el
               tamano del agujero. */}
+          {telefono && origen && createPortal(
+            <GalaxiaAmpliada id={focus} origen={origen} volviendo={volviendo} />,
+            document.body
+          )}
           {createPortal(
             <div className="halo__card">
               <p className="halo__cardName">{tr(AREAS.find((a) => a.id === focus).name)}</p>

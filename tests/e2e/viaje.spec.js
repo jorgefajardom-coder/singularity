@@ -222,14 +222,33 @@ test("abrir y cerrar Proyectos no hace vibrar el scroll", async ({ page }) => {
   await boton.scrollIntoViewIfNeeded();
   await page.waitForTimeout(1500);
   for (const esperado of ["true", "false"]) {
-    const grabacion = grabar(page, selector, 1400);
+    // Durante el plegado (0,9 s) el boton tocado se queda bajo el dedo y el
+    // scroll no va y viene. Despues, al ABRIR, la pagina puede deslizarse a
+    // proposito para encuadrar el visor (ver `encuadrar` en Projects.jsx).
+    const grabacion = grabar(page, selector, 850);
     await boton.click();
     const r = sinVibrar(await grabacion);
     await expect(boton).toHaveAttribute("aria-expanded", esperado);
-    // El boton tocado se queda bajo el dedo y el scroll no va y viene.
     expect(r.deriva, `deriva al ${esperado === "true" ? "abrir" : "cerrar"}`).toBeLessThanOrEqual(6);
     expect(r.cambios).toBeLessThanOrEqual(1);
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(1800);
+    if (esperado === "true") {
+      // El visor abierto se ve (Jorge, 27-09-2026: al abrir la celda la
+      // pagina se quedaba donde no se veia). Solo cuando el visor va arriba
+      // en la ficha; en pantalla estrecha va tras el texto y no se salta.
+      const v = await page.evaluate((sel) => {
+        const panel = document.querySelector(sel).closest(".proj__row").querySelector(".proj__panel");
+        const visor = panel.querySelector(".modelo, .producto");
+        if (!visor) return null;
+        const r = visor.getBoundingClientRect(), pr = panel.getBoundingClientRect();
+        return { arribaEnFicha: r.top - pr.top <= innerHeight * 0.3, top: r.top, bottom: r.bottom, alto: innerHeight };
+      }, selector);
+      if (v?.arribaEnFicha) {
+        expect(v.top, "el visor empieza dentro de la pantalla").toBeGreaterThanOrEqual(0);
+        // La zona 3D entera; el rotulo de abajo del visor puede quedar fuera.
+        expect(v.bottom - 90, "la zona 3D del visor se ve").toBeLessThanOrEqual(v.alto);
+      }
+    }
   }
 });
 

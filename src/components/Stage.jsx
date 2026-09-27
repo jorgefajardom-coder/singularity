@@ -454,6 +454,11 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       layer.style.webkitMaskImage = mask;
       holder.style.zIndex = coverMix > 0 ? "20" : t > 0 ? "2" : "0";
       holder.style.pointerEvents = t > 0 ? "none" : "auto";
+      // Y lo de dentro tambien. r3f escribe `pointer-events: auto` EN LINEA en
+      // su div, que gana a lo heredado: el lienzo, ya invisible sobre el Stack,
+      // seguia quedandose el dedo (con `touch-action: pan-y`) y la fila de
+      // cartas no se podia deslizar en el telefono (video de Jorge, 26-09-2026).
+      holder.dataset.inerte = t > 0 ? "true" : "false";
       journey.current.cy = clamp(pose.cy * (1 - t), -1.5, 1.5);
       // `uScale` multiplica las coordenadas del shader, asi que un valor MENOR
       // agranda el agujero (ver stagePose.js). Al aterrizar no se queda en 1
@@ -488,7 +493,7 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       const layer = traveler.current;
       if (layer) { layer.style.transform = ""; layer.style.opacity = ""; }
       const holder = carrier.current;
-      if (holder) { holder.style.zIndex = "0"; holder.style.pointerEvents = "auto"; }
+      if (holder) { holder.style.zIndex = "0"; holder.style.pointerEvents = "auto"; holder.dataset.inerte = "false"; }
       coverHole?.style.setProperty("--stamp", "0");
       coverCard?.style.setProperty("--impact-y", "0px");
       coverCard?.style.setProperty("--impact-scale", "1");
@@ -526,6 +531,7 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       traveler.current?.style.removeProperty("-webkit-mask-image");
       carrier.current?.style.removeProperty("z-index");
       carrier.current?.style.removeProperty("pointer-events");
+      if (carrier.current) delete carrier.current.dataset.inerte;
     };
   }, [entered, warm, reduced]);
 

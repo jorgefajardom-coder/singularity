@@ -1,0 +1,64 @@
+/* ============================================================
+   TELEFONO — lo que solo existe en el celular.
+
+   Se carga DESPUES de global.css (ver main.jsx). Regla de la casa: un arreglo
+   de telefono va aqui, dentro de su @media, y no toca las reglas de
+   escritorio; asi arreglar el celular no rompe el computador (Jorge,
+   26-09-2026). Dos puertas, segun lo que se arregla:
+
+     · `(hover: none) and (pointer: coarse)`: el APARATO es tactil (dedo en vez
+       de raton), mida lo que mida la ventana. Para gestos e interaccion.
+     · `(max-width: 600px)`: la PANTALLA es estrecha. Para maquetacion.
+
+   Lo que depende de cuanto aguanta la GPU no se decide aqui sino en
+   lib/gpu.js (`perfil.movil`), que marca el DOM con atributos que este
+   archivo lee (p. ej. `.halo[data-zoom="capa"]`).
+   ============================================================ */
+
+/* ---- Barra de arriba ----------------------------------------------------
+   El degradado bajo la barra ya es comun (global.css). Aqui solo: sobre los
+   paneles claros, franja solida SIN desenfoque (caro en la GPU del telefono). */
+@media (max-width: 600px) {
+  .nav[data-on-paper="true"]::before {
+    background: rgba(8, 7, 10, 0.94);
+    backdrop-filter: none;
+  }
+}
+
+/* ---- Stack ---------------------------------------------------------------
+   La fila se lleva con el dedo, sin flechas (Jorge, 26-09-2026). Y aqui SI
+   con iman: con el dedo, soltar y que la carta quede encuadrada es lo
+   esperado; lo que molestaba del iman era la barra con el raton, que en
+   tactil no existe. `proximity` y no `mandatory`: un gesto largo recorre
+   varias cartas en vez de frenar en la siguiente. */
+@media (hover: none) and (pointer: coarse) {
+  .stack__nav { display: none; }
+  .posters { scroll-snap-type: x proximity; }
+  /* Hasta que se reparten no hay nada que recorrer: la baraja esta debajo de
+     la portada. Deslizar en horizontal ahi corria la fila sobre un hueco
+     vacio; asi el dedo solo baja, que es lo que dispara el reparto. */
+  .posters:not([data-repartida="true"]) { overflow-x: hidden; }
+}
+
+/* ---- Galaxias del astronauta que medita ----------------------------------
+   La galaxia ampliada es una capa aparte (ver GalaxiaAmpliada en Halo.jsx);
+   la de la orbita se aparta mientras tanto. Encima del halo y debajo de la
+   ficha y del boton de volver; no recoge toques, que van a la capa de
+   salida. Solo existe con `perfil.movil` (o sin GPU). */
+.halo[data-zoom="capa"][data-focus="true"] .halo__body[data-on="true"] { opacity: 0; }
+/* En escritorio los aros y la aureola se salen de cuadro con el zoom; aqui el
+   halo no crece, asi que se apagan para que no asomen detras de la galaxia. */
+.halo[data-zoom="capa"] .halo__rings { transition: opacity 0.6s var(--ease); }
+.halo[data-zoom="capa"][data-focus="true"] .halo__rings { opacity: 0; }
+.halo__zoom {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 5;
+  pointer-events: none;
+  transform-origin: center;
+  transition: transform 1s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .halo__zoom { transition: none; }
+}

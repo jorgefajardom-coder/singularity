@@ -89,3 +89,74 @@
   .orbit { height: 200vh; }
   .section { padding-block: clamp(48px, 7vh, 72px); }
 }
+
+/* ---- Sin huecos negros (Jorge, 27-09-2026, capturas marcadas en rojo) -----
+   Hero: el pie (rol, frase, "scroll") estaba al fondo de la pantalla y
+   dejaba ~150 px de negro entre el disco y el texto. Ahora va justo bajo el
+   disco (`--agujero-alto` lo mide stagePose.js a partir del titular, y el
+   agujero se sigue colocando midiendo el titular) y el bloque entero queda
+   centrado en lo que deja la barra: el aire sobrante se reparte arriba y
+   abajo en vez de quedarse en medio. */
+@media (max-width: 600px) and (orientation: portrait) {
+  .hero--singularity .hero__inner {
+    align-content: center;
+    row-gap: 0;
+    padding-top: calc(var(--nav-h) + 12px);
+    padding-bottom: 20px;
+  }
+  .hero--singularity .hero__meta {
+    margin-top: calc(var(--agujero-alto, 96px) + 16px);
+  }
+}
+
+/* Meditacion: el conjunto va con los pies en el borde y, a lo ancho, ya no
+   puede crecer (el halo topa en 96vw), asi que sobraba ~180 px de cielo entre
+   la barra y los contadores. El conjunto sube hasta repartir ese aire a
+   partes iguales arriba y abajo. `--medita-b` es el mismo calculo de donde
+   van los contadores (ver global.css); 120 px = barra + alto de los
+   contadores. Halo.jsx cuenta este relleno para saber que el astronauta ha
+   llegado a su sitio. */
+@media (max-width: 600px) {
+  .meditation__frame {
+    --medita-b: calc(var(--medita-w) * 1.4955 + min(var(--medita-w) * 2.4, 96vw, 90svh) * 0.5564 + 12px);
+    --medita-alza: max(0px, (100svh - var(--medita-b) - 120px) / 2);
+    padding-bottom: var(--medita-alza);
+  }
+  .meditation__stats { bottom: calc(var(--medita-b) + var(--medita-alza)); }
+}
+
+/* Stack: la portada media `100svh - 133px`, el alto CON la barra del
+   navegador. Al bajar la barra se esconde, la pantalla crece ~80 px y, como
+   la seccion se fija por abajo, todo ese alto quedaba vacio encima de las
+   cartas. `--alto-visible` es el alto real de la ventana (lo escribe
+   Stack.jsx, y solo con la fila fuera de la vista). Y sin la franja de abajo
+   para la barra de desplazamiento, que en tactil no se ve. */
+@media (max-width: 600px) {
+  .poster--cover { min-height: calc(var(--alto-visible, 100svh) - 118px); }
+  .section.stack { padding-bottom: 0; }
+}
+@media (hover: none) and (pointer: coarse) {
+  .posters { padding-bottom: 14px; --barra: 0px; }
+  /* El desvanecido de los lados convertia la fila en una capa con mascara:
+     cada movimiento de una carta repintaba la fila entera, y en el telefono
+     el reparto se veia a trozos y a saltos. */
+  .posters,
+  .posters[data-fin="true"] { -webkit-mask-image: none; mask-image: none; }
+  /* Durante el reparto cada carta es su capa: se pinta una vez y la GPU la
+     mueve. Solo mientras dura, que once capas quietas son memoria de mas. */
+  .posters[data-repartiendo="true"] .poster { will-change: transform, translate, rotate, scale; }
+  .posters[data-repartiendo="true"] [class^="art-"] { animation-play-state: paused; }
+}
+
+/* ---- Bloqueos de scroll con el dedo ---------------------------------------
+   En el telefono el ancla de las galaxias NO usa `overflow: hidden` en
+   `html`: Chrome de Android saca o esconde la barra de direcciones al
+   volverse la pagina no desplazable y todo brincaba. El dedo lo frena
+   `frenarDedo` (lib/anim.js), que cancela el gesto. */
+@media (hover: none) and (pointer: coarse) {
+  html:has(body.is-anchored) {
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+  html[data-frenado="true"] { overscroll-behavior: none; }
+}

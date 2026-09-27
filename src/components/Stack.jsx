@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { sections, stack } from "../data/content";
 import { useLang } from "../lib/i18n";
-import { ScrollTrigger, gsap, navegacion, prefersReducedMotion, scroller } from "../lib/anim";
+import { ScrollTrigger, frenarDedo, gsap, navegacion, prefersReducedMotion, scroller, scrollTactil } from "../lib/anim";
 import StackArt from "./StackArt";
 
 /**
@@ -77,6 +77,7 @@ export default function Stack({ sequence }) {
     // desplazamiento por codigo (un enlace del menu), porque la seccion esta
     // fijada y si la pagina se corre las cartas se irian de la pantalla.
     let anclaje = null;
+    let soltarDedo = null;
     const sujetar = () => { if (anclaje !== null && Math.abs(window.scrollY - anclaje) > 1) window.scrollTo(0, anclaje); };
     // Solo con la barra de la fila ya entera en pantalla: bloquear antes
     // dejaba la pagina parada con la barra todavia entrando por abajo.
@@ -84,6 +85,9 @@ export default function Stack({ sequence }) {
     const bloquear = () => {
       // Un salto por ancla que cruza la seccion no se para a ver el reparto.
       if (anclaje !== null || navegacion.activa || !barraVisible()) return;
+      // Con el dedo, el gesto se cancela (ver `frenarDedo`): devolver la
+      // pagina a su sitio despues de moverla se veia como un brinco.
+      if (scrollTactil()) soltarDedo = frenarDedo();
       anclaje = window.scrollY;
       scroller.current?.stop();
       window.addEventListener("scroll", sujetar, { passive: true });
@@ -91,6 +95,8 @@ export default function Stack({ sequence }) {
     const soltar = () => {
       if (anclaje === null) return;
       anclaje = null;
+      soltarDedo?.();
+      soltarDedo = null;
       window.removeEventListener("scroll", sujetar);
       scroller.current?.start();
     };
@@ -107,6 +113,10 @@ export default function Stack({ sequence }) {
       else if (el.scrollLeft > 0) vuelta = gsap.to(el, { scrollLeft: 0, duration: 0.8, ease: "power2.inOut" });
       if (meta) bloquear();
       else soltar();
+      // Mientras se mueven, cada carta va en su propia capa (movil.css): sin
+      // eso el telefono volvia a rasterizar la fila entera en cada fotograma
+      // y las cartas aparecian a trozos.
+      el.dataset.repartiendo = "true";
       tween = gsap.to(reparto, {
         d: meta,
         duration: meta ? 1.4 : 0.8,
@@ -116,7 +126,9 @@ export default function Stack({ sequence }) {
           // Si arranco con la barra aun entrando, se bloquea en cuanto asome.
           if (meta && reparto.d < 0.9) bloquear();
         },
-        onComplete: soltar,
+        // Las capas se quitan con la baraja repartida, o recogida y la
+        // seccion ya sin fijar (si sigue fijada, el reparto puede volver).
+        onComplete: () => { soltar(); if (meta || !(st.progress > 0)) delete el.dataset.repartiendo; },
       });
     };
     // El fijado solo cubre ya el estampado. `sequence` (que lee Stage.jsx
@@ -124,6 +136,11 @@ export default function Stack({ sequence }) {
     // el mismo recorrido de scroll que cuando el fijado medía 110 %.
     const pasar = (p) => {
       if (sequence) sequence.current = Math.min(1, p * 0.5);
+      // Las capas de las cartas (ver `ir`) se crean en cuanto la seccion se
+      // fija, mientras se estampa el agujero: creadas al arrancar el reparto,
+      // el telefono tenia que pintar las once en ese mismo fotograma.
+      if (p > 0 && reparto.d < 1 && !el.dataset.repartiendo) el.dataset.repartiendo = "true";
+      else if (p === 0 && reparto.d === 0 && el.dataset.repartiendo) delete el.dataset.repartiendo;
       // El estampado acaba en p = 0.4 (sequence 0.2): en ese instante se
       // reparten, sin pedir mas scroll. Algo de margen para recogerlas, para
       // que no tiemblen si el scroll se para justo en el borde.
@@ -135,7 +152,11 @@ export default function Stack({ sequence }) {
       start: "bottom bottom",
       end: "+=55%",
       pin: true,
-      anticipatePin: 1,
+      // Sin `anticipatePin`: con Lenis el fijado ya va sincronizado con el
+      // scroll, y adelantarlo segun la velocidad lo pegaba antes de tiempo
+      // (un salto de 25-40 px al entrar) y, al volver a subir, lo dejaba fijo
+      // encima de la seccion siguiente varios fotogramas (Jorge, 27-09-2026:
+      // "el stack se queda pegado y se sobrepone a todo").
       scrub: true,
       onUpdate: (self) => pasar(self.progress),
       // Al cambiar el tamano de la ventana las posiciones de la baraja (en px)
@@ -148,10 +169,52 @@ export default function Stack({ sequence }) {
       tween?.kill();
       vuelta?.kill();
       soltar();
+      delete el.dataset.repartiendo;
       st.kill();
       cartas.forEach((c) => { c.style.translate = c.style.rotate = c.style.scale = c.style.zIndex = ""; });
     };
   }, [reduced, sequence]);
+
+  // Telefono: el alto real de la ventana para la portada (ver movil.css). La
+  // barra del navegador lo cambia al desplazarse; se actualiza solo con la
+  // fila lejos de la pantalla y con el dedo quieto, y se rehacen las medidas
+  // del scroll (el fijado depende del alto de la seccion). Cerca o dentro del
+  // Stack se deja como esta: rehacerlas ahi movia la pagina bajo el dedo.
+  useEffect(() => {
+    const sec = seccion.current;
+    if (!sec || !window.matchMedia("(max-width: 600px)").matches) return undefined;
+    let alto = 0;
+    let espera = 0;
+    const poner = (refrescar) => {
+      const h = window.innerHeight;
+      if (Math.abs(h - alto) < 2) return;
+      const r = sec.getBoundingClientRect();
+      const lejos = r.top > h * 1.5 || r.bottom < -h;
+      if (alto && (!lejos || document.body.classList.contains("is-anchored"))) return;
+      alto = h;
+      sec.style.setProperty("--alto-visible", `${h}px`);
+      if (refrescar) ScrollTrigger.refresh();
+    };
+    const tras = () => { clearTimeout(espera); espera = setTimeout(() => poner(true), 300); };
+    poner(false);
+    window.addEventListener("resize", tras);
+    window.addEventListener("scroll", tras, { passive: true });
+    return () => {
+      clearTimeout(espera);
+      window.removeEventListener("resize", tras);
+      window.removeEventListener("scroll", tras);
+    };
+  }, []);
+
+  // La portada y el sello, decodificados antes de llegar: con `decoding=async`
+  // el telefono los decodificaba al entrar en pantalla y la carta aparecia
+  // por partes. En un rato libre, para no competir con el arranque.
+  useEffect(() => {
+    const imgs = [...(seccion.current?.querySelectorAll("img") ?? [])];
+    const ya = () => imgs.forEach((img) => img.decode?.().catch(() => {}));
+    const id = window.requestIdleCallback ? requestIdleCallback(ya, { timeout: 4000 }) : setTimeout(ya, 2000);
+    return () => (window.cancelIdleCallback ? cancelIdleCallback(id) : clearTimeout(id));
+  }, []);
 
   // Al pasar por encima, la carta se levanta y se inclina hacia el puntero,
   // como si se la tuviera en la mano.

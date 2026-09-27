@@ -276,17 +276,30 @@ export default function Projects() {
     // cartas, las galaxias) el scroll tampoco se mueve, pero en pantalla hay
     // una animacion, y ahi se colaba el trabajo (medido: 920 ms de paron en
     // pleno reparto).
-    const anclada = () => document.documentElement.classList.contains("lenis-stopped")
-      || document.body.classList.contains("is-anchored");
-    const quieto = (ms = 800) => new Promise((ok) => {
+    // Tampoco con las cartas del Stack en pantalla: ahi se desliza la fila y
+    // un parseo de cientos de ms no se interrumpe. Empieza ya en Areas.
+    const cartas = document.querySelector(".posters");
+    const anclada = () => {
+      if (document.documentElement.classList.contains("lenis-stopped")
+        || document.body.classList.contains("is-anchored")) return true;
+      const r = cartas?.getBoundingClientRect();
+      return Boolean(r && r.bottom > 0 && r.top < window.innerHeight);
+    };
+    // "Quieto" es tambien el dedo: deslizar la fila del Stack en horizontal
+    // no desplaza la pagina, y la precarga se colaba justo mientras se
+    // recorrian las cartas (Jorge, 27-09-2026: "las tarjetas de stack estan
+    // cargando lento, como por pedazos"). El `scroll` va en captura para oir
+    // tambien el de la fila, y cualquier toque reinicia la espera.
+    const actividad = ["scroll", "touchstart", "touchmove", "pointerdown"];
+    const quieto = (ms = 1200) => new Promise((ok) => {
       let t = setTimeout(fin, ms);
       function fin() {
         if (anclada()) { t = setTimeout(fin, ms); return; }
-        window.removeEventListener("scroll", mueve);
+        actividad.forEach((ev) => document.removeEventListener(ev, mueve, true));
         ok();
       }
       function mueve() { clearTimeout(t); t = setTimeout(fin, ms); }
-      window.addEventListener("scroll", mueve, { passive: true });
+      actividad.forEach((ev) => document.addEventListener(ev, mueve, { passive: true, capture: true }));
     });
     const bajar = async (m) => {
       if (contenido) await quieto();

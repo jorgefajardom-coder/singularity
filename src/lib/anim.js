@@ -64,6 +64,39 @@ export const scroller = { current: null };
 export const navegacion = { activa: false };
 
 /**
+ * El dedo desplaza la pagina el solo (Lenis no lleva el tacto): el scroll
+ * corre en el hilo del compositor y lo que se coloca por JS llega un
+ * fotograma tarde. Misma puerta que movil.css para los gestos.
+ */
+export const scrollTactil = () =>
+  typeof window !== "undefined" && window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+
+/**
+ * Bloqueo de la pagina para el dedo, sin tocar el `overflow`.
+ *
+ * Con `overflow: hidden` en `html`, Chrome de Android saca (o esconde) la barra
+ * de direcciones al volverse la pagina no desplazable: el viewport cambia de
+ * alto y todo da un salto. Y el cerrojo que devuelve la pagina a su sitio
+ * (`scrollTo` al moverse) deja que el dedo la arrastre y luego la regresa: un
+ * brinco (Jorge, 27-09-2026: "bloquea el scroll en galaxias para que el
+ * usuario no lo haga brincar"). Aqui el gesto se cancela antes de mover nada,
+ * y un `scrollTo` a la misma altura corta la inercia de un gesto anterior.
+ * Devuelve la funcion que lo suelta.
+ */
+export function frenarDedo() {
+  const cancelar = (e) => { if (e.cancelable) e.preventDefault(); };
+  window.scrollTo(0, window.scrollY);
+  window.addEventListener("touchmove", cancelar, { passive: false });
+  window.addEventListener("wheel", cancelar, { passive: false });
+  document.documentElement.dataset.frenado = "true";
+  return () => {
+    window.removeEventListener("touchmove", cancelar);
+    window.removeEventListener("wheel", cancelar);
+    delete document.documentElement.dataset.frenado;
+  };
+}
+
+/**
  * Adonde desplazarse para que el destino de un ancla se vea ENTERO.
  *
  * Si la seccion marca una pieza con `data-encuadre` (la tarjeta de Contacto),

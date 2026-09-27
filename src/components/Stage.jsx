@@ -8,7 +8,7 @@ import About from "./About";
 import Meditation from "./Meditation";
 import Stack from "./Stack";
 import { companies, sections } from "../data/content";
-import { gsap, ScrollTrigger, useReducedMotion } from "../lib/anim";
+import { gsap, ScrollTrigger, scrollTactil, useReducedMotion } from "../lib/anim";
 import Aislado from "./Aislado";
 import { REPOSO_MEDIDO, heroBase, recalcularHeroBase } from "../lib/stagePose";
 
@@ -193,7 +193,21 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
     medir();
     window.addEventListener("resize", medir);
     // Lo ultimo escrito, para corregir medidas y no reescribir sin cambios.
-    const antes = { reposo: false, dormido: false, borde: undefined, lift: 0 };
+    const antes = { reposo: false, dormido: false, borde: undefined, lift: 0, pagina: false };
+    // Con el dedo el scroll lo mueve el compositor, fuera de este hilo: el
+    // lienzo, pegado al viewport, se quedaba quieto mientras la mano subia con
+    // la pagina, y `follow()` lo alcanzaba un fotograma despues. El agujero
+    // "nadaba" alrededor de la mano (Jorge, 27-09-2026: "ancla el agujero a la
+    // mano"). Mientras la mano va con la pagina, el lienzo tambien: deja de
+    // ser sticky y se coloca en la pagina, asi el compositor mueve los dos a
+    // la vez. Con Lenis (raton) el scroll ya va en este mismo fotograma.
+    const tactil = scrollTactil();
+    const alViewport = () => {
+      if (!antes.pagina) return;
+      antes.pagina = false;
+      const holder = carrier.current;
+      if (holder) holder.style.position = holder.style.top = holder.style.left = holder.style.right = "";
+    };
     // El texto de Sobre mi (titulo, parrafos, boton) y sus objetos 3D. No el
     // astronauta: ese es el que se transforma.
     const aboutParts = [
@@ -295,6 +309,14 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       // todo en su estado final; los siguientes ya no hacen nada.
       const dormir = motion.progress === 1 && closing.progress === 1 && sequence >= 0.29;
       if (dormir && antes.dormido) { journey.current.oculto = true; return; }
+      // Ya estampado e invisible, con el scroll parado (el reparto de las
+      // cartas bloquea la pagina): nada de lo que escribe esta funcion puede
+      // cambiar. Sin esto medía ~10 cajas por fotograma justo detras de las
+      // escrituras del reparto, y cada lectura obligaba a recalcular el
+      // layout: el reparto iba a tirones en el telefono.
+      const clave = `${window.scrollY}|${innerWidth}x${innerHeight}|${sequence}|${motion.progress}|${closing.progress}`;
+      if (journey.current.oculto && antes.quieto === clave) return;
+      antes.quieto = null;
       antes.dormido = dormir;
       // Las lecturas van ANTES de escribir nada: una lectura tras una
       // escritura obliga a recalcular. Solo quedan dos por detras, a
@@ -306,11 +328,33 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       // haber escrito ya la pose del astronauta y de haber volcado `pose` en
       // `journey`, asi que al salirse dejaba `journey` con la pose de orbita
       // sin mezclar y el agujero saltaba a su sitio de la orbita.
+      const frameTop = finalFrame.getBoundingClientRect().top;
+      if (tactil) {
+        // Mientras vuela hacia la mano de Sobre mi sigue pegado al viewport:
+        // su trayectoria sale del centro de la pantalla y, anclado a la
+        // pagina, el scroll la arrastraba hacia arriba. Tambien con la mano
+        // pegada al viewport: el marco de Meditacion fijo arriba o el Stack
+        // fijado (la portada). El resto, con la mano ya en ella, va con la
+        // pagina.
+        const pegada = (motion.progress < 1 && closing.progress === 0)
+          || Math.abs(frameTop) < 1 || stackSection.style.position === "fixed";
+        if (pegada) alViewport();
+        else {
+          const arriba = antes.pagina ? holder.getBoundingClientRect().top : 0;
+          // Al entrar, o si la caja se ha alejado mucho, se recoloca donde
+          // esta ahora la pantalla. La traslacion se recalcula abajo en este
+          // mismo fotograma, asi que no se ve ningun salto.
+          if (!antes.pagina || Math.abs(arriba) > holder.clientHeight * 1.5) {
+            const base = -stage.current.getBoundingClientRect().top;
+            Object.assign(holder.style, { position: "absolute", top: `${base}px`, left: "0", right: "0" });
+            antes.pagina = true;
+          }
+        }
+      }
       const box = holder.getBoundingClientRect();
       const w = holder.clientWidth;
       const h = holder.clientHeight;
       if (!w || !h) return;
-      const frameTop = finalFrame.getBoundingClientRect().top;
       const origin = originalFrame.getBoundingClientRect();
       const stackBox = stackSection.getBoundingClientRect();
       // La portada y su fila solo cuentan con el Stack ya asomando (ver
@@ -435,7 +479,10 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
         // pinta. Esperar a DORMIDO dejaba el shader trazando la pantalla
         // entera sin verse justo durante el reparto de la baraja, que se
         // quedaba a ~20 fps y a tirones (26-09-2026).
-        if (opacidad < 0.002) journey.current.oculto = true;
+        if (opacidad < 0.002) {
+          journey.current.oculto = true;
+          antes.quieto = `${window.scrollY}|${innerWidth}x${innerHeight}|${sequence}|${motion.progress}|${closing.progress}`;
+        }
       } else {
         layer.style.opacity = "";
       }
@@ -493,6 +540,7 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
     // REPOSO ya no lo reescribe en cada fotograma). Es lo que `follow`
     // escribiria con el viaje a cero.
     function restaurar() {
+      alViewport();
       originalPose.style.transform = "";
       originalPose.style.opacity = "";
       originalImage.style.filter = "";
@@ -542,6 +590,7 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       traveler.current?.style.removeProperty("opacity");
       traveler.current?.style.removeProperty("mask-image");
       traveler.current?.style.removeProperty("-webkit-mask-image");
+      alViewport();
       carrier.current?.style.removeProperty("z-index");
       carrier.current?.style.removeProperty("pointer-events");
       if (carrier.current) delete carrier.current.dataset.inerte;

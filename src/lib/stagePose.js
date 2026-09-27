@@ -50,6 +50,7 @@ const DISTANCIA_R = 0.2;
 // escritorio: vale la distancia de la caja del <h1> medida alli.
 const DISTANCIA_R_APAISADO = 0.633;
 const ANCHO_R = 7.74;
+const AGUJERO_ALTO_R = 2.7;
 
 const VERTICAL = { cy: -0.04, scale: 1.0 };
 let cache = null;
@@ -58,6 +59,13 @@ function medirVertical() {
   const titulo = document.querySelector(".hero__title");
   const hero = document.querySelector(".hero");
   if (!titulo || !hero) return null;
+  // Lo que ocupa el disco por debajo del titular, para que el pie se ponga
+  // justo debajo en el telefono (movil.css, `--agujero-alto`) en vez de al
+  // fondo de la pantalla con un hueco negro en medio (Jorge, 27-09-2026).
+  // Medido sobre los pixeles del disco en 360x740 y 390x844: el anillo
+  // lenseado de abajo acaba a ~2,7 radios del borde del titular. Se escribe
+  // ANTES de medir: mueve el titular.
+  hero.style.setProperty("--agujero-alto", `${Math.round((titulo.getBoundingClientRect().width / ANCHO_R) * AGUJERO_ALTO_R)}px`);
   const t = titulo.getBoundingClientRect();
   const origen = hero.getBoundingClientRect().top;
   const ancho = t.width;

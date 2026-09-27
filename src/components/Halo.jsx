@@ -15,7 +15,7 @@ import { services, workAreas } from "../data/content";
 // que alguien deshizo esto.
 const BlackHole = lazy(() => import("./BlackHole"));
 import { useLang } from "../lib/i18n";
-import { navegacion, prefersReducedMotion, scroller } from "../lib/anim";
+import { frenarDedo, navegacion, prefersReducedMotion, scroller, scrollTactil } from "../lib/anim";
 import { EnSuTurno } from "../lib/arranque";
 import { perfil, useGpuFallo } from "../lib/gpu";
 import { asset } from "../lib/asset";
@@ -227,8 +227,11 @@ export default function Halo() {
       // `innerHeight` crece ~56 px y el marco no, asi que la cintura no
       // llegaba nunca a "tocar" la ventana y las galaxias no salian (video de
       // Jorge, 26-09-2026). Margen de 4 px por el redondeo del scroll tactil.
-      const marco = portrait?.closest(".meditation__frame")?.getBoundingClientRect();
-      const suelo = marco ? marco.bottom : window.innerHeight;
+      const marcoEl = portrait?.closest(".meditation__frame");
+      const marco = marcoEl?.getBoundingClientRect();
+      // En el telefono el conjunto va subido con un relleno abajo (movil.css,
+      // `--medita-alza`): el suelo es el borde de ese relleno.
+      const suelo = marco ? marco.bottom - (parseFloat(getComputedStyle(marcoEl).paddingBottom) || 0) : window.innerHeight;
       const atWaist = Math.abs(waist - suelo) <= 4 && (!marco || marco.top <= 1);
       // La aureola permanece; los aros se despliegan de nuevo al bajar.
       if (inView && opacity >= 0.99 && atWaist) {
@@ -349,12 +352,17 @@ export default function Halo() {
     // pantalla aunque no se haya movido ni un pixel dentro de ella. Medido:
     // 3508 -> 5200 y la galaxia en y = -1996. Asi que se apunta la altura al
     // entrar y se devuelve a ella cualquier intento de moverla.
+    // En el telefono el dedo se bloquea cancelando el gesto (ver `frenarDedo`):
+    // el `overflow: hidden` no se usa ahi (movil.css) porque hacia saltar la
+    // barra del navegador, y la pagina brincaba.
+    const soltarDedo = scrollTactil() ? frenarDedo() : null;
     const anclaje = window.scrollY;
     const pin = () => {
       if (Math.abs(window.scrollY - anclaje) > 1) window.scrollTo(0, anclaje);
     };
     window.addEventListener("scroll", pin, { passive: true });
     return () => {
+      soltarDedo?.();
       window.removeEventListener("scroll", pin);
       document.body.classList.remove("is-anchored");
       scroller.current?.start();

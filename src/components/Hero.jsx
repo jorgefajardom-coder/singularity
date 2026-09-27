@@ -9,12 +9,12 @@ import { gsap, prefersReducedMotion } from "../lib/anim";
  * viewport para que pueda viajar hasta la orbita. El hero solo aporta el
  * titular que el shader lensea (`copyRef`) y su propio texto.
  */
-export default function Hero({ entered, copyRef, lensed }) {
+export default function Hero({ entered, revelar = entered, copyRef, lensed }) {
   const { tr } = useLang();
   const root = useRef(null);
 
   useEffect(() => {
-    if (!entered || prefersReducedMotion()) return;
+    if (!revelar || prefersReducedMotion()) return;
 
     const ctx = gsap.context(() => {
       // El bloque de texto ya se anima palabra a palabra (SplitText), asi que
@@ -29,7 +29,7 @@ export default function Hero({ entered, copyRef, lensed }) {
     }, root);
 
     return () => ctx.revert();
-  }, [entered]);
+  }, [revelar]);
 
   return (
     <section
@@ -55,6 +55,7 @@ export default function Hero({ entered, copyRef, lensed }) {
               className="hero__role"
               variant="chars"
               trigger="mount"
+              pausa={!revelar}
               delay={0.75}
             >
               {tr(site.role)}
@@ -63,6 +64,7 @@ export default function Hero({ entered, copyRef, lensed }) {
               className="hero__lede"
               variant="rise"
               trigger="mount"
+              pausa={!revelar}
               delay={0.95}
             >
               {tr(site.hero.lede)}

@@ -116,6 +116,9 @@ export function centroAgujero(j, w, h) {
   return { x: w * (0.5 + 0.5 * j.cx), y: h * (0.5 - 0.5 * j.cy) };
 }
 
+/** Aviso de que alguien volvio a medir el reposo (el cargador, ver Loader.jsx). */
+export const REPOSO_MEDIDO = "singularity:reposo";
+
 /** Recalcula (al montar, con las fuentes cargadas, al cambiar de tamano). */
 export function recalcularHeroBase() {
   cache = null;

@@ -5,6 +5,7 @@ import { GhostHeading, Placeholder, VideoEmbed } from "./ui";
 import { asset } from "../lib/asset";
 import { scroller } from "../lib/anim";
 import { PRESUPUESTO, gpuFallo, perfil, redCara } from "../lib/gpu";
+import { useTrasIntro } from "../lib/arranque";
 import Carga3D from "./Carga3D";
 
 // El visor arrastra consigo el stack 3D. Se carga aparte para que no entre en
@@ -158,28 +159,38 @@ export default function Projects() {
   }, [open]);
 
   /**
-   * Los modelos 3D se bajan en segundo plano en cuanto aparece Areas (la
-   * seccion de encima), no cuando abre el proyecto: son megabytes, y esperar a
-   * que los pida era ver "Preparando la celda 3D" cada vez. Desde Areas se
-   * gana todo el rato que se pasa leyendolas. Si alguien salta directo a
-   * Proyectos por el menu, el observador de la propia seccion lo cubre.
+   * Los modelos 3D se bajan en segundo plano MIENTRAS SE RECORRE LA PAGINA,
+   * no cuando abre el proyecto: bajar la celda, decodificarla (Draco, ~6 s en
+   * escritorio) y calcular su despiece (~3 s) al abrirla era una espera
+   * eterna (Jorge, 26-09-2026: "que vaya descargando mientras el usuario
+   * desplaza"). En escritorio arranca poco despues de la intro, en su turno
+   * (ver lib/arranque.js), y gana todo el recorrido hasta Proyectos. En el
+   * telefono, al acercarse a Areas: ahi el hero y la orbita todavia se estan
+   * usando. Si alguien salta directo a Proyectos por el menu, el observador
+   * de la propia seccion lo cubre.
    *
    * Con cabeza segun el aparato y contra el presupuesto de lib/gpu.js
-   * (`PRESUPUESTO.precargaMaxMB`, 20 MB en escritorio y 5 en el telefono):
+   * (`PRESUPUESTO.precargaMaxMB`, 20 MB, y 5 con poca memoria):
    *   - se va sumando el peso de cada modelo y el que no cabe se queda para
-   *     cuando abran su ficha. En el telefono entra el dron (~4 MB) y la
-   *     celda (~15 MB) no: megas de datos y de memoria grafica para una
-   *     seccion que quiza no se abra.
+   *     cuando abran su ficha. Con poca memoria entra el dron (~4 MB) y la
+   *     celda (~15 MB) no.
    *   - el dron, que es la ficha que arranca abierta, va primero; los demas
    *     arrancan cada uno por su lado cuando termina (o falla) el anterior,
    *     sin esperar a un `Promise.all` que se para con el primero que falla.
    *   - ahorro de datos o red 2G/3G, mirada JUSTO antes de cada descarga (se
    *     puede haber salido del wifi entre tanto), o la GPU caida: nada.
    */
+  const trasIntro = useTrasIntro(4);
+  const precargaLanzada = useRef(false);
+  // La cola, una vez lanzada, sigue aunque este efecto se rehaga (cambia
+  // `trasIntro`): solo se corta al desmontar la seccion.
+  const montada = useRef(true);
+  useEffect(() => () => { montada.current = false; }, []);
   useEffect(() => {
     const el = seccion.current;
-    if (!el || typeof IntersectionObserver !== "function") return undefined;
-    const topeMB = perfil.movil || perfil.memoriaBaja ? PRESUPUESTO.precargaMaxMB.movil : PRESUPUESTO.precargaMaxMB.escritorio;
+    if (!el || typeof IntersectionObserver !== "function" || precargaLanzada.current) return undefined;
+    const topeMB = perfil.memoriaBaja ? PRESUPUESTO.precargaMaxMB.memoriaBaja
+      : perfil.movil ? PRESUPUESTO.precargaMaxMB.movil : PRESUPUESTO.precargaMaxMB.escritorio;
     const cola = [
       ...projects.filter((p) => p.producto3d?.model).map((p) => ({ tipo: "producto", model: p.producto3d.model, mb: p.producto3d.pesoMB ?? Infinity })),
       ...projects.filter((p) => p.model).map((p) => ({ tipo: "celda", model: p.model, mb: p.modelPesoMB ?? Infinity })),
@@ -192,14 +203,15 @@ export default function Projects() {
       tocan.push(m);
     }
     if (!tocan.length || perfil.datosCaros || gpuFallo()) return undefined;
-    let vivo = true;
     const bajar = (m) => {
-      if (!vivo || gpuFallo() || redCara()) return Promise.resolve();
+      if (!montada.current || gpuFallo() || redCara()) return Promise.resolve();
       return m.tipo === "producto"
         ? import("../three/ProductViewer").then(({ preloadProducto }) => preloadProducto(m.model))
         : import("../three/ModelViewer").then(({ preloadModel }) => preloadModel(m.model));
     };
     const precargar = () => {
+      if (precargaLanzada.current) return;
+      precargaLanzada.current = true;
       obs.disconnect();
       // Uno detras de otro para no repartir la conexion (el dron tardaria lo
       // que tarda la celda), pero un fallo no para a los siguientes.
@@ -212,11 +224,13 @@ export default function Projects() {
     const obs = new IntersectionObserver((entradas) => {
       if (entradas.some((e) => e.isIntersecting)) precargar();
     }, { rootMargin: contenido ? "0px 0px 100% 0px" : "0px 0px 1500px 0px" });
+    // Escritorio: en cuanto le toca, tras la intro.
+    if (!contenido && trasIntro) { precargar(); return undefined; }
     const areas = document.getElementById("services");
-    if (areas && !contenido) obs.observe(areas);
+    if (areas) obs.observe(areas);
     obs.observe(el);
-    return () => { vivo = false; obs.disconnect(); };
-  }, []);
+    return () => obs.disconnect();
+  }, [trasIntro]);
 
   const visible = useMemo(
     () => (filter === "all" ? projects : projects.filter((p) => p.category === filter)),

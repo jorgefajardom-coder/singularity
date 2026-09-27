@@ -137,18 +137,28 @@ export function planAssembly(scene) {
 /**
  * El plan repartido en los ratos libres del navegador: tantas mallas por hueco
  * como quepan, para no bloquear mas de unos milisegundos seguidos.
+ *
+ * Con la pagina animando sin parar (lienzos 3D, scroll suave) casi nunca hay
+ * rato libre: el aviso llega por el plazo vencido, con 0 ms disponibles, y el
+ * bucle hacia UNA malla cada 400 ms. La celda se quedaba en "Preparando la
+ * celda 3D" mas de 25 s con el archivo ya descargado (Jorge, 26-09-2026: "que
+ * vaya cargando mientras el usuario desplaza"). Vencido el plazo, se trabaja
+ * igualmente un tramo acotado (PRESUPUESTO_MS) y se cede el hilo.
  */
+const PRESUPUESTO_MS = 8;
 export function planAssemblyIdle(scene) {
   const steps = planSteps(scene);
   const later = typeof requestIdleCallback === "function"
-    ? (fn) => requestIdleCallback(fn, { timeout: 400 })
+    ? (fn) => requestIdleCallback(fn, { timeout: 100 })
     : (fn) => setTimeout(() => fn(null), 16);
   return new Promise((resolve, reject) => {
     const work = (deadline) => {
       try {
+        const libre = deadline && !deadline.didTimeout ? deadline.timeRemaining() - 2 : 0;
+        const hasta = performance.now() + Math.max(PRESUPUESTO_MS, libre);
         let step;
         do step = steps.next();
-        while (!step.done && deadline && deadline.timeRemaining() > 4);
+        while (!step.done && performance.now() < hasta);
         if (step.done) resolve(step.value);
         else later(work);
       } catch (error) {

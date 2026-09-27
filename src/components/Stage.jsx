@@ -10,7 +10,7 @@ import Stack from "./Stack";
 import { companies, sections } from "../data/content";
 import { gsap, ScrollTrigger, useReducedMotion } from "../lib/anim";
 import Aislado from "./Aislado";
-import { heroBase, recalcularHeroBase } from "../lib/stagePose";
+import { REPOSO_MEDIDO, heroBase, recalcularHeroBase } from "../lib/stagePose";
 
 /**
  * Primera pantalla y órbita comparten un solo agujero negro.
@@ -118,7 +118,7 @@ function transformSeguro(x, y, s, sy, w, h) {
   };
 }
 
-export default function Stage({ entered, warm, espejo, onListo }) {
+export default function Stage({ entered, revelar = entered, warm, espejo, onListo }) {
   const stage = useRef(null);
   const stackSequence = useRef(0);
   const copy = useRef(null);
@@ -155,7 +155,10 @@ export default function Stage({ entered, warm, espejo, onListo }) {
     onResize();
     document.fonts?.ready.then(onResize);
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    // El cargador vuelve a medir al empezar la transformacion, con el titular
+    // ya en el idioma elegido: la pose se rehace con esa medida.
+    window.addEventListener(REPOSO_MEDIDO, onResize);
+    return () => { window.removeEventListener("resize", onResize); window.removeEventListener(REPOSO_MEDIDO, onResize); };
   }, [warm]);
 
   // En desarrollo, para poder leer la fase desde la consola:
@@ -591,16 +594,22 @@ export default function Stage({ entered, warm, espejo, onListo }) {
           <div className="stage__traveler" ref={traveler}>
           <Aislado nombre="el agujero del hero" fallback={<div className="blackhole__fallback" />}>
           <Suspense fallback={<div className="blackhole__fallback" />}>
-            {/* `onPreparado`: compilado y con sus dos primeros fotogramas. Es el
-                ultimo hito del porcentaje del cargador (ver `hitos` en Loader). */}
-            <BlackHole bare lensSource={copy} lensFrame={stage} journey={journey} onLensReady={setLensed} onPreparado={onListo} espejo={espejo} espejoModo="sigue" />
+            {/* `onPintado`: compilado, pintando y comprobado (fotograma 6, ver
+                BlackHole.jsx). Es el ultimo hito del porcentaje del cargador
+                (ver `hitos` en Loader): la comprobacion para la GPU, y asi
+                ocurre tapada, antes de la transformacion. */}
+            <BlackHole bare lensSource={copy} lensFrame={stage} journey={journey} onLensReady={setLensed} onPintado={onListo} espejo={espejo} espejoModo="sigue" />
           </Suspense>
           </Aislado>
           </div>
         </div>
       )}
 
-      <Hero entered={entered} copyRef={copy} lensed={lensed} />
+      {/* Monta su texto al entrar (`entered`, antes del morfo: ver `asentado`
+          en Loader.jsx) pero lo anima con la transformacion (`revelar`): sus
+          retardos estan medidos para verse al retirarse el cargador, y
+          remontarlo al empezar el morfo le quitaba fotogramas. */}
+      <Hero entered={entered} revelar={revelar} copyRef={copy} lensed={lensed} />
 
       <Aislado nombre="la orbita">
         {reduced ? (

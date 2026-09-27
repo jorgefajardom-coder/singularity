@@ -58,6 +58,8 @@ export default function App() {
   const [holeReady, setHoleReady] = useState(false);
   // El agujero del hero ya compilado: el cargador no cierra su ∞ sin el.
   const [heroListo, setHeroListo] = useState(false);
+  // Arranco la transformacion: desde aqui cuentan las animaciones del hero.
+  const [revelar, setRevelar] = useState(false);
   // Durante la intro los dos lienzos del agujero negro estan vivos a la vez.
   // Aqui el del cargador publica su estado y el del hero lo copia, para que el
   // relevo no cruce dos imagenes distintas (ver BlackHole.jsx).
@@ -99,16 +101,16 @@ export default function App() {
     marcarIntroTerminada();
   }, [introGone]);
 
-  // La musica y su analisis arrancan con el agujero ya pintado. En el
-  // telefono, ademas, esperan a que termine la intro: decodificar audio y
-  // analizarlo cada fotograma encima de la parte mas pesada de la
-  // transformacion era competir por el mismo presupuesto de fotograma.
-  const musica = perfil.movil ? introGone : holeReady || introGone;
+  // La pista arranca al pulsar la cinta del cargador (`entered` se enciende en
+  // ese mismo clic), tambien en el telefono (Jorge, 26-09-2026). Ya viene
+  // decodificada de la carga (ver `precargarPista`), asi que no compite con
+  // la transformacion mas que por el analisis de cada fotograma.
+  const musica = entered || introGone;
 
   return (
     <LangProvider>
       <MusicProvider active={musica}>
-      {!introGone ? <Loader espejo={espejo} onWarm={() => setWarm(true)} onEnter={() => setEntered(true)} onDone={() => setIntroGone(true)} onReady={setHoleReady} heroListo={heroListo} /> : null}
+      {!introGone ? <Loader espejo={espejo} onWarm={() => setWarm(true)} onEnter={() => setEntered(true)} onDone={() => setIntroGone(true)} onReady={setHoleReady} onMorph={() => setRevelar(true)} heroListo={heroListo} /> : null}
 
       <Starfield />
 
@@ -118,7 +120,7 @@ export default function App() {
         <main>
           {/* Hero y orbita comparten un solo agujero negro, que viaja de uno
               a otra con el scroll. */}
-          <Aislado nombre="el hero"><Stage entered={entered} warm={warm} espejo={espejo} onListo={marcarHeroListo} /></Aislado>
+          <Aislado nombre="el hero"><Stage entered={entered} revelar={revelar || introGone} warm={warm} espejo={espejo} onListo={marcarHeroListo} /></Aislado>
           <Aislado nombre="Areas"><Services /></Aislado>
           <Aislado nombre="Proyectos"><Projects /></Aislado>
           <Aislado nombre="Formacion"><Certifications /></Aislado>

@@ -72,8 +72,11 @@ export const PRESUPUESTO = {
   dprMovilMax: 1.5,
   // Pasos por rayo del agujero negro.
   pasosAgujero: { escritorio: 180, movil: 128 },
-  // Peso maximo de un modelo que se precarga sin que nadie lo pida (MB).
-  precargaMaxMB: { escritorio: 20, movil: 5 },
+  // Peso maximo de lo que se precarga sin que nadie lo pida (MB). El telefono
+  // tambien baja la celda (~15 MB) mientras se recorre la pagina: a 5 MB solo
+  // entraba el dron y la celda se bajaba y decodificaba al abrirla, que era
+  // una espera eterna (Jorge, 26-09-2026). Con poca memoria, solo el dron.
+  precargaMaxMB: { escritorio: 20, movil: 20, memoriaBaja: 5 },
 };
 
 /**

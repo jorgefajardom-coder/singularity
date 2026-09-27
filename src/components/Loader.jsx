@@ -1,9 +1,9 @@
 import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLang } from "../lib/i18n";
 import { gsap, prefersReducedMotion } from "../lib/anim";
-import { recalcularHeroBase } from "../lib/stagePose";
+import { REPOSO_MEDIDO, recalcularHeroBase } from "../lib/stagePose";
 import { MITADES } from "../lib/curvaInfinito";
-import { useMusic } from "../lib/music";
+import { precargarPista, useMusic } from "../lib/music";
 import { gpuFallo, useGpuFallo } from "../lib/gpu";
 
 // El infinito es SVG y se dibuja sin tocar WebGL. El agujero negro llega
@@ -74,13 +74,17 @@ const SOMBRA_CY = 0.074;
 
 // Cuanto vale cada hito del porcentaje (suman 100). Los lienzos pesan mas:
 // compilar el shader es lo que mas tarda en una grafica integrada.
-const PESOS = { fuentes: 10, pagina: 15, codigo: 20, lienzo: 30, hero: 25 };
+const PESOS = { fuentes: 10, pagina: 10, codigo: 20, lienzo: 30, hero: 25, musica: 5 };
 // Lo mas rapido que sube el numero: de 0 a 100 en no menos de 1,5 s.
 const VELOCIDAD_MAX = 100 / 1.5;
 // Lo mas que se espera a la carga antes de dejar elegir idioma igualmente.
-const TOPE_CARGA = 15000;
+// Con la CPU de un telefono flojo (emulada a 6x) todo llega a los ~11 s.
+const TOPE_CARGA = 20000;
+// Lo mas que se espera, tras elegir idioma, a que el sitio se asiente (ver
+// `asentar`) antes de arrancar la transformacion.
+const ASENTAR_MAX = 2500;
 
-export default function Loader({ onWarm, onEnter, onDone, onReady, espejo, heroListo = false }) {
+export default function Loader({ onWarm, onEnter, onDone, onReady, onMorph, espejo, heroListo = false }) {
   const disco = useRef(null);
   const sinGpu = useGpuFallo();
   // El lienzo del cargador no llego a tiempo (ver `choose`): esta intro va
@@ -122,6 +126,8 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo, heroL
   done.current = onDone;
   const warm = useRef(onWarm);
   warm.current = onWarm;
+  const morph = useRef(onMorph);
+  morph.current = onMorph;
 
   // Todas las capas comparten el mismo progreso de trazado.
   const strokes = useMemo(() => ({ es: [], en: [] }), []);
@@ -134,14 +140,16 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo, heroL
    * todo empieza a cargar en cuanto aparece el cargador y el ∞ no se cierra
    * hasta que lo que hay detras esta hecho (Jorge, 26-09-2026):
    *   fuentes, la pagina (hojas e imagenes), el codigo 3D, el lienzo del
-   *   agujero del cargador compilado y el del hero compilado y pintado.
+   *   agujero del cargador y el del hero, los dos compilados, pintando y
+   *   comprobados (`onPintado`, fotograma 6: la comprobacion lee pixeles y
+   *   para la GPU, asi que tiene que ocurrir aqui y no en la transicion).
    * Los lienzos van uno detras de otro (ver `warm` mas abajo): compilando el
    * mismo shader a la vez se quitaban la GPU.
    *
    * TOPE_CARGA es la red de seguridad: un hito que no llega nunca (un lienzo
    * que falla dentro de su Aislado) no deja a nadie atrapado en el cargador.
    */
-  const hitos = useRef({ fuentes: false, pagina: false, codigo: false, lienzo: false, hero: false });
+  const hitos = useRef({ fuentes: false, pagina: false, codigo: false, lienzo: false, hero: false, musica: false });
   const progresoReal = () => {
     let total = 0;
     for (const [k, peso] of Object.entries(PESOS)) if (hitos.current[k]) total += peso;
@@ -347,8 +355,12 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo, heroL
       timeline.to(".loader__label, .loader__seams", { opacity: 0, duration: 0.28, ease: "power1.out" }, 0);
       timeline.to(mark, { opacity: 0, duration: 0.15, ease: "none" }, 0.05);
 
-      // Medido ahora, con el hero ya montado debajo y las fuentes puestas.
+      // Medido ahora, con el hero ya montado debajo, las fuentes puestas y el
+      // titular ya en el idioma elegido. Stage tiene que enterarse: su pose
+      // se calculo durante la carga, con el titular en el otro idioma (254
+      // px contra 287 en 390x844), y el agujero acababa la intro corrido.
       const rest = recalcularHeroBase();
+      window.dispatchEvent(new Event(REPOSO_MEDIDO));
       if (introCss() && disco.current) {
         // El mismo recorrido que el agujero del shader: nace en el cruce del
         // ∞ y, en la segunda mitad, baja a su sitio de reposo en el hero.
@@ -390,9 +402,9 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo, heroL
         },
       }, MORPH_AT);
 
-      // Preparar el portafolio desde el inicio y revelarlo durante el giro:
-      // el fondo ya debe verse cuando el agujero termine de formarse.
-      timeline.call(() => enter.current(), null, 0);
+      // El portafolio ya entro al elegir idioma (ver `asentado`): aqui solo
+      // se revela durante el giro, y sus animaciones arrancan ahora.
+      timeline.call(() => morph.current?.(), null, 0);
       // Unos fotogramas antes del fundido el hero vuelve a pintar, para que al
       // asomar tenga ya la imagen de este instante y no la de hace un segundo.
       timeline.call(() => { travel.current.cubre = false; }, null, LEAVE_AT - 0.12);
@@ -412,6 +424,7 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo, heroL
   listoRef.current = onReady;
   const avisarPintado = useMemo(() => () => {
     pintado.current = true;
+    marcar("lienzo");
     if (fase.current === "transforming") listoRef.current(true);
   }, []);
 
@@ -431,15 +444,31 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo, heroL
    * disco CSS.
    */
   const preparado = useRef(false);
+
+  /**
+   * TRAS ELEGIR IDIOMA, EL SITIO SE PREPARA ANTES DE LA TRANSFORMACION.
+   *
+   * Cambiar de idioma y entrar (`enter`) re-renderiza la pagina entera y
+   * arranca las animaciones del hero: ~0,6 s de hilo principal en un telefono
+   * (perfilado con la CPU a 4x). Se hacia en el primer instante del morfo, y
+   * el morfo —que va por tiempo— salia en 9-11 fotogramas en vez de ~110:
+   * "la transicion en celular no carga como deberia" (Jorge, 26-09-2026).
+   * Ahora se entra al pulsar, con el ∞ quieto en pantalla (las etiquetas se
+   * retiran, que es la respuesta al clic), y el morfo arranca cuando el
+   * navegador vuelve a dar fotogramas seguidos, o a los ASENTAR_MAX.
+   */
+  const asentado = useRef(false);
+  const seguir = () => {
+    if (fase.current === "esperando" && asentado.current && (introCss() || preparado.current)) setPhase("transforming");
+  };
   const avisarPreparado = useMemo(() => () => {
     preparado.current = true;
     // Para las pruebas y para medir en produccion cuanto tarda (ms).
     if (typeof window !== "undefined") window.__introPreparado = performance.now();
-    marcar("lienzo");
     // El agujero del cargador ya esta compilado: le toca al del hero, que
     // compila el mismo shader y a la vez le quitaba la GPU.
     warm.current?.();
-    if (fase.current === "esperando") setPhase("transforming");
+    seguir();
   }, []);
 
   // Los hitos de la carga (ver `hitos`). Todo arranca con el cargador.
@@ -454,6 +483,9 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo, heroL
     // compartido de las vistas 3D de mas abajo, que asi ya esta descargado
     // cuando le llegue el turno.
     Promise.all([import("./BlackHole"), import("../three/ViewCanvas")]).then(si("codigo"), si("codigo"));
+    // La pista suena al pulsar la cinta: tiene que estar ya decodificada. Si
+    // falla, no bloquea (el reproductor deja reintentar).
+    precargarPista().then(si("musica"), si("musica"));
     const tope = setTimeout(() => {
       if (!vivo) return;
       if (import.meta.env.DEV) console.warn("[carga] tope alcanzado", { ...hitos.current });
@@ -471,18 +503,34 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo, heroL
   useEffect(() => { if (heroListo) marcar("hero"); }, [heroListo]);
   useEffect(() => {
     if (phase !== "esperando") return undefined;
-    if (sinGpu) { setPhase("transforming"); return undefined; }
+    let vivo = true;
     const ctx = gsap.context(() => {
       // El contador tambien: al dejar `choose` se deshace su animacion y el
       // "100" volvia a asomar.
       gsap.set(".loader__num", { opacity: 0 });
       gsap.to(".loader__label, .loader__seams, .loader__hint", { opacity: 0, duration: 0.28, ease: "power1.out" });
     }, root);
-    const tope = setTimeout(() => {
+    // Asentado: tres fotogramas seguidos a menos de 40 ms (el re-render y las
+    // animaciones que arranca `enter` ya han pasado).
+    const ini = performance.now();
+    let prev = ini, buenos = 0, raf = 0;
+    const paso = (t) => {
+      if (!vivo) return;
+      buenos = t - prev < 40 ? buenos + 1 : 0;
+      prev = t;
+      if (buenos >= 3 || t - ini > ASENTAR_MAX) {
+        asentado.current = true;
+        seguir();
+      } else raf = requestAnimationFrame(paso);
+    };
+    raf = requestAnimationFrame(paso);
+    // Si el lienzo del cargador no llega, la intro sigue con el disco CSS.
+    const tope = preparado.current || sinGpu ? 0 : setTimeout(() => {
+      cssRef.current = true;
       setCssPorTiempo(true);
-      setPhase("transforming");
+      seguir();
     }, ESPERA_MAX);
-    return () => { clearTimeout(tope); ctx.revert(); };
+    return () => { vivo = false; cancelAnimationFrame(raf); clearTimeout(tope); ctx.revert(); };
   }, [phase, sinGpu]);
   useEffect(() => {
     if (phase === "transforming" && (introCss() || pintado.current)) onReady(true);
@@ -548,7 +596,9 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, espejo, heroL
       onDone();
       return;
     }
-    setPhase(introCss() || preparado.current ? "transforming" : "esperando");
+    // Se entra YA, con el ∞ quieto delante (ver `asentado`).
+    enter.current();
+    setPhase("esperando");
   };
 
   const onKey = (e, code) => {

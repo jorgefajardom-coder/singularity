@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { gsap, prefersReducedMotion } from "../lib/anim";
 
 /**
@@ -64,9 +64,16 @@ export default function SplitText({
   dimOpacity = 0.16,
   start = "top 85%",
   end = "bottom 60%",
+  // Con trigger="mount": montado y listo pero quieto hasta que pase a false.
+  // Lo usa el hero, que entra antes de la transformacion de la intro y
+  // anima al revelarse (ver `revelar` en Stage.jsx).
+  pausa = false,
   ...rest
 }) {
   const ref = useRef(null);
+  const tween = useRef(null);
+  const enPausa = useRef(pausa);
+  enPausa.current = pausa;
   const text = String(children ?? "");
   const spec = VARIANTS[variant] ?? VARIANTS.rise;
 
@@ -90,8 +97,9 @@ export default function SplitText({
 
     const ctx = gsap.context(() => {
       const scrubbed = variant === "scrub";
-      gsap.fromTo(pieces, scrubbed ? { ...spec.from, opacity: dimOpacity } : spec.from, {
+      tween.current = gsap.fromTo(pieces, scrubbed ? { ...spec.from, opacity: dimOpacity } : spec.from, {
         ...spec.to,
+        paused: trigger === "mount" && enPausa.current,
         delay: scrubbed ? 0 : delay,
         stagger: stagger ?? spec.stagger,
         onStart: () => capas(true),
@@ -114,9 +122,13 @@ export default function SplitText({
       });
     }, el);
 
-    return () => ctx.revert();
+    return () => { tween.current = null; ctx.revert(); };
     // `text` en las dependencias: al cambiar de idioma hay piezas nuevas.
   }, [text, variant, trigger, delay, stagger, start, end, dimOpacity]);
+
+  useEffect(() => {
+    if (!pausa && tween.current?.paused()) tween.current.play();
+  }, [pausa]);
 
   const pieces = toWords(text).map((word, i) => {
     // Los espacios viajan sueltos, sin animar: son el aire entre palabras.

@@ -650,7 +650,7 @@ body.is-locked {
   background: radial-gradient(circle closest-side at center, #000 36%, var(--accent-a) 39%, var(--accent-c) 46%, var(--ember-deep) 62%, transparent 100%);
 }
 /* Los cuerpos del halo en el telefono: un fotograma del mismo shader con el
-   color del area (ver Halo.jsx), que gira despacio como el disco de verdad. */
+   color del area (ver Halo.jsx), que gira como el disco de verdad. */
 .halo__plain {
   display: block;
   width: 100%;
@@ -661,8 +661,11 @@ body.is-locked {
   background: radial-gradient(circle closest-side at center, #000 30%, color-mix(in srgb, var(--body-ink) 45%, transparent) 42%, transparent 70%);
   border-radius: 50%;
 }
+/* Al ritmo del shader: medido sobre el lienzo real en escritorio, el disco
+   gira ~73 grados por segundo en sentido antihorario (una vuelta en ~5 s).
+   A 36 s se veia casi quieto (Jorge, 26-09-2026). */
 @media (prefers-reduced-motion: no-preference) {
-  .halo__plain { animation: halo-giro 36s linear infinite; }
+  .halo__plain { animation: halo-giro 5s linear infinite; }
 }
 @keyframes halo-giro { to { rotate: -360deg; } }
 .loader__singularity {

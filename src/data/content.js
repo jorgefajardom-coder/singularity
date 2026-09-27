@@ -19,7 +19,21 @@ export const t = (es, en) => ({ es, en });
 
 // Añade la pista definitiva en public/audio y su ruta aquí. También se puede
 // probar un archivo local desde el botón de música, sin subirlo a un servidor.
-export const music = { src: "", title: "Orbit" };
+// La pista de fondo: "End of Line" en la edicion de Jorge (Filmora, 26-09-2026),
+// que es la version slowed-loop empezada 10,27 s mas tarde. Suena desde que se
+// pulsa la cinta del cargador (ver App.jsx) y la precarga cuenta en su
+// porcentaje. El bucle va de frase a frase: la pista repite una frase de
+// 28,46 s, y entre 17,80567 y 131,64567 s (cuatro frases) la union coincide a
+// 0,995 de correlacion, medida muestra a muestra. Lo de antes de `inicio`
+// suena una vez; el fundido del final y sus 2 s de silencio, nunca.
+// `volumen`: la pista esta masterizada fuerte (-16,3 dBFS de media), y a 0,55
+// como los archivos que sube el visitante se oia demasiado alta.
+export const music = {
+  src: "/audio/fondo.mp3",
+  title: "End of Line",
+  bucle: { arranque: 0.024, inicio: 17.80567, fin: 131.64567 },
+  volumen: 0.3,
+};
 
 export const site = {
   name: "Jorge Andres Fajardo Mora",

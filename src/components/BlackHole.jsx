@@ -1047,7 +1047,12 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     // de todo el recorrido de abajo.
     const tapado = (espejoModo === "sigue" && espejo?.current?.cubre) || journey?.current?.oculto;
     tapadoAhora.current = Boolean(tapado);
-    if (tapado && pintados.current > 1) return;
+    // Tapado pinta SEIS fotogramas, no dos: la comprobacion de mas abajo
+    // (`readPixels`, fotogramas 3 a 6) para la GPU, y con dos se hacia al
+    // destaparse, o sea dentro de la transformacion de la intro. En un
+    // telefono eso eran ~230 ms de la transicion (perfilado, CPU a 4x).
+    // Asi se hace con el cargador delante y cuenta en su porcentaje.
+    if (tapado && pintados.current > 5) return;
     pintados.current++;
     gl.render(scene, camera);
     // Compilado y con dos fotogramas hechos: ya se puede ENSENAR. Lo espera

@@ -26,13 +26,12 @@
 }
 
 /* ---- Stack ---------------------------------------------------------------
-   La fila se lleva con el dedo, sin flechas (Jorge, 26-09-2026). Y aqui SI
+   La fila se lleva con el dedo. Y aqui SI
    con iman: con el dedo, soltar y que la carta quede encuadrada es lo
    esperado; lo que molestaba del iman era la barra con el raton, que en
    tactil no existe. `proximity` y no `mandatory`: un gesto largo recorre
    varias cartas en vez de frenar en la siguiente. */
 @media (hover: none) and (pointer: coarse) {
-  .stack__nav { display: none; }
   .posters { scroll-snap-type: x proximity; }
   /* Hasta que se reparten no hay nada que recorrer: la baraja esta debajo de
      la portada. Deslizar en horizontal ahi corria la fila sobre un hueco
@@ -61,4 +60,32 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .halo__zoom { transition: none; }
+}
+
+/* ---- Cielo de fondo ------------------------------------------------------
+   Quieto al desplazar (Jorge, 27-09-2026: "se esta moviendo y transformando
+   raro"). Las dos capas del cielo son `fixed` con `inset: 0`: al esconderse o
+   asomar la barra del navegador la ventana cambia de alto, la capa tambien, y
+   `background-size: cover` reescalaba el SVG en pleno gesto (y las estrellas
+   que titilan, colocadas en %, se corrian). Con el alto MAXIMO de la ventana
+   (`lvh`), que no cambia con la barra, el cielo no se mueve. */
+@media (hover: none) and (pointer: coarse), (max-width: 600px) {
+  body::before,
+  .starfield {
+    bottom: auto;
+    height: 100lvh;
+  }
+}
+
+/* ---- Menos cielo vacio -----------------------------------------------------
+   Medido en 390x844 (27-09-2026, ".tmp/vacio.mjs": capturas cada 140 px y
+   filas sin contenido): tramos de hasta 1150 px de solo estrellas.
+     · La orbita de marcas mide 260vh como en escritorio, pero aqui lo que
+       ensena ocupa menos: tras apagarse los logos el agujero viajaba solo
+       ~700 px hasta Sobre mi. Mismo viaje, mas corto.
+     · Cada seccion llevaba ~100 px de relleno arriba y abajo: 200 px de
+       cielo entre una y otra. */
+@media (max-width: 600px) {
+  .orbit { height: 200vh; }
+  .section { padding-block: clamp(48px, 7vh, 72px); }
 }

@@ -37,7 +37,10 @@ export default defineConfig({
   fullyParallel: true,
   // Los runners de GitHub para repos publicos traen 4 nucleos: 3 navegadores
   // a la vez y uno libre para el servidor de preview.
-  // En local, 16 hilos y dos graficas (ver `conGpu`): 4 navegadores.
+  // En local, 16 hilos y dos graficas (ver `conGpu`): 4 navegadores. Ojo: el
+  // 27-09-2026 tandas seguidas de estos, con scripts de medicion encima,
+  // inflaron pagefile.sys hasta 52 GB y llenaron el disco. Mirar el espacio
+  // libre antes de cada tanda y no lanzar otros navegadores a la vez.
   workers: CI ? 3 : 4,
   retries: CI ? 1 : 0,
   reporter: CI ? [["github"], ["list"]] : "list",

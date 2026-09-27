@@ -157,8 +157,6 @@ export const ui = {
   contact: t("Contacto", "Contact"),
 
   // Filtro de proyectos
-  stackPrev: t("Pósters anteriores", "Previous posters"),
-  stackNext: t("Pósters siguientes", "Next posters"),
   categories: t("Categorías", "Categories"),
   allProjects: t("Todos", "All"),
   // La fila del final de Proyectos: hay varios terminados que aun no estan

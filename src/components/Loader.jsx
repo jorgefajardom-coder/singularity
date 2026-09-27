@@ -204,6 +204,12 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, onMorph, espe
       // `uScale` MULTIPLICA las coordenadas del shader, asi que un valor MAYOR
       // aleja y achica.
       arranque.current.scale = ideal / ancho;
+      // Y el lienzo, desde YA. En el selector compila oculto y deja hechos un
+      // par de fotogramas: con la escala por defecto (1) esos fotogramas son
+      // un ∞ MAS GRANDE que el SVG, y en un telefono lento se veian al
+      // destaparse el lienzo, hasta que llegaba el primero bueno: dos ∞ a la
+      // vez durante ~0,7 s (video de Jorge, 27-09-2026).
+      if (travel.current.oculto) travel.current.scale = arranque.current.scale;
 
       // La correccion de que la curva no este en el centro del viewBox.
       const k = ancho / VB_W;

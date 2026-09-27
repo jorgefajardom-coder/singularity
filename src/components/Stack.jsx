@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { sections, stack, ui } from "../data/content";
+import { sections, stack } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { ScrollTrigger, gsap, navegacion, prefersReducedMotion, scroller } from "../lib/anim";
 import StackArt from "./StackArt";
@@ -7,7 +7,7 @@ import StackArt from "./StackArt";
 /**
  * Stack como una pared de posteres: uno por area, quietos y legibles a la
  * vez, en una fila que se recorre en horizontal (rueda o gesto lateral,
- * arrastre con el raton, flechas o el dedo).
+ * arrastre con el raton o el dedo).
  *
  * Sustituye a los dos carriles de tarjetas que se desplazaban solos: lucian,
  * pero el texto nunca estaba quieto y en una pantalla baja la segunda fila
@@ -190,7 +190,7 @@ export default function Stack({ sequence }) {
     return () => observer.disconnect();
   }, []);
 
-  // Estado de las flechas: apagadas en los extremos.
+  // Si la fila ha llegado al final (el desvanecido de la derecha se quita).
   useEffect(() => {
     const el = fila.current;
     if (!el) return undefined;
@@ -234,26 +234,15 @@ export default function Stack({ sequence }) {
     };
   }, []);
 
-  const pasar = (sentido) => {
-    const el = fila.current;
-    const poster = el?.querySelector(".poster");
-    if (!el || !poster) return;
-    const paso = poster.getBoundingClientRect().width + parseFloat(getComputedStyle(el).columnGap || 0);
-    el.scrollBy({ left: sentido * paso * 2, behavior: "smooth" });
-  };
-
   return (
     <section id="stack" className="section stack" ref={seccion}>
       <div className="shell stack__head">
         {/* El STACK grande ya no se ve: lo dice la carta de portada. Se queda
             el titulo para lectores de pantalla, que la seccion lo necesita. */}
         <h2 className="sr-only">{tr(sections.stack.heading)}</h2>
-        <div className="stack__nav">
-          <button type="button" className="stack__flecha" onClick={() => pasar(-1)} disabled={bordes.inicio}
-            aria-label={tr(ui.stackPrev)}>←</button>
-          <button type="button" className="stack__flecha" onClick={() => pasar(1)} disabled={bordes.fin}
-            aria-label={tr(ui.stackNext)}>→</button>
-        </div>
+        {/* Sin flechas (Jorge, 27-09-2026): la fila se lleva arrastrando con
+            el raton, con el gesto lateral del panel tactil, con el teclado
+            (tiene foco) o con el dedo. */}
       </div>
 
       {/* `data-lenis-prevent-horizontal`: el gesto lateral del trackpad lo

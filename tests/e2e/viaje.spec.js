@@ -231,7 +231,18 @@ test("abrir y cerrar Proyectos no hace vibrar el scroll", async ({ page }) => {
     await expect(boton).toHaveAttribute("aria-expanded", esperado);
     expect(r.deriva, `deriva al ${esperado === "true" ? "abrir" : "cerrar"}`).toBeLessThanOrEqual(6);
     expect(r.cambios).toBeLessThanOrEqual(1);
-    await page.waitForTimeout(1800);
+    // Hasta que la pagina este quieta DE VERDAD (0,6 s sin moverse), no un
+    // tiempo fijo: con varios navegadores a la vez, montar la celda congela
+    // la pagina ~3 s y el plegado y el encuadre llegaban despues; el siguiente
+    // clic caia en mitad de ellos y se media como vibracion.
+    await page.waitForFunction(() => new Promise((ok) => {
+      let y = scrollY, t = performance.now();
+      const f = () => {
+        if (Math.abs(scrollY - y) > 0.5) { y = scrollY; t = performance.now(); }
+        if (performance.now() - t > 600) ok(true); else requestAnimationFrame(f);
+      };
+      requestAnimationFrame(f);
+    }), null, { timeout: 30_000 * LENTO });
     if (esperado === "true") {
       // El visor abierto se ve (Jorge, 27-09-2026: al abrir la celda la
       // pagina se quedaba donde no se veia). Solo cuando el visor va arriba

@@ -318,6 +318,7 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       const cercaStack = stackBox.top < innerHeight * 0.85;
       const coverRect = coverHole && cercaStack ? coverHole.getBoundingClientRect() : null;
       const rowRect = coverHole && cercaStack ? stackRow.getBoundingClientRect() : null;
+      const cardRect = coverCard && cercaStack ? coverCard.getBoundingClientRect() : null;
       const t = ease(motion.progress);
       const closingProgress = ease(closing.progress);
       // Primero viaja y despues se transforma: con los dos tramos a la vez, a
@@ -413,6 +414,18 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       if (coverRect && coverMix > 0) {
         const target = coverRect;
         for (const key of ["left", "top", "width", "height"]) hand[key] += (target[key] - hand[key]) * coverMix;
+        // Con la portada a la vista el agujero no sale de su tarjeta: a mitad
+        // de camino entre las manos y el sello cruzaba el hueco negro, por
+        // debajo de la carta en el telefono y a su lado en escritorio (Jorge,
+        // 27-09-2026). El limite entra a la vez que la tarjeta (`coverMix`)
+        // para que no tire de el de golpe.
+        if (cardRect) {
+          const dentro = Math.min(1, coverMix * 4);
+          const x = Math.min(Math.max(hand.left, cardRect.left), cardRect.right - hand.width);
+          const y = Math.min(Math.max(hand.top, cardRect.top), cardRect.bottom - hand.height);
+          hand.left += (x - hand.left) * dentro;
+          hand.top += (y - hand.top) * dentro;
+        }
         const row = rowRect;
         const cx = target.left + target.width / 2;
         const visibility = Math.min(1, Math.max(0, (cx - row.left) / target.width), Math.max(0, (row.right - cx) / target.width));

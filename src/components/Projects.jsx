@@ -99,7 +99,7 @@ export default function Projects() {
    * se compensa en cada fotograma lo que se ha movido el boton tocado, asi
    * que se queda bajo el dedo.
    */
-  const anclar = useRef({ boton: null, antes: 0, hasta: 0, obs: null, tope: 0, abre: -1 });
+  const anclar = useRef({ boton: null, antes: 0, hasta: 0, obs: null, tope: 0, abre: -1, cortarEncuadre: null });
   /**
    * La correccion NO compite con el dedo: en cuanto el visitante hace algo
    * (tocar, rueda, teclado) se suelta el ancla y manda el. Antes seguia
@@ -165,17 +165,29 @@ export default function Projects() {
     const lenis = scroller.current;
     const inmediato = prefersReducedMotion();
     // Un gesto durante el deslizamiento lo corta en seco, sin pelear con el.
+    const a = anclar.current;
     const cortar = () => {
+      if (a.cortarEncuadre !== cortar) return;
+      a.cortarEncuadre = null;
       for (const ev of GESTOS) window.removeEventListener(ev, cortar, true);
       if (lenis) lenis.scrollTo(window.scrollY, { immediate: true, force: true });
     };
+    // Tambien lo corta otro clic en una ficha (ver `alternar`): con la pagina
+    // congelada montando la celda, el temporizador de este encuadre y el clic
+    // de cerrarla quedaban en cola, el encuadre salia primero y la pagina se
+    // deslizaba en pleno cierre (medido: hasta 430 px con el equipo cargado).
+    a.cortarEncuadre = cortar;
     for (const ev of GESTOS) window.addEventListener(ev, cortar, { capture: true, passive: true, once: true });
-    const fin = () => { for (const ev of GESTOS) window.removeEventListener(ev, cortar, true); };
+    const fin = () => {
+      if (a.cortarEncuadre === cortar) a.cortarEncuadre = null;
+      for (const ev of GESTOS) window.removeEventListener(ev, cortar, true);
+    };
     if (lenis) lenis.scrollTo(destino, { duration: inmediato ? 0 : 0.9, immediate: inmediato, force: true, onComplete: fin });
     else { window.scrollTo({ top: destino, behavior: inmediato ? "auto" : "smooth" }); setTimeout(fin, 1000); }
   };
   const alternar = (i, boton) => {
     const a = anclar.current;
+    a.cortarEncuadre?.();
     a.obs?.disconnect();
     clearTimeout(a.tope);
     // Se abre (y se encuadrara al acabar) o se cierra la que ya estaba abierta.
@@ -253,8 +265,32 @@ export default function Projects() {
       tocan.push(m);
     }
     if (!tocan.length || perfil.datosCaros || gpuFallo()) return undefined;
-    const bajar = (m) => {
-      if (!montada.current || gpuFallo() || redCara()) return Promise.resolve();
+    const contenido = perfil.movil || perfil.memoriaBaja;
+    // En el telefono, cada modelo espera a que el dedo se pare. Bajarlo y
+    // montarlo (parseo, geometria, despiece, subida a la GPU) son varios
+    // cientos de ms de hilo principal: en pleno desplazamiento eran los
+    // tirones del Stack y de Areas (medido, CPU 4x: 16 fps y un paron de
+    // 741 ms, contra 27 fps y 69 ms sin precarga). Parado, mientras se lee,
+    // no se nota.
+    // Y sin ningun cerrojo puesto: con la pagina anclada (el reparto de las
+    // cartas, las galaxias) el scroll tampoco se mueve, pero en pantalla hay
+    // una animacion, y ahi se colaba el trabajo (medido: 920 ms de paron en
+    // pleno reparto).
+    const anclada = () => document.documentElement.classList.contains("lenis-stopped")
+      || document.body.classList.contains("is-anchored");
+    const quieto = (ms = 800) => new Promise((ok) => {
+      let t = setTimeout(fin, ms);
+      function fin() {
+        if (anclada()) { t = setTimeout(fin, ms); return; }
+        window.removeEventListener("scroll", mueve);
+        ok();
+      }
+      function mueve() { clearTimeout(t); t = setTimeout(fin, ms); }
+      window.addEventListener("scroll", mueve, { passive: true });
+    });
+    const bajar = async (m) => {
+      if (contenido) await quieto();
+      if (!montada.current || gpuFallo() || redCara()) return;
       return m.tipo === "producto"
         ? import("../three/ProductViewer").then(({ preloadProducto }) => preloadProducto(m.model))
         : import("../three/ModelViewer").then(({ preloadModel }) => preloadModel(m.model));
@@ -270,7 +306,6 @@ export default function Projects() {
         Promise.resolve(),
       );
     };
-    const contenido = perfil.movil || perfil.memoriaBaja;
     const obs = new IntersectionObserver((entradas) => {
       if (entradas.some((e) => e.isIntersecting)) precargar();
     }, { rootMargin: contenido ? "0px 0px 100% 0px" : "0px 0px 1500px 0px" });

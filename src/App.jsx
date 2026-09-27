@@ -101,6 +101,33 @@ export default function App() {
     marcarIntroTerminada();
   }, [introGone]);
 
+  // Si lo de encima del Stack cambia de alto DESPUES de medir (imagenes o
+  // fuentes que llegan tarde en otra red, otro navegador), los tramos fijados
+  // quedaban con posiciones viejas y la baraja podia quedarse fija encima de
+  // otras secciones (video de otro equipo, 27-09-2026). No se refresca en
+  // `load` a proposito (ver lib/anim.js): aqui solo tras la intro, solo si
+  // `.stage` cambia de verdad y nunca con la pagina anclada.
+  useEffect(() => {
+    if (!introGone || typeof ResizeObserver !== "function") return undefined;
+    const stage = document.querySelector(".stage");
+    if (!stage) return undefined;
+    let alto = stage.offsetHeight;
+    let espera = 0;
+    const revisar = () => {
+      const ahora = stage.offsetHeight;
+      if (Math.abs(ahora - alto) < 24) return;
+      if (document.body.classList.contains("is-anchored") || document.documentElement.classList.contains("lenis-stopped")) {
+        espera = window.setTimeout(revisar, 500);
+        return;
+      }
+      alto = ahora;
+      ScrollTrigger.refresh();
+    };
+    const ro = new ResizeObserver(() => { window.clearTimeout(espera); espera = window.setTimeout(revisar, 300); });
+    ro.observe(stage);
+    return () => { ro.disconnect(); window.clearTimeout(espera); };
+  }, [introGone]);
+
   // La pista arranca al pulsar la cinta del cargador (`entered` se enciende en
   // ese mismo clic), tambien en el telefono (Jorge, 26-09-2026). Ya viene
   // decodificada de la carga (ver `precargarPista`), asi que no compite con

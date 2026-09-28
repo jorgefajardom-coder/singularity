@@ -144,6 +144,8 @@ export function MusicProvider({ children, active }) {
           f.connect(g.analyser);
           f.start(0, music.bucle.arranque);
           pista.current.fuente = f;
+          // Desde cuando suena, en el reloj del contexto (ver `pulso`).
+          pista.current.t0 = g.context.currentTime;
         }
         await g.context.resume();
         if (id === requestId.current) sonando(true);
@@ -244,8 +246,29 @@ export function MusicProvider({ children, active }) {
     u.bandas = audioBands(g.bins, g.context.sampleRate, g.analyser.fftSize);
     return u.bandas;
   }, []);
+  /**
+   * EN QUE GOLPE VA LA PISTA DE FONDO, leido del reloj del audio: el agujero
+   * late a tiempo aunque el telefono pinte a saltos, y en pausa (el contexto
+   * suspendido congela `currentTime`) se para solo. `null` con la musica del
+   * visitante, parada, o antes del bucle (la entrada no lleva bombo marcado):
+   * ahi el agujero sigue al analizador.
+   *   n  numero de golpe desde el primero (compas: n % 4, frase: n % 32)
+   *   t  segundos desde que sono
+   */
+  const pulso = useCallback(() => {
+    const g = graph.current, p = pista.current, pl = music.pulso;
+    if (!pl || modo.current !== "pista" || !playingRef.current || !g || !p.fuente || p.t0 === undefined) return null;
+    const { inicio, fin, arranque } = music.bucle;
+    // Lo que se OYE ahora: el reloj menos lo que tarda en salir por el altavoz.
+    let pos = arranque + (g.context.currentTime - p.t0) - (g.context.outputLatency || g.context.baseLatency || 0);
+    if (pos >= fin) pos = inicio + ((pos - inicio) % (fin - inicio));
+    if (pos < pl.primero) return null;
+    const b = (pos - pl.primero) / pl.periodo;
+    const n = Math.floor(b);
+    return { n, t: (b - n) * pl.periodo };
+  }, []);
   const api = useMemo(() => ({src, title, playing, muted, error, loadFile, togglePlay,
-    toggleMute: () => setMuted(v => !v), sample, prepare}), [src,title,playing,muted,error,loadFile,togglePlay,sample,prepare]);
+    toggleMute: () => setMuted(v => !v), sample, pulso, prepare}), [src,title,playing,muted,error,loadFile,togglePlay,sample,pulso,prepare]);
 
   // Con la pista de fondo el <audio> empieza vacio: solo lo usa un archivo
   // que suba el visitante.

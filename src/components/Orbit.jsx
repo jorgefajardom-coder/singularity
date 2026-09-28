@@ -108,7 +108,7 @@ export default function Orbit({ journey, items, note }) {
       spheres?.resize(W, H);
       // El rotulo no aparece hasta que el hero ha salido del todo (si no, se
       // solapa con su pie) y se retira en cuanto empiezan a caer.
-      const caption = clamp01((j.p - 0.34) / 0.1) * clamp01(1 - j.fall * 2.6);
+      const caption = clamp01(((j.heroOut ?? 1) - 0.85) / 0.15) * clamp01(1 - j.fall * 2.6);
       layer.style.setProperty("--note", caption.toFixed(3));
 
       // Mismo convenio que el shader: fracción de media pantalla, +Y arriba.
@@ -142,7 +142,12 @@ export default function Orbit({ journey, items, note }) {
         // La caída acelera: el radio se cierra como r^2 y el ángulo se dispara.
         const fall = fallOf(i);
         const drop = collapseOf(fall);
-        const reveal = smooth((j.p - 0.10) / 0.20);
+        // Primero esferas girando y despues los logos. Va con la SALIDA del hero
+        // (lo que deja ver la orbita), no con el progreso: la capa no asoma
+        // hasta que el hero ha salido un 30 %, y en el telefono eso ya era
+        // p ~0,15, con las esferas a medio convertir (Jorge, 28-09-2026: "me
+        // quitaste las esferas que aparecen rotando antes de volverse logos").
+        const reveal = smooth(((j.heroOut ?? 1) - 0.55) / 0.3);
         const sphere = 1 - reveal * (1 - smooth(fall / 0.24));
         const r = rMax * factor * (1 - drop);
 

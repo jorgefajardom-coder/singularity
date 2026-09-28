@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLang } from "../lib/i18n";
 import { gsap, prefersReducedMotion } from "../lib/anim";
-import { REPOSO_MEDIDO, recalcularHeroBase } from "../lib/stagePose";
+import { REPOSO_MEDIDO, heroBase, recalcularHeroBase } from "../lib/stagePose";
 import { MITADES } from "../lib/curvaInfinito";
 import { precargarPista, useMusic } from "../lib/music";
 import { gpuFallo, useGpuFallo } from "../lib/gpu";
@@ -405,13 +405,20 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, onMorph, espe
           // cruzaria son dos agujeros en distinto sitio.
           const settle = Math.min(1, Math.max(0, (motion.p - 0.44) / 0.41));
           const k = settle * settle * (3 - 2 * settle);
-          travel.current.cy = rest.cy * k;
-          travel.current.scale = salida + (rest.scale - salida) * k;
+          // El reposo se lee EN CADA FOTOGRAMA, no el de `rest`: el hero lo
+          // vuelve a medir mientras dura el morfo (su titular termina de
+          // colocarse) y el agujero del cargador acababa en otro sitio. Al
+          // irse el cargador, el del hero se recolocaba ~9 px ("como si el
+          // agujero bajara", Jorge, 28-09-2026).
+          const destino = heroBase();
+          travel.current.cy = destino.cy * k;
+          travel.current.scale = salida + (destino.scale - salida) * k;
         },
         onComplete() {
           formation.current = 1;
-          travel.current.cy = rest.cy;
-          travel.current.scale = rest.scale;
+          const destino = heroBase();
+          travel.current.cy = destino.cy;
+          travel.current.scale = destino.scale;
         },
       }, MORPH_AT);
 

@@ -32,6 +32,8 @@ import { useLang } from "../lib/i18n";
 import { useMusic } from "../lib/music";
 import { PRESUPUESTO, marcarGpuFallo, perfil, revisarRenderer, useGpuFallo } from "../lib/gpu";
 import { curvaParaShader } from "../lib/curvaInfinito";
+import { music } from "../data/content";
+const PULSO = music.pulso;
 
 // Pasos por rayo. En el telefono, menos: el coste del shader va con el area
 // por los pasos, y los que se quitan son los del final, que solo recorren los
@@ -94,7 +96,7 @@ const ESTRELLAS = `vec3 starField(vec3 d) {
 const fragmentShader = `
 precision highp float;
 varying vec2 vUv;
-uniform float uTime, uRigid, uWind, uPower, uAspect, uFormation, uBass, uMid, uTreble, uReveal;
+uniform float uTime, uRigid, uWind, uPower, uAspect, uFormation, uBass, uMid, uTreble, uReveal, uTiron;
 uniform float uHue;
 // uDisk estira el borde EXTERIOR del disco y uWhite calienta su parte interna
 // hasta el blanco. Los dos valen la identidad (1 y 0) en el agujero grande;
@@ -438,7 +440,11 @@ void main() {
   // pantalla, +Y arriba, para que el DOM pueda situar las marcas en el mismo
   // punto con una sola conversion.
   vec2 center = uCenter * vec2(uAspect, 1.0) * zoom;
-  vec2 uv = (screen * (1.0 - uBass * 0.021) - shift - center) * uScale;
+  // El golpe agranda el agujero desde SU centro, no desde el de la pantalla:
+  // asi solo crece. Escalando la pantalla entera, un agujero fuera del centro
+  // se movia 1-2 px en cada golpe, y con el pulso regular de la pista se veia
+  // como un salto al terminar de cargar (Jorge, 28-09-2026).
+  vec2 uv = (screen - shift - center) * (1.0 - uBass * 0.021) * uScale;
 
   float grow     = smoothstep(0.0, 1.0, uFormation);
   // Los tiempos de la primera version de la intro (b515bf3), la elegida: el
@@ -507,6 +513,39 @@ void main() {
   // Un rayo con parámetro de impacto grande no puede tocar ni el disco ni el
   // horizonte: se salta la integración entera y el fondo sale casi gratis.
   float impact = length(cross(camPos, dir));
+#ifndef DIFERIDO
+  // Sin gravedad todavia (lens = 0: el primer ~40 % de la transformacion) el
+  // rayo va RECTO, y el bucle de abajo solo lo recorria paso a paso: donde
+  // cruza el plano del infinito, si cae en el horizonte y cuanto ha girado
+  // salen de una vez, con el mismo resultado. En el telefono el morfo iba a
+  // ~5 fps (Jorge, 28-09-2026: "mucho delay de la cinta al agujero").
+  if (lens == 0.0 && impact < gOut + 1.6) {
+    float h2r = horizon * horizon;
+    float tc = -dot(camPos, dir);
+    float b2 = dot(camPos, camPos) - tc * tc;
+    float tIn = (b2 < h2r && tc > 0.0) ? tc - sqrt(h2r - b2) : 1e9;
+    float dn = dot(dir, nrm);
+    float tPl = abs(dn) > 1e-6 ? -dot(camPos, nrm) / dn : -1.0;
+    if (tPl > 0.0 && tPl < tIn) {
+      vec3 hit = camPos + dir * tPl;
+      float rr = length(vec2(dot(hit, e1), dot(hit, e2)));
+      if (rr < max(gOut, LEM_A) + 1.0) {
+        float barrido = acos(clamp(dot(normalize(camPos), normalize(hit)), -1.0, 1.0));
+        float op;
+        vec3 e = diskSample(hit, dir, e1, e2, nrm, morph, op);
+        col += trans * e * diskFade * (1.0 - smoothstep(2.9, 4.5, barrido));
+        trans *= 1.0 - op;
+      }
+    }
+    if (tIn < 1e8) captured = true;
+    else {
+      // Hasta donde lo daba por escapado el bucle (1.3 veces la camara).
+      float rs = CAM_DIST * 1.3;
+      float tOut = tc + sqrt(max(rs * rs - b2, 0.0));
+      swept = acos(clamp(dot(normalize(camPos), normalize(camPos + dir * tOut)), -1.0, 1.0));
+    }
+  } else
+#endif
   if (impact < gOut + 1.6) {
     vec3 pos = camPos;
     float side = dot(pos, nrm);
@@ -619,7 +658,9 @@ void main() {
       // lo mantiene curvado sin tocar nada. Los extras solo lo rematan.
       // Los golpes de la musica tiran del titular: el agujero deforma el texto
       // y los golpes tienen que notarse en el (Jorge, 27-09-2026).
-      float warp = clamp(0.62 + uBass * 0.45 + uPower * 0.35 + length(uPointer) * 0.38, 0.0, 1.1);
+      // uTiron: con la pista de fondo, solo el primer golpe de cada compas
+      // (cada golpe hacia temblar el nombre); con otra musica, los graves.
+      float warp = clamp(0.62 + uTiron * 0.45 + uPower * 0.35 + length(uPointer) * 0.38, 0.0, 1.1);
       vec2 lensed = LENSE * vec2(dot(away, right), dot(away, up)) / ahead + shift;
       // El tirón de la lente se satura en curva, no de golpe: un recorte duro
       // daría a todos los píxeles el mismo desplazamiento y el titular se
@@ -683,7 +724,14 @@ void main() {
       //
       // EL TITULAR VA BLANCO BRILLANTE. Si algun dia hay que tocar esto,
       // medir su luminancia media ANTES y DESPUES, no solo contar las rayas.
-      float bright = trans * uReveal * (2.05 + uBass * 0.7) * (1.0 - smoothstep(4.2, 6.0, swept));
+      // Nada de titular por DEBAJO del plano del disco (uv.y < 0 es bajo el
+      // centro del agujero). Ahi solo llega la imagen secundaria de la lente:
+      // el nombre reflejado del reves dentro del anillo inferior, que con los
+      // golpes se veia (Jorge, 28-09-2026: "que el texto de arriba no se
+      // refleje abajo"). Alejar el texto no lo quita: medido a 0.2, 0.5 y 0.7
+      // radios. El nombre de verdad queda siempre por encima del plano.
+      float sobrePlano = smoothstep(-0.12, -0.02, uv.y);
+      float bright = trans * uReveal * (2.05 + uBass * 0.7) * (1.0 - smoothstep(4.2, 6.0, swept)) * sobrePlano;
       vec2 tcA = (base + pull * warp) / frame + 0.5;
 #ifdef PARTIDO
       gTexto = vec4(tcA, (base + pull * warp * 0.13) / frame + 0.5);
@@ -691,7 +739,7 @@ void main() {
 #elif defined(DIFERIDO)
       // La capa pequena (uCopy) va en tcA escalado a 0.13 respecto al pixel:
       // la composicion la recalcula (ver COMPONE).
-      gTexto = vec4(tcA, uReveal * (2.05 + uBass * 0.7) * (1.0 - smoothstep(4.2, 6.0, swept)), 0.0);
+      gTexto = vec4(tcA, uReveal * (2.05 + uBass * 0.7) * (1.0 - smoothstep(4.2, 6.0, swept)) * sobrePlano, 0.0);
 #else
       if (tcA.x > 0.0 && tcA.x < 1.0 && tcA.y > 0.0 && tcA.y < 1.0) {
         // La textura de canvas ya llega volteada: tc se usa tal cual.
@@ -835,7 +883,7 @@ void main() {
   vec2 screen = (vUv - 0.5) * 2.0 * vec2(uAspect, 1.0) * zoom;
   vec2 shift = uPointer * vec2(0.46, 0.30) * (1.0 + uPower * 0.55) * smoothstep(0.55, 1.0, uFormation);
   vec2 center = uCenter * vec2(uAspect, 1.0) * zoom;
-  float dd = length((screen * (1.0 - uBass * 0.021) - shift - center) * uScale);
+  float dd = length((screen - shift - center) * (1.0 - uBass * 0.021) * uScale);
   col += vec3(1.0, 0.29, 0.04) * exp(-max(dd - 0.17, 0.0) * 6.5) * 0.022 * (0.55 + uBass * 0.9)
        * smoothstep(0.08, 0.55, uFormation);
 
@@ -987,7 +1035,7 @@ void main() {
   vec2 screen = (vUv - 0.5) * 2.0 * vec2(uAspect, 1.0) * zoom;
   vec2 shift = uPointer * vec2(0.46, 0.30) * (1.0 + uPower * 0.55) * smoothstep(0.55, 1.0, uFormation);
   vec2 center = uCenter * vec2(uAspect, 1.0) * zoom;
-  float d = length((screen * (1.0 - uBass * 0.021) - shift - center) * uScale);
+  float d = length((screen - shift - center) * (1.0 - uBass * 0.021) * uScale);
 
   const float WHITE = 1.85;
   float peak = max(col.r, max(col.g, col.b));
@@ -1187,7 +1235,7 @@ function enlazar(pasadas, propio) {
   }
 }
 
-function Scene({ interaction, reduced, formation, sample, visual, lens, journey, espejo, espejoModo, hue = 0, disk = 1, white = 0, onRoto, onPintado, onPreparado, ajusta = false }) {
+function Scene({ interaction, reduced, formation, sample, pulso, visual, lens, journey, espejo, espejoModo, hue = 0, disk = 1, white = 0, onRoto, onPintado, onPreparado, ajusta = false }) {
   const elapsed = useRef(0);
   const rigid = useRef(0);
   const wound = useRef(0);
@@ -1198,7 +1246,7 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     uTime: { value: 0 },
     uRigid: { value: 0 }, uWind: { value: 0 },
     uFormation: { value: 0 },
-    uBass: { value: 0 }, uMid: { value: 0 }, uTreble: { value: 0 },
+    uBass: { value: 0 }, uMid: { value: 0 }, uTreble: { value: 0 }, uTiron: { value: 0 },
     uPower: { value: 0 }, uAspect: { value: 1 }, uPointer: { value: new Vector2() },
     uText: { value: null }, uCopy: { value: null }, uReveal: { value: 0 },
     // Viaje por la pagina: donde esta el agujero, cuanto se aleja y desde
@@ -1259,6 +1307,7 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
       live.uWind.value = copia.wind;
       live.uFormation.value = copia.formation;
       live.uBass.value = copia.bass;
+      live.uTiron.value = copia.bass;
       live.uMid.value = copia.mid;
       live.uTreble.value = copia.treble;
       live.uPower.value = copia.power;
@@ -1289,7 +1338,25 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     // notoria la reaccion a la musica"). El nivel queda de fondo, suave.
     const lento = (visual.current.lento ??= { bass: 0, mid: 0, treble: 0 });
     const kLento = 1 - Math.exp(-dt / 1.2);
+    /**
+     * CON LA PISTA DE FONDO EL AGUJERO LATE A TIEMPO. Cada golpe del bombo
+     * (music.pulso, del reloj del audio) es un latido que sube de golpe y cae
+     * en ~0,16 s: mas fuerte en el primero de cada compas y aun mas en el de
+     * cada frase. El nombre solo lo tira el del compas. Con el analizador los
+     * golpes salian a destiempo o se perdian cuando el telefono iba lento, y
+     * con esta pista, tan pareja, casi no se distinguian (28-09-2026).
+     */
+    const enPista = reduced ? null : pulso?.();
+    let tiron = null;
+    if (enPista) {
+      const pl = PULSO;
+      const acento = enPista.n % pl.frase === 0 ? 1 : enPista.n % pl.compas === 0 ? 0.8 : 0.55;
+      const latido = acento * Math.exp(-enPista.t / 0.16);
+      visual.current.bass = latido;
+      tiron = enPista.n % pl.compas === 0 ? latido : 0;
+    }
     for (const band of ['bass','mid','treble']) {
+      if (band === 'bass' && enPista) continue;
       // Los graves del agujero siguen al BOMBO (40-110 Hz), no a todo el
       // bajo: el bajo sostenido lo dejaba latiendo a destiempo (Jorge,
       // 27-09-2026: "que se active con el kick, no tanto con el bajo").
@@ -1332,6 +1399,7 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     // llegar a tocarlo, en vez de cortarse de golpe.
     live.uWind.value = WIND_MAX*Math.tanh(wound.current/WIND_MAX);
     live.uBass.value = visual.current.bass;
+    live.uTiron.value = tiron ?? visual.current.bass;
     live.uMid.value = visual.current.mid;
     live.uTreble.value = visual.current.treble;
     live.uAspect.value = state.size.width/Math.max(state.size.height,1);
@@ -1613,7 +1681,17 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
       const modos = !pasadas.calentado && !real && !SIN_DIFERIR ? [true, false] : [real];
       pasadas.calentado = true;
       for (const diferido of modos) {
-      const i = diferido ? nivel.current : intro ? TRAZAS.indexOf(0.75) : nivel.current;
+      // En la intro: 0.75 mientras el infinito esta plano (sin gravedad, el
+      // tramo en que tiene que igualar al SVG, y que ya es rapido: ver el
+      // camino recto en el shader) y 0.5 cuando se curva hacia el agujero.
+      // Con 0.75 todo el rato el morfo iba a ~6 fps en el Redmi; asi, ~21
+      // (28-09-2026).
+      // Y 0.75 otra vez al final (desde 0.9): el lienzo del cargador se
+      // funde sobre el del hero, que va a 0.75, y con otra resolucion de traza
+      // los bordes del anillo quedaban medio texel corridos: el agujero
+      // "bajaba un pixel al terminar de cargar" (Jorge, 28-09-2026).
+      const fo = m.material.uniforms.uFormation?.value ?? 1;
+      const i = diferido ? nivel.current : intro ? TRAZAS.indexOf(fo < 0.38 || fo > 0.9 ? 0.75 : TRAZA_INTRO_CURVA) : nivel.current;
       const rt = diferido ? pasadas.rtD : pasadas.rt;
       const traza = diferido ? pasadas.trazaD : pasadas.traza;
       const compone = diferido ? pasadas.componeD : pasadas.compone;
@@ -1734,6 +1812,8 @@ const TRAZA_INICIAL = 1;
  * `?calidad=N` fija un escalon de `NIVELES` y apaga el ajuste, para comparar.
  */
 const busqueda = typeof location === "undefined" ? "" : location.search;
+// `?intro=N`: la traza de la intro mientras se curva (0.5 por defecto).
+const TRAZA_INTRO_CURVA = (() => { const m = /[?&]intro=([0-9.]+)/.exec(busqueda); return m && TRAZAS.includes(Number(m[1])) ? Number(m[1]) : 0.5; })();
 const HUD = /[?&]fps(=|&|$)/.test(busqueda) ? { pintados: 0, dpr: NIVELES[NIVEL_INICIAL] } : null;
 const SIN_PARTIR = /[?&]entero(=|&|$)/.test(busqueda);
 // `?sin-diferir`: el modo partido con el color trazado, para comparar.
@@ -1787,7 +1867,7 @@ function hueOf(hex) {
  */
 export default function BlackHole({ bare = false, className = "", formation, journey, lensSource, lensFrame, onLensReady, onPintado, onPreparado, tint, dpr, disk = 1, white = 0, espejo, espejoModo }) {
   const { lang } = useLang();
-  const { sample } = useMusic();
+  const { sample, pulso } = useMusic();
   const root = useRef(null);
   const visual = useRef({time:0,x:0,y:0,bass:0,mid:0,treble:0});
   const lens = useRef({title:null,copy:null});
@@ -2038,7 +2118,7 @@ export default function BlackHole({ bare = false, className = "", formation, jou
         gl={GL_OPCIONES}
         onCreated={({ gl }) => { gl.setClearColor(0x000000, 0); revisarRenderer(gl.getContext()); }}
         fallback={<div className="blackhole__fallback" />}>
-        <Scene interaction={interaction} reduced={reduced} formation={formation} journey={journey} sample={sample} visual={visual} lens={lens} espejo={espejo} espejoModo={espejoModo} hue={hueOf(tint)} disk={disk} white={white} onRoto={romper} onPintado={onPintado} onPreparado={onPreparado} ajusta={(movil || CALIDAD_FIJA !== null) && dpr === undefined} />
+        <Scene interaction={interaction} reduced={reduced} formation={formation} journey={journey} sample={sample} pulso={pulso} visual={visual} lens={lens} espejo={espejo} espejoModo={espejoModo} hue={hueOf(tint)} disk={disk} white={white} onRoto={romper} onPintado={onPintado} onPreparado={onPreparado} ajusta={(movil || CALIDAD_FIJA !== null) && dpr === undefined} />
       </Canvas></SceneBoundary>}
     </div>
   </div>;

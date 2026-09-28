@@ -28,12 +28,17 @@ import { REPOSO_MEDIDO, heroBase, recalcularHeroBase } from "../lib/stagePose";
  *   fase 3  FALL  las órbitas se cierran y las marcas caen al horizonte
  */
 
-const DIVE = [0.0, 0.3];
-const TURN = [0.26, 0.64];
-const FALL = [0.6, 1.0];
+// Todo un poco antes y la caida TERMINA antes de que el agujero se vaya
+// (Jorge, 28-09-2026: "toca scrollear mucho para activar la animacion" y "se
+// esta descentrando antes de absorber las esferas"). Antes la caida duraba
+// hasta el final (1.0) y la salida empezaba en 0.86: las ultimas esferas
+// caian hacia un agujero que ya se alejaba e inclinaba hacia Sobre mi.
+const DIVE = [0.0, 0.26];
+const TURN = [0.22, 0.56];
+const FALL = [0.5, 0.84];
 // Una vez se las ha tragado todas, el agujero se aleja en lugar de quedarse
 // ocupando la pantalla antes de emprender el viaje hacia la mano.
-const EXIT = [0.86, 1.0];
+const EXIT = [0.84, 1.0];
 
 // La cara en las dos figuras, en fraccion de su caja: centro (x, y) y ancho.
 // Medido sobre los tonos de piel de about-astronaut-gaze (caja
@@ -663,7 +668,16 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
         start: "top bottom",
         end: "bottom bottom",
         scrub: true,
-        onUpdate: (self) => { poseOrbita(self.progress, heroBase(), orbitPose.current); },
+        // Con la pagina arriba del todo, el reposo EXACTO. En el telefono la
+        // orbita ya arranca por encima de 0 (~0,035): ScrollTrigger mide con
+        // la ventana sin la barra del navegador y su `start` sale negativo.
+        // El agujero de la intro llegaba al reposo y, al soltarlo el cargador,
+        // el del hero se iba a esa otra pose: bajaba ~9 px al terminar de
+        // cargar (Jorge, 28-09-2026). Se cuenta desde el progreso con scroll 0.
+        onUpdate: (self) => {
+          const p0 = self.start < 0 ? Math.min(0.5, -self.start / Math.max(1, self.end - self.start)) : 0;
+          poseOrbita(Math.max(0, (self.progress - p0) / (1 - p0)), heroBase(), orbitPose.current);
+        },
       });
     }, stage);
 

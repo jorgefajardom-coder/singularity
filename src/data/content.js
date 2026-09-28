@@ -33,6 +33,13 @@ export const music = {
   title: "End of Line",
   bucle: { arranque: 0.024, inicio: 17.80567, fin: 131.64567 },
   volumen: 0.3,
+  // El pulso de la pista, para que el agujero lata A TIEMPO (Jorge,
+  // 28-09-2026): el bombo cae cada 0,889375 s (128 golpes exactos por vuelta
+  // del bucle, 67,5 por minuto), el primero en 17,905 s (el ataque; el pico
+  // de energia llega ~13 ms despues). Medido sobre la pista entera con Web
+  // Audio, bombo de 40 a 110 Hz: los 128 golpes igual de fuertes, dispersion
+  // de 25 ms. Compas de 4 y frase de 32 (la frase de 28,46 s de arriba).
+  pulso: { primero: 17.905, periodo: 0.889375, compas: 4, frase: 32 },
 };
 
 export const site = {

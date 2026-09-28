@@ -89,7 +89,8 @@
      · Cada seccion llevaba ~100 px de relleno arriba y abajo: 200 px de
        cielo entre una y otra. */
 @media (max-width: 600px) {
-  .orbit { height: 200vh; }
+  /* 170vh (era 200): "toca scrollear mucho" (Jorge, 28-09-2026). */
+  .orbit { height: 170vh; }
   .section { padding-block: clamp(48px, 7vh, 72px); }
 }
 

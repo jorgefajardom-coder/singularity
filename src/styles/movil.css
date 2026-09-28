@@ -29,10 +29,13 @@
    La fila se lleva con el dedo. Y aqui SI
    con iman: con el dedo, soltar y que la carta quede encuadrada es lo
    esperado; lo que molestaba del iman era la barra con el raton, que en
-   tactil no existe. `proximity` y no `mandatory`: un gesto largo recorre
-   varias cartas en vez de frenar en la siguiente. */
+   tactil no existe. `mandatory` y una carta por gesto (`scroll-snap-stop`):
+   con `proximity` un deslizamiento normal desde la portada pasaba de largo
+   Producto y se quedaba en Desarrollo (Jorge, 27-09-2026: "estas saltando a
+   la 3 tarjeta, debe verse primero la 2"). */
 @media (hover: none) and (pointer: coarse) {
-  .posters { scroll-snap-type: x proximity; }
+  .posters { scroll-snap-type: x mandatory; }
+  .posters > .poster { scroll-snap-stop: always; }
   /* Hasta que se reparten no hay nada que recorrer: la baraja esta debajo de
      la portada. Deslizar en horizontal ahi corria la fila sobre un hueco
      vacio; asi el dedo solo baja, que es lo que dispara el reparto. */
@@ -107,6 +110,37 @@
   .hero--singularity .hero__meta {
     margin-top: calc(var(--agujero-alto, 96px) + 16px);
   }
+}
+
+/* El nombre, con margen contra los bordes. Lo que se ve es el titular del
+   shader, que la lente ensancha: a 11,2vw tocaba las paredes de la pantalla
+   (Jorge, 27-09-2026). El suelo de 42 px de global.css tambien cae: en 392 px
+   ya dejaba el nombre de lado a lado. El agujero NO encoge con el (ver
+   ANCHO_R_VERTICAL en stagePose.js): crece respecto al texto y ocupa el alto
+   que sobraba arriba y abajo. */
+@media (max-width: 600px) and (orientation: portrait) {
+  /* 7,5vw y no 9,6: con el PEOR golpe de musica la lente estira el nombre a
+     lo ancho, y desde que se arquea como en escritorio (ver `pull` en
+     BlackHole.jsx) lo estira mas. A 7,5 quedan 18-28 px a cada lado y 55 o
+     mas arriba (360x740, 375x667, 392x734, 412x915). El agujero encoge con el
+     (ANCHO_R_VERTICAL), asi que se deforma igual. */
+  .hero--singularity .hero__title { font-size: clamp(26px, min(7.5vw, 12svh), 80px); }
+  /* El bloque se centra con la caja del <h1>, pero el nombre que se ve (el
+     de la lente) queda mas arriba: sobraba aire abajo y faltaba arriba.
+     Este relleno reparte la diferencia. */
+  /* Sin los 7svh de antes: con el nombre arqueado sobra aire arriba y el
+     hueco bajo la barra era lo que mas se notaba (Jorge, 28-09-2026). */
+  .hero--singularity .hero__inner { padding-top: calc(var(--nav-h) + 12px); }
+}
+
+/* Sobre mi entra antes. Al final de la orbita el agujero se aleja solo en
+   el cielo casi una pantalla entera (la orbita no se puede acortar: por
+   debajo de 200vh la vuelta a cenital se atropella, ver global.css). Con la
+   seccion subida, su titulo y el astronauta entran mientras el agujero se
+   aleja, y el viaje a la mano arranca desde ahi (Stage.jsx mezcla las dos
+   poses, no salta). */
+@media (max-width: 600px) and (orientation: portrait) {
+  .about { margin-top: -40svh; }
 }
 
 /* Meditacion: el conjunto va con los pies en el borde y, a lo ancho, ya no

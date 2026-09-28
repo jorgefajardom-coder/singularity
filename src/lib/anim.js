@@ -64,6 +64,51 @@ export const scroller = { current: null };
 export const navegacion = { activa: false };
 
 /**
+ * ¿Va rapido el scroll AHORA? (px/ms, suavizado, de los ultimos eventos.)
+ *
+ * Los cerrojos de la pagina (el despliegue de las galaxias, el reparto del
+ * Stack) estan para que se VEAN, y tienen sentido si el visitante llega
+ * despacio. Un gesto rapido que cruzaba el punto justo se quedaba frenado en
+ * seco a mitad de camino, 1,5-3 s (Jorge, 27-09-2026: "evitar que el hard
+ * scroll nos modifique el comportamiento de la pagina"). Con esto, quien va
+ * rapido ve la animacion igual pero sin que le paren.
+ */
+// Muestras (t, y) de los ultimos ~400 ms. La velocidad sale de la mas vieja
+// a la mas nueva, no de dos eventos seguidos: el compositor entrega a veces
+// varios `scroll` con la misma marca de tiempo y la cuenta daba 0 justo en el
+// momento de decidir. Y con la pagina cargada (el Stack en un Redmi) los
+// `scroll` llegan cada 80-230 ms: la ventana tiene que abarcar varios
+// (medido el 27-09-2026).
+const muestras = [];
+let previa = null;
+// Donde y cuando empezo el ultimo toque: el primer `scroll` de un gesto puede
+// llegar tarde, y desde el inicio del toque se sabe lo rapido que fue.
+let toque = null;
+const velocidad = { v: 0, t: 0 };
+if (typeof window !== "undefined") {
+  window.addEventListener("scroll", () => {
+    const t = performance.now();
+    muestras.push([t, window.scrollY]);
+    while (muestras.length > 1 && t - muestras[0][0] > 400) previa = muestras.shift();
+    let [t0, y0] = muestras[0];
+    // Una sola muestra reciente: se mide contra la anterior si no es de hace
+    // mucho. Con el hilo ocupado el primer `scroll` de un gesto llegaba 0,5 s
+    // tarde y ya 1.400 px mas abajo; sin esto la velocidad salia 0, saltaba
+    // el cerrojo y la pagina volvia atras de golpe.
+    if (muestras.length < 2) {
+      const base = [toque, previa].filter((m) => m && t - m[0] < 1500).sort((x, y) => y[0] - x[0])[0];
+      if (base) [t0, y0] = base;
+      else { velocidad.v = 0; velocidad.t = t; return; }
+    }
+    if (t - t0 >= 12) velocidad.v = (window.scrollY - y0) / (t - t0);
+    velocidad.t = t;
+  }, { passive: true, capture: true });
+  window.addEventListener("touchstart", () => { toque = [performance.now(), window.scrollY]; }, { passive: true, capture: true });
+}
+export const scrollRapido = (umbral = 1.5) =>
+  typeof performance !== "undefined" && performance.now() - velocidad.t < 400 && Math.abs(velocidad.v) > umbral;
+
+/**
  * El dedo desplaza la pagina el solo (Lenis no lleva el tacto): el scroll
  * corre en el hilo del compositor y lo que se coloca por JS llega un
  * fotograma tarde. Misma puerta que movil.css para los gestos.

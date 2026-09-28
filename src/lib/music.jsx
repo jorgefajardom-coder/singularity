@@ -76,7 +76,12 @@ export function MusicProvider({ children, active }) {
       const context = new AudioContext();
       const analyser = context.createAnalyser();
       analyser.fftSize = 2048;
-      analyser.smoothingTimeConstant = 0.72;
+      analyser.smoothingTimeConstant = 0.5;
+      // Con el rango por defecto (-100 a -30 dB) una pista masterizada fuerte
+      // llegaba casi entera al techo: las bandas se quedaban en 0,8-0,9 y el
+      // agujero no se veia latir (Jorge, 27-09-2026).
+      analyser.minDecibels = -90;
+      analyser.maxDecibels = -10;
       const gain = context.createGain();
       gain.gain.value = mutedRef.current ? 0 : volumen();
       // Analizar antes del volumen permite silenciar sin perder la reacción visual.

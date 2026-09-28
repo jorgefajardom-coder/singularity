@@ -48,9 +48,11 @@ export default function Hero({ entered, revelar = entered, copyRef, lensed }) {
         </h1>
 
         <div className="hero__meta">
-          {/* `key={entered}` remonta el bloque al entrar: si no, la animacion
-              de montaje se gastaria detras del cargador. */}
-          <div key={String(entered)}>
+          {/* Se monta durante la carga, en pausa (`pausa`), y anima con la
+              transformacion (`revelar`). Antes lo remontaba `key={entered}` al
+              pulsar la cinta: ~150 ms de hilo en el toque, en un telefono
+              (Jorge, 28-09-2026: lo que pasa tras la cinta, a la carga). */}
+          <div>
             <SplitText
               className="hero__role"
               variant="chars"

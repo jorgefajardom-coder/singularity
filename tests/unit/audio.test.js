@@ -7,7 +7,7 @@ describe("bandas de audio", () => {
   const bins = (fn) => Uint8Array.from({ length: fft / 2 }, (_, i) => fn(i * rate / fft));
 
   it("silencio da cero en las tres bandas", () => {
-    expect(audioBands(bins(() => 0), rate, fft)).toEqual({ bass: 0, mid: 0, treble: 0 });
+    expect(audioBands(bins(() => 0), rate, fft)).toEqual({ bass: 0, kick: 0, mid: 0, treble: 0 });
   });
 
   it("todo a tope da uno en las tres", () => {

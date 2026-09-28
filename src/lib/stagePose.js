@@ -50,12 +50,17 @@ const DISTANCIA_R = 0.2;
 // escritorio: vale la distancia de la caja del <h1> medida alli.
 const DISTANCIA_R_APAISADO = 0.633;
 const ANCHO_R = 7.74;
+// En vertical el agujero va mas grande respecto al titular: con 7,74 el
+// titular tenia que ocupar todo el ancho para que el disco llenara el alto, y
+// el nombre deformado tocaba las paredes (27-09-2026). La distancia del texto
+// a la sombra se sigue midiendo en radios, asi que se deforma igual.
+const ANCHO_R_VERTICAL = 4.5;
 const AGUJERO_ALTO_R = 2.7;
 
 const VERTICAL = { cy: -0.04, scale: 1.0 };
 let cache = null;
 
-function medirVertical() {
+function medirVertical(escritorio = false) {
   const titulo = document.querySelector(".hero__title");
   const hero = document.querySelector(".hero");
   if (!titulo || !hero) return null;
@@ -65,7 +70,8 @@ function medirVertical() {
   // Medido sobre los pixeles del disco en 360x740 y 390x844: el anillo
   // lenseado de abajo acaba a ~2,7 radios del borde del titular. Se escribe
   // ANTES de medir: mueve el titular.
-  hero.style.setProperty("--agujero-alto", `${Math.round((titulo.getBoundingClientRect().width / ANCHO_R) * AGUJERO_ALTO_R)}px`);
+  const anchoR = window.innerWidth / Math.max(window.innerHeight, 1) < 0.85 ? ANCHO_R_VERTICAL : ANCHO_R;
+  hero.style.setProperty("--agujero-alto", `${Math.round((titulo.getBoundingClientRect().width / anchoR) * AGUJERO_ALTO_R)}px`);
   const t = titulo.getBoundingClientRect();
   const origen = hero.getBoundingClientRect().top;
   const ancho = t.width;
@@ -79,10 +85,14 @@ function medirVertical() {
   const zoom = Math.min(2.2, Math.max(1, 1.85 / Math.max(aspecto, 0.35)));
   const pxUnidad = alto / (2 * zoom);
   const distancia = aspecto < 0.85 ? DISTANCIA_R : DISTANCIA_R_APAISADO;
-  let radio = ancho / ANCHO_R;
+  // En escritorio el tamano del agujero es el de siempre (HERO_SCALE): solo
+  // se mide DONDE va, a la distancia de 1536x639 bajo el titular. Con el
+  // ancho del titular (topado a 112 px) en 1920x1080 salia un 15 % menor.
+  let radio = escritorio ? (R_UV * pxUnidad) / HERO_SCALE : ancho / (aspecto < 0.85 ? ANCHO_R_VERTICAL : ANCHO_R);
   // Lo que cuelga por debajo de la sombra (el anillo inferior lenseado) llega
   // a ~1,1 radios: no puede pisar el texto del pie. Si no cabe, se encoge.
-  const pie = document.querySelector(".hero__meta");
+  // En escritorio no: alli el pie va encima del disco a proposito.
+  const pie = escritorio ? null : document.querySelector(".hero__meta");
   if (pie) {
     const tope = pie.getBoundingClientRect().top - origen - 12;
     const cabe = (tope - abajo) / (distancia + 1.2);
@@ -139,10 +149,15 @@ export const heroBase = () => {
   // Un telefono en horizontal (300-400 px de alto) tambien se mide: con los
   // fijos, titular, disco y pie se amontonaban.
   const bajo = window.innerHeight < 500;
-  if (aspect >= 0.85 && !bajo) return { cy: HERO_CY, scale: HERO_SCALE };
+  // En escritorio tambien se mide la altura: el agujero se pone bajo el
+  // titular a la distancia de 1536x639 (DISTANCIA_R_APAISADO), asi que el
+  // titular se puede bajar sin cambiar como lo deforma la lente
+  // (Jorge, 27-09-2026: margen bajo la barra con el peor golpe de musica).
+  // Los fijos quedan de respaldo si no hay titular que medir.
+  const escritorio = aspect >= 0.85 && !bajo;
   if (!cache) {
-    const medido = typeof document !== "undefined" ? medirVertical() : null;
-    if (!medido) return VERTICAL;
+    const medido = typeof document !== "undefined" ? medirVertical(escritorio) : null;
+    if (!medido) return escritorio ? { cy: HERO_CY, scale: HERO_SCALE } : VERTICAL;
     cache = medido;
   }
   return cache;

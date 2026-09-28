@@ -144,6 +144,39 @@ if (typeof location !== "undefined" && /[?&]sin-gpu(=|&|$)/.test(location.search
 }
 
 /**
+ * Sin WebGL de ninguna clase (desactivado por politica, por el usuario o por
+ * el aparato), r3f no avisa a nadie: el `WebGLRenderer` revienta dentro de una
+ * promesa suya, fuera de React, y ningun limite de error lo ve. El lienzo se
+ * quedaba vacio, `romper` no se llamaba y el titular seguia "lenseado", o sea
+ * transparente: el hero sin nombre (tambien en produccion, 27-09-2026). Y el
+ * cargador esperaba 20 s un lienzo que no iba a pintar.
+ *
+ * Se pregunta una vez al arrancar, antes de montar ningun lienzo. WebGL2 y no
+ * WebGL1: three r180 ya no sabe usar el 1. El contexto de prueba se suelta al
+ * momento para no ocupar sitio en el tope de contextos del telefono.
+ */
+if (typeof document !== "undefined" && !fallo) {
+  let hay;
+  try {
+    const gl = document.createElement("canvas").getContext("webgl2");
+    hay = Boolean(gl);
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+  } catch {
+    hay = false;
+  }
+  if (!hay) marcarGpuFallo("el navegador no crea contextos WebGL2");
+}
+
+// Y por si falla despues (un contexto que se niega a mitad de visita, cuando
+// ya hay muchos abiertos): el mismo error, escapado como promesa rechazada de
+// r3f, tambien pasa todo al respaldo.
+if (typeof window !== "undefined") {
+  const esContexto = (e) => /creating WebGL context|WebGL context could not be created/i.test(String(e?.message ?? e ?? ""));
+  window.addEventListener("unhandledrejection", (ev) => { if (esContexto(ev.reason)) marcarGpuFallo("no se pudo crear un contexto WebGL"); });
+  window.addEventListener("error", (ev) => { if (esContexto(ev.error ?? ev.message)) marcarGpuFallo("no se pudo crear un contexto WebGL"); });
+}
+
+/**
  * Engancha la perdida de contexto de un lienzo al estado global. Devuelve la
  * funcion que desengancha. `preventDefault` NO se llama a proposito: no se
  * quiere que el navegador intente devolver el contexto (ver arriba).

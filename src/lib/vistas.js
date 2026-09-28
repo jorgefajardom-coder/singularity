@@ -12,8 +12,10 @@ import { useEffect, useSyncExternalStore } from "react";
  *              existir (en el telefono no se crea el contexto hasta entonces).
  *   `visibles` alguna vista en pantalla: el lienzo pinta en bucle. Si no hay
  *              ninguna, pinta solo cuando se le pide.
+ *   `nitidas`  vistas en pantalla que piden mas densidad (la celda): en el
+ *              telefono el lienzo sube de densidad solo mientras se ven.
  */
-const estado = { cerca: 0, visibles: 0 };
+const estado = { cerca: 0, visibles: 0, nitidas: 0 };
 let foto = { ...estado };
 const oyentes = new Set();
 const avisar = () => { foto = { ...estado }; oyentes.forEach((f) => f()); };
@@ -24,8 +26,11 @@ export function useVistas() {
   return useSyncExternalStore(suscribir, leer, leer);
 }
 
-/** Apunta la caja `ref` como vista 3D mientras el componente este montado. */
-export function useRegistrarVista(ref) {
+/**
+ * Apunta la caja `ref` como vista 3D mientras el componente este montado.
+ * `nitida`: mientras este en pantalla, el lienzo del telefono sube de densidad.
+ */
+export function useRegistrarVista(ref, { nitida = false } = {}) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return undefined;
@@ -45,6 +50,7 @@ export function useRegistrarVista(ref) {
       if (e.isIntersecting === visible) return;
       visible = e.isIntersecting;
       estado.visibles += visible ? 1 : -1;
+      if (nitida) estado.nitidas += visible ? 1 : -1;
       avisar();
     // Margen de una pantalla entera: con un scroll brusco el visor entraba
     // antes de que el lienzo volviera a pintar en bucle, y el modelo se
@@ -57,7 +63,8 @@ export function useRegistrarVista(ref) {
       oVisible.disconnect();
       if (cerca) estado.cerca--;
       if (visible) estado.visibles--;
+      if (visible && nitida) estado.nitidas--;
       avisar();
     };
-  }, [ref]);
+  }, [ref, nitida]);
 }

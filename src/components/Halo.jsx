@@ -15,7 +15,7 @@ import { services, workAreas } from "../data/content";
 // que alguien deshizo esto.
 const BlackHole = lazy(() => import("./BlackHole"));
 import { useLang } from "../lib/i18n";
-import { frenarDedo, navegacion, prefersReducedMotion, scroller, scrollTactil } from "../lib/anim";
+import { frenarDedo, navegacion, prefersReducedMotion, scroller, scrollRapido, scrollTactil } from "../lib/anim";
 import { EnSuTurno } from "../lib/arranque";
 import { perfil, useGpuFallo } from "../lib/gpu";
 import { asset } from "../lib/asset";
@@ -167,8 +167,11 @@ export default function Halo() {
   const [drawn, setDrawn] = useState(false);
   const [formed, setFormed] = useState(false);
   const [deploying, setDeploying] = useState(false);
+  // El despliegue llego con un scroll rapido: se ve, pero no ancla la pagina
+  // (ver `scrollRapido` en lib/anim.js).
+  const [deployLibre, setDeployLibre] = useState(false);
   const [focus, setFocus] = useState(null);
-  const anchored = deploying || Boolean(focus);
+  const anchored = (deploying && !deployLibre) || Boolean(focus);
   // La escala del acercamiento, que tambien es la resolucion que necesita el
   // lienzo del cuerpo ampliado para no verse a escalones.
   const [zoom, setZoom] = useState(1);
@@ -236,6 +239,7 @@ export default function Halo() {
       // La aureola permanece; los aros se despliegan de nuevo al bajar.
       if (inView && opacity >= 0.99 && atWaist) {
         started = true;
+        setDeployLibre(scrollRapido());
         setDeploying(true);
         setDrawn(true);
         setFormed(true);

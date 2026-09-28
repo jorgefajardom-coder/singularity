@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { sections, stack } from "../data/content";
 import { useLang } from "../lib/i18n";
-import { ScrollTrigger, frenarDedo, gsap, navegacion, prefersReducedMotion, scroller, scrollTactil } from "../lib/anim";
+import { ScrollTrigger, frenarDedo, gsap, navegacion, prefersReducedMotion, scroller, scrollRapido, scrollTactil } from "../lib/anim";
 import StackArt from "./StackArt";
 
 /**
@@ -68,7 +68,7 @@ export default function Stack({ sequence }) {
         carta.style.zIndex = String(n - i);
       });
     };
-    const reparto = { d: 0, meta: 0 };
+    const reparto = { d: 0, meta: 0, libre: false };
     let tween = null;
     let vuelta = null;
     // Mientras se reparten, la pagina no se mueve: que se vea la baraja
@@ -83,8 +83,10 @@ export default function Stack({ sequence }) {
     // dejaba la pagina parada con la barra todavia entrando por abajo.
     const barraVisible = () => el.getBoundingClientRect().bottom <= window.innerHeight + 1;
     const bloquear = () => {
-      // Un salto por ancla que cruza la seccion no se para a ver el reparto.
-      if (anclaje !== null || navegacion.activa || !barraVisible()) return;
+      // Un salto por ancla que cruza la seccion no se para a ver el reparto,
+      // ni un gesto rapido: se decide al empezar cada reparto (`libre`), para
+      // no frenarlo a mitad cuando el gesto ya va perdiendo velocidad.
+      if (anclaje !== null || navegacion.activa || reparto.libre || !barraVisible()) return;
       // Con el dedo, el gesto se cancela (ver `frenarDedo`): devolver la
       // pagina a su sitio despues de moverla se veia como un brinco.
       if (scrollTactil()) soltarDedo = frenarDedo();
@@ -109,6 +111,7 @@ export default function Stack({ sequence }) {
       // habia corrido, al volver a subir se recogia fuera de la pantalla y al
       // bajar la fila aparecia vacia. Al recogerse, la fila vuelve al
       // principio a la vez que las cartas; al repartir, se asegura.
+      reparto.libre = Boolean(meta) && scrollRapido();
       if (meta) el.scrollLeft = 0;
       else if (el.scrollLeft > 0) vuelta = gsap.to(el, { scrollLeft: 0, duration: 0.8, ease: "power2.inOut" });
       if (meta) bloquear();
@@ -128,7 +131,14 @@ export default function Stack({ sequence }) {
         },
         // Las capas se quitan con la baraja repartida, o recogida y la
         // seccion ya sin fijar (si sigue fijada, el reparto puede volver).
-        onComplete: () => { soltar(); if (meta || !(st.progress > 0)) delete el.dataset.repartiendo; },
+        onComplete: () => {
+          soltar();
+          // Repartida, se empieza por la portada. Si el dedo corrio la fila
+          // mientras se repartia (el gesto vertical se frena, el horizontal
+          // se colaba), la fila quedaba en la tercera carta.
+          if (meta && el.scrollLeft > 0) gsap.to(el, { scrollLeft: 0, duration: 0.5, ease: "power2.out" });
+          if (meta || !(st.progress > 0)) delete el.dataset.repartiendo;
+        },
       });
     };
     // El fijado solo cubre ya el estampado. `sequence` (que lee Stage.jsx

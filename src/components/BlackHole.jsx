@@ -1,6 +1,6 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { CanvasTexture, LinearFilter, Vector2, Vector3 } from "three";
+import { CanvasTexture, GLSL3, HalfFloatType, LinearFilter, Mesh, NoBlending, Scene as Escena3D, ShaderMaterial, Vector2, Vector3, WebGLRenderTarget } from "three";
 
 // El arrastre por el puntero es cosa del hero. Fuera de el el agujero tiene
 // que estar donde dice `journey`: en la orbita los aros (DOM) no saben nada
@@ -38,7 +38,17 @@ import { curvaParaShader } from "../lib/curvaInfinito";
 // rayos que rozan la esfera de fotones (y esos se apagan igual, ver `wound`).
 // La precision se queda en highp: la integracion eleva r a la quinta, y en
 // mediump (16 bits en muchas GPU moviles) eso desborda con r = 26.
-const PASOS = perfil.movil ? PRESUPUESTO.pasosAgujero.movil : PRESUPUESTO.pasosAgujero.escritorio;
+// Interruptores de MEDICION por URL (solo para perfilar en un telefono):
+// `?pasos=N`, `?paso=K` (factor del paso, 0.062 por defecto) y `?ruido=1`
+// (una octava de ruido en vez de tres). Sin ellos, todo queda como siempre.
+const PRUEBA = (() => {
+  const q = typeof location === "undefined" ? "" : location.search;
+  const num = (k) => { const m = new RegExp(`[?&]${k}=([0-9.]+)`).exec(q); return m ? Number(m[1]) : null; };
+  return { pasos: num("pasos"), paso: num("paso"), ruido: num("ruido") };
+})();
+const PASOS = PRUEBA.pasos ?? (perfil.movil ? PRESUPUESTO.pasosAgujero.movil : PRESUPUESTO.pasosAgujero.escritorio);
+const PASO_K = (PRUEBA.paso ?? 0.062).toFixed(4);
+const OCTAVAS = PRUEBA.ruido === 1 ? 1 : 3;
 
 const vertexShader = `
   varying vec2 vUv;
@@ -49,6 +59,38 @@ const vertexShader = `
 // se integra su curvatura. La imagen superior del disco y la inferior aparecen
 // solas; ninguna se dibuja a mano. El anillo de fotones también salía solo, y
 // se apaga a propósito: ver `wound` más abajo.
+// Compartidas por la traza y la composicion del modo partido (ver
+// fragmentCompone): la composicion pinta las estrellas a resolucion completa.
+const HASH31 = `float hash31(vec3 p) {
+  p = fract(p * 0.1031);
+  p += dot(p, p.yzx + 33.33);
+  return fract((p.x + p.y) * p.z);
+}
+`;
+const ESTRELLAS = `vec3 starField(vec3 d) {
+  vec3 g = d * 132.0;
+  vec3 cell = floor(g);
+  float seed = hash31(cell + 3.77);
+  if (seed < 0.945) return vec3(0.0);
+  vec3 local = fract(g) - 0.5;
+  vec3 off = vec3(hash31(cell), hash31(cell + 7.3), hash31(cell + 13.1)) - 0.5;
+  float mag = 0.22 + 1.85 * pow(hash31(cell + 91.3), 3.0);
+  // Titileo. Solo parpadea una parte —la que saca mas de 0.62 en su propio
+  // hash—, y cada una con su ritmo y su fase: si parpadearan todas, o a la
+  // vez, se leeria como un pulso de todo el cielo en lugar de como estrellas.
+  // El resto se queda fija, que es lo que hace de referencia para que el
+  // parpadeo de las otras se note. Mismo criterio que la capa DOM del resto de
+  // la pagina (ver Starfield.jsx).
+  float blinks = step(0.62, hash31(cell + 41.7));
+  float rate   = 1.1 + 3.4 * hash31(cell + 5.9);
+  float phase  = hash31(cell + 67.3) * 6.2831853;
+  mag *= mix(1.0, 0.52 + 0.48 * sin(uTime * rate + phase), blinks);
+  float spark = exp(-length(local - off * 0.7) * mix(15.0, 8.0, clamp(mag * 0.5, 0.0, 1.0)));
+  vec3 tint = mix(vec3(0.72, 0.81, 1.00), vec3(1.00, 0.87, 0.70), hash31(cell + 57.1));
+  return tint * spark * mag;
+}
+`;
+
 const fragmentShader = `
 precision highp float;
 varying vec2 vUv;
@@ -62,6 +104,7 @@ uniform float uDisk, uWhite;
 // main() lo fija antes de que nadie lo lea.
 uniform float uScale, uTopDown, uIsolation, uFaceOn;
 uniform vec2 uPointer, uCenter;
+uniform float uArco;
 uniform sampler2D uText, uCopy;
 // El ∞ de los idiomas, el MISMO trazado del SVG del cargador, muestreado (ver
 // curvaInfinito.js): x a la derecha, y arriba, en unidades de LEM_A. Y sus
@@ -83,12 +126,7 @@ const float SPIN     = 0.17;   // arrastre de marco: el agujero gira de verdad
 const float TILT0    = 0.092;  // el plano arranca mirando a la cámara
 const float LEM_A    = 10.4;   // semianchura del ∞: cuadra con la del SVG del cargador
 
-float hash31(vec3 p) {
-  p = fract(p * 0.1031);
-  p += dot(p, p.yzx + 33.33);
-  return fract((p.x + p.y) * p.z);
-}
-float noise3(vec3 x) {
+${HASH31}float noise3(vec3 x) {
   vec3 i = floor(x), f = fract(x);
   f = f * f * (3.0 - 2.0 * f);
   return mix(mix(mix(hash31(i + vec3(0.0,0.0,0.0)), hash31(i + vec3(1.0,0.0,0.0)), f.x),
@@ -100,7 +138,7 @@ float fbm(vec3 p) {
   // Tres octavas: la cuarta costaba lo mismo que las otras y aportaba menos
   // detalle que n3, que ya cubre la escala fina de los filamentos.
   float s = 0.0, a = 0.56;
-  for (int i = 0; i < 3; i++) { s += a * noise3(p); p = p * 2.03 + 13.7; a *= 0.5; }
+  for (int i = 0; i < ${OCTAVAS}; i++) { s += a * noise3(p); p = p * 2.03 + 13.7; a *= 0.5; }
   return s;
 }
 
@@ -139,29 +177,7 @@ vec3 ember(float h) {
 // Campo de estrellas: una por celda, con magnitud y color propios. La curva
 // cúbica sobre la magnitud reparte como el cielo real, muchas tenues y unas
 // pocas brillantes, en vez de una retícula de puntos todos iguales.
-vec3 starField(vec3 d) {
-  vec3 g = d * 132.0;
-  vec3 cell = floor(g);
-  float seed = hash31(cell + 3.77);
-  if (seed < 0.945) return vec3(0.0);
-  vec3 local = fract(g) - 0.5;
-  vec3 off = vec3(hash31(cell), hash31(cell + 7.3), hash31(cell + 13.1)) - 0.5;
-  float mag = 0.22 + 1.85 * pow(hash31(cell + 91.3), 3.0);
-  // Titileo. Solo parpadea una parte —la que saca mas de 0.62 en su propio
-  // hash—, y cada una con su ritmo y su fase: si parpadearan todas, o a la
-  // vez, se leeria como un pulso de todo el cielo en lugar de como estrellas.
-  // El resto se queda fija, que es lo que hace de referencia para que el
-  // parpadeo de las otras se note. Mismo criterio que la capa DOM del resto de
-  // la pagina (ver Starfield.jsx).
-  float blinks = step(0.62, hash31(cell + 41.7));
-  float rate   = 1.1 + 3.4 * hash31(cell + 5.9);
-  float phase  = hash31(cell + 67.3) * 6.2831853;
-  mag *= mix(1.0, 0.52 + 0.48 * sin(uTime * rate + phase), blinks);
-  float spark = exp(-length(local - off * 0.7) * mix(15.0, 8.0, clamp(mag * 0.5, 0.0, 1.0)));
-  vec3 tint = mix(vec3(0.72, 0.81, 1.00), vec3(1.00, 0.87, 0.70), hash31(cell + 57.1));
-  return tint * spark * mag;
-}
-
+${ESTRELLAS}
 // Emisión en el punto donde el fotón cruza la superficie luminosa. Esa
 // superficie es la MISMA a lo largo de toda la escena: al principio su contorno
 // es una lemniscata de Bernoulli (el ∞) sobre un plano que mira a la cámara, y
@@ -274,8 +290,11 @@ vec4 esmalteSVG(vec2 P0, float d) {
   return vec4(a > 0.0 ? premul / a : vec3(0.0), a);
 }
 
-vec3 diskSample(vec3 hit, vec3 dir, vec3 e1, vec3 e2, vec3 nrm, float morph, out float opacity) {
-  float u = dot(hit, e1), v = dot(hit, e2);
+// El plasma en un punto del plano (u, v) del disco. dop es el coseno entre
+// la orbita de la materia y la direccion hacia la camara (el Doppler). Va
+// aparte de la geometria para que el modo diferido (ver COMPONE) lo pueda
+// calcular a resolucion completa con un impacto interpolado.
+vec3 diskShade(float u, float v, float dop, float morph, out float opacity) {
   float r = sqrt(u * u + v * v);
   float t = (r - DISK_IN) / (gOut - DISK_IN);
   float edge = smoothstep(0.0, 0.016, t) * smoothstep(1.0, 0.45, t);
@@ -366,9 +385,8 @@ vec3 diskSample(vec3 hit, vec3 dir, vec3 e1, vec3 e2, vec3 nrm, float morph, out
   float falloff = pow(DISK_IN / r, 1.60);
 
   // Doppler relativista: el lado que viene hacia la cámara se enciende.
-  vec3 orbit = normalize(cross(nrm, hit));
   float beta = 0.42 * sqrt(DISK_IN / r);
-  float boost = 1.0 / max(1.0 - beta * dot(orbit, -dir), 0.35);
+  float boost = 1.0 / max(1.0 - beta * dop, 0.35);
   boost = mix(1.0, pow(boost, 2.2), 0.28);
 
   opacity = clamp(edge * filament * 0.82, 0.0, 1.0);
@@ -379,7 +397,30 @@ vec3 diskSample(vec3 hit, vec3 dir, vec3 e1, vec3 e2, vec3 nrm, float morph, out
   return mix(plasma, sinTono(lamina.rgb) * lamina.a, esmalte);
 }
 
+vec3 diskSample(vec3 hit, vec3 dir, vec3 e1, vec3 e2, vec3 nrm, float morph, out float opacity) {
+  return diskShade(dot(hit, e1), dot(hit, e2), dot(normalize(cross(nrm, hit)), -dir), morph, opacity);
+}
+
+#ifndef COMPONE
 void main() {
+#ifdef PARTIDO
+  // Pasada de trazado del modo partido (ver PARTIDO en Scene): el titular no
+  // se lee aqui, se dejan sus coordenadas y su brillo para la composicion.
+  gTexto = vec4(-1.0);
+  gCielo = vec4(0.0);
+  float gBrillo = 0.0;
+#endif
+#ifdef DIFERIDO
+  // Traza del modo diferido (ver COMPONE): los dos primeros cruces con el
+  // disco (u, v, Doppler, angulo recorrido; -1 si no hay) en vez del color;
+  // el cielo y el titular, SIN la transparencia acumulada, que depende del
+  // plasma y la calcula la composicion. Por defecto, horizonte.
+  gA = vec4(0.0, 0.0, 0.0, -1.0);
+  gB = vec4(0.0, 0.0, 0.0, -1.0);
+  gCielo = vec4(0.0, 0.0, 1.0, -1.0);
+  gTexto = vec4(-1.0, -1.0, 0.0, 0.0);
+  int nCruces = 0;
+#endif
   // Lo primero: el borde exterior del disco, del que cuelgan tanto el perfil
   // radial como los dos cortes que deciden si un rayo se integra.
   gOut = DISK_OUT * uDisk;
@@ -484,7 +525,7 @@ void main() {
       // El paso se acorta junto al horizonte, que es donde hace falta precisión
       // para que el filo de la sombra y el anillo de fotones salgan limpios;
       // lejos se alarga, porque allí la trayectoria es casi recta.
-      float dt = clamp(min(r * 0.062, (r - horizon) * 0.30 + 0.012), 0.010, 0.95);
+      float dt = clamp(min(r * ${PASO_K}, (r - horizon) * 0.30 + 0.012), 0.010, 0.95);
       vec3 prev = pos;
       vel += (-1.5 * h2 * pos / (r2 * r2 * r)) * dt;
       // Lense-Thirring: un agujero en rotación arrastra el espacio consigo, así
@@ -500,6 +541,16 @@ void main() {
         float rr = length(vec2(dot(hit, e1), dot(hit, e2)));
         // Cubre tanto el ∞ como el borde exterior del disco, el mayor de los dos.
         if (rr < max(gOut, LEM_A) + 1.0) {
+#ifdef DIFERIDO
+          // Los cruces con mas de 4.5 rad ya estan apagados del todo (ver
+          // wound): no cuentan. Sin plasma aqui no se sabe cuando el disco
+          // se vuelve opaco, asi que el rayo sigue hasta escapar o caer.
+          if (swept < 4.5 && nCruces < 2) {
+            vec4 cruce = vec4(dot(hit, e1), dot(hit, e2), dot(normalize(cross(nrm, hit)), -normalize(vel)), swept);
+            if (nCruces == 0) gA = cruce; else gB = cruce;
+            nCruces++;
+          }
+#else
           float op;
           vec3 e = diskSample(hit, normalize(vel), e1, e2, nrm, morph, op);
           // Los rayos que pasan rozando la esfera de fotones dan vueltas
@@ -519,6 +570,7 @@ void main() {
           col += trans * e * diskFade * wound;
           trans *= 1.0 - op;
           if (trans < 0.02) break;
+#endif
         }
       }
       side = next;
@@ -546,7 +598,16 @@ void main() {
     // El cielo entra despacio mientras el ∞ se transforma: el fondo del
     // cargador es liso, y aparecer de golpe delataba el relevo.
     float cielo = smoothstep(0.08, 0.55, uFormation);
+#ifdef PARTIDO
+    // Las estrellas son de un pixel: a media resolucion el reescalado las
+    // borraba. Se deja la direccion de escape y su peso; las pinta la
+    // composicion a resolucion completa.
+    gCielo = vec4(away, trans * (2.15 + uTreble * 1.15) * (1.0 - uIsolation) * clear * cielo);
+#elif defined(DIFERIDO)
+    gCielo = vec4(away, (2.15 + uTreble * 1.15) * (1.0 - uIsolation) * clear * cielo);
+#else
     col += starField(away) * trans * (2.15 + uTreble * 1.15) * (1.0 - uIsolation) * clear * cielo;
+#endif
     // Mientras tanto, el fondo es el del cargador (--ink, #08070a), no negro.
     col += sinTono(vec3(0.031, 0.027, 0.039)) * trans * (1.0 - cielo) * (1.0 - uIsolation);
     // El titular es el fondo por el que pasan los fotones. Se vuelve a
@@ -556,15 +617,39 @@ void main() {
     if (ahead > 0.02) {
       // En reposo la gravedad ya actúa casi entera sobre el titular: es lo que
       // lo mantiene curvado sin tocar nada. Los extras solo lo rematan.
-      float warp = clamp(0.62 + uBass * 0.22 + uPower * 0.35 + length(uPointer) * 0.38, 0.0, 1.0);
+      // Los golpes de la musica tiran del titular: el agujero deforma el texto
+      // y los golpes tienen que notarse en el (Jorge, 27-09-2026).
+      float warp = clamp(0.62 + uBass * 0.45 + uPower * 0.35 + length(uPointer) * 0.38, 0.0, 1.1);
       vec2 lensed = LENSE * vec2(dot(away, right), dot(away, up)) / ahead + shift;
       // El tirón de la lente se satura en curva, no de golpe: un recorte duro
       // daría a todos los píxeles el mismo desplazamiento y el titular se
       // movería en bloque en vez de deformarse. Así el gradiente sobrevive y
       // el texto se sigue arqueando sin llegar a salirse del encuadre.
-      vec2 pull = lensed - screen;
+      //
+      // El tiron de arriba no es solo la lente: un rayo sin curvar ya da
+      // (uScale-1)*screen - uScale*center, un zoom de toda la capa hacia un
+      // punto que depende de la escala y de DONDE esta el agujero. Con el
+      // recorte de abajo, ese zoom es buena parte del arco del nombre, y el
+      // arco de diseno es el de escritorio (escala 1.34, centro -0.17). Aqui
+      // se cambia por el de escritorio medido en radios del agujero, asi que:
+      //   - en escritorio es la misma imagen aunque el agujero baje para dejar
+      //     margen bajo la barra (Jorge, 27-09-2026: "sin cambiar como se
+      //     deforma"), solo que mas abajo;
+      //   - en el telefono el nombre se arquea como en escritorio en vez de
+      //     salir casi plano (Jorge, 28-09-2026).
+      // uArco a 0 en el telefono en horizontal: alli el agujero es diminuto
+      // (el pie no le deja sitio) y este cambio ampliaba el nombre hasta
+      // cortarlo por los lados.
+      vec2 pull = lensed - screen + uArco * ((1.34 - uScale) * screen + (uScale - 0.34) * center
+                + vec2(0.0, 0.17) * (1.34 / max(uScale, 0.05)));
       float reach = length(pull);
-      pull *= (reach / (1.0 + reach / 0.80)) / max(reach, 1e-4);
+      // El recorte va en proporcion al agujero (su radio en pantalla es
+      // R_UV / uScale): con 0.80 fijo, en el telefono —donde el agujero ocupa
+      // mas unidades— el tiron se saturaba antes y el nombre salia casi
+      // plano (Jorge, 28-09-2026: igual que en escritorio). En escritorio
+      // uScale vale 1.34 y el recorte es el de siempre.
+      float tope = 0.80 * 1.34 / max(uScale, 0.05);
+      pull *= (reach / (1.0 + reach / tope)) / max(reach, 1e-4);
       // El texto NO late con la musica. Los graves siguen hinchando el disco
       // y el horizonte (ver uv y pulse mas arriba), pero escalar tambien
       // estas coordenadas empujaba el titular fuera del encuadre en cada
@@ -600,6 +685,14 @@ void main() {
       // medir su luminancia media ANTES y DESPUES, no solo contar las rayas.
       float bright = trans * uReveal * (2.05 + uBass * 0.7) * (1.0 - smoothstep(4.2, 6.0, swept));
       vec2 tcA = (base + pull * warp) / frame + 0.5;
+#ifdef PARTIDO
+      gTexto = vec4(tcA, (base + pull * warp * 0.13) / frame + 0.5);
+      gBrillo = bright;
+#elif defined(DIFERIDO)
+      // La capa pequena (uCopy) va en tcA escalado a 0.13 respecto al pixel:
+      // la composicion la recalcula (ver COMPONE).
+      gTexto = vec4(tcA, uReveal * (2.05 + uBass * 0.7) * (1.0 - smoothstep(4.2, 6.0, swept)), 0.0);
+#else
       if (tcA.x > 0.0 && tcA.x < 1.0 && tcA.y > 0.0 && tcA.y < 1.0) {
         // La textura de canvas ya llega volteada: tc se usa tal cual.
         vec4 glyph = texture2D(uText, tcA);
@@ -610,6 +703,7 @@ void main() {
         vec4 glyph = texture2D(uCopy, tcB);
         col += glyph.rgb * glyph.a * bright;
       }
+#endif
     }
   }
 
@@ -618,6 +712,16 @@ void main() {
   col += vec3(1.0, 0.29, 0.04) * exp(-max(d - 0.17, 0.0) * 6.5) * 0.022 * diskFade * (0.55 + uBass * 0.9)
        * smoothstep(0.08, 0.55, uFormation);
 
+#ifdef PARTIDO
+  // Color lineal (antes del tono) y, en alfa, el brillo del titular; -1 si
+  // el rayo cae en el horizonte. Reescalado, el -1 se mezcla con sus vecinos
+  // y el filo de la sombra sale suave en vez de a escalones.
+  gColor = vec4(col, captured ? -1.0 : gBrillo);
+  return;
+#endif
+#ifdef DIFERIDO
+  return;
+#endif
 
   // Reinhard extendido sobre el canal más alto: comprime el brillo sin que el
   // rojo se sature antes que el verde, que es lo que volvía amarillo el disco.
@@ -632,6 +736,267 @@ void main() {
   // with it as a black rectangle. Preserve the glow with straight alpha.
   float light = max(col.r, max(col.g, col.b));
   float diskAlpha = captured ? 1.0 : smoothstep(0.0, 0.12, light);
+  float alpha = mix(1.0, diskAlpha, uIsolation);
+#if !defined(PARTIDO) && !defined(DIFERIDO)
+  gl_FragColor = vec4(col / max(alpha, 0.0001), alpha);
+#endif
+}
+#endif
+
+#ifdef COMPONE
+/*
+ * Composicion del modo diferido, a resolucion completa. La traza (baja
+ * resolucion) dejo, por pixel, los dos primeros cruces del rayo con el disco.
+ * Aqui el plasma se calcula en cada pixel de la pantalla con el impacto
+ * interpolado: los filamentos salen con todo su detalle aunque el rayo se
+ * haya trazado a media resolucion. El impacto cambia suave de un pixel a
+ * otro, asi que interpolarlo es casi exacto; donde no (el filo del disco, el
+ * de la sombra), el cruce no existe en todos los vecinos y se sombrea cada
+ * vecino por separado y se mezclan: el filo sale suave, no a escalones.
+ */
+uniform sampler2D tA, tB, tCielo, tTexto, tDisco;
+uniform vec2 uEsc, uTexel;
+
+void capaDisco(sampler2D t, ivec2 c00, ivec2 c10, ivec2 c01, ivec2 c11, vec4 w, inout vec3 col, inout float trans) {
+  vec4 a = texelFetch(t, c00, 0), b = texelFetch(t, c10, 0), c = texelFetch(t, c01, 0), d = texelFetch(t, c11, 0);
+  vec4 ok = vec4(step(0.0, a.w), step(0.0, b.w), step(0.0, c.w), step(0.0, d.w));
+  if (dot(ok, w) < 1e-4) return;
+  vec3 e = vec3(0.0);
+  float op = 0.0;
+  // Interpolar solo vale si los cuatro son el MISMO trozo de disco. En el
+  // borde de abajo de la imagen inferior, vecinos con "primer cruce" en
+  // zonas distintas del disco daban, interpolados, un punto intermedio que no
+  // existe (el interior caliente): una raya brillante horizontal.
+  float salto = max(max(distance(a.xy, b.xy), distance(a.xy, c.xy)), max(distance(a.xy, d.xy), distance(b.xy, c.xy)));
+  float giro = max(max(abs(a.w - b.w), abs(a.w - c.w)), abs(a.w - d.w));
+  if (ok.x * ok.y * ok.z * ok.w > 0.5 && salto < 1.2 && giro < 0.6) {
+    vec4 m = a * w.x + b * w.y + c * w.z + d * w.w;
+    e = diskShade(m.x, m.y, m.z, 1.0, op) * (1.0 - smoothstep(2.9, 4.5, m.w));
+  } else {
+    float o;
+    if (ok.x > 0.5) { e += diskShade(a.x, a.y, a.z, 1.0, o) * (1.0 - smoothstep(2.9, 4.5, a.w)) * w.x; op += o * w.x; }
+    if (ok.y > 0.5) { e += diskShade(b.x, b.y, b.z, 1.0, o) * (1.0 - smoothstep(2.9, 4.5, b.w)) * w.y; op += o * w.y; }
+    if (ok.z > 0.5) { e += diskShade(c.x, c.y, c.z, 1.0, o) * (1.0 - smoothstep(2.9, 4.5, c.w)) * w.z; op += o * w.z; }
+    if (ok.w > 0.5) { e += diskShade(d.x, d.y, d.z, 1.0, o) * (1.0 - smoothstep(2.9, 4.5, d.w)) * w.w; op += o * w.w; }
+  }
+  col += trans * e;
+  trans *= 1.0 - op;
+}
+
+void main() {
+  gOut = DISK_OUT * uDisk;
+  // Texel de la traza (que ocupa solo una parte de su textura, uEsc).
+  vec2 p = vUv * uEsc / uTexel - 0.5;
+  vec2 hi = floor(uEsc / uTexel) - 1.0;
+  vec2 i0 = clamp(floor(p), vec2(0.0), hi);
+  vec2 i1 = clamp(i0 + 1.0, vec2(0.0), hi);
+  vec2 f = clamp(p - floor(p), 0.0, 1.0);
+  vec4 w = vec4((1.0 - f.x) * (1.0 - f.y), f.x * (1.0 - f.y), (1.0 - f.x) * f.y, f.x * f.y);
+  ivec2 c00 = ivec2(i0), c10 = ivec2(i1.x, i0.y), c01 = ivec2(i0.x, i1.y), c11 = ivec2(i1);
+
+  vec3 col = vec3(0.0);
+  float trans = 1.0;
+#ifdef SOMBREA
+  // Pasada intermedia: solo el plasma, a densidad 1. La composicion final va
+  // a mas densidad (el titular) y lo amplia; calcular el plasma a esa
+  // densidad cuadruplicaba el coste (Redmi: 35 -> 14 fps a densidad 2).
+  capaDisco(tA, c00, c10, c01, c11, w, col, trans);
+  capaDisco(tB, c00, c10, c01, c11, w, col, trans);
+  gDisco = vec4(col, trans);
+  return;
+#else
+  vec4 disco = texture(tDisco, vUv);
+  col = disco.rgb;
+  trans = disco.a;
+#endif
+
+  vec2 uvT = min(vUv * uEsc, uEsc - 0.5 * uTexel);
+  vec4 cielo = texture(tCielo, uvT);
+  float horizonte = clamp(-cielo.w, 0.0, 1.0);
+  if (cielo.w > 0.001) col += starField(normalize(cielo.xyz)) * trans * cielo.w;
+  vec4 tx = texture(tTexto, uvT);
+  if (tx.z > 0.0) {
+    float bright = trans * tx.z;
+    vec2 tcA = tx.xy;
+    if (tcA.x > 0.0 && tcA.x < 1.0 && tcA.y > 0.0 && tcA.y < 1.0) {
+      vec4 glyph = texture(uText, tcA);
+      col += glyph.rgb * glyph.a * bright;
+    }
+    // La capa pequena lleva el 13 % del desplazamiento de la grande.
+    vec2 tcB = vUv + (tcA - vUv) * 0.13;
+    if (tcB.x > 0.0 && tcB.x < 1.0 && tcB.y > 0.0 && tcB.y < 1.0) {
+      vec4 glyph = texture(uCopy, tcB);
+      col += glyph.rgb * glyph.a * bright;
+    }
+  }
+
+  // El mismo encuadre que la traza, para la bruma y la vineta.
+  float zoom = clamp(1.85 / max(uAspect, 0.35), 1.0, 2.2);
+  vec2 screen = (vUv - 0.5) * 2.0 * vec2(uAspect, 1.0) * zoom;
+  vec2 shift = uPointer * vec2(0.46, 0.30) * (1.0 + uPower * 0.55) * smoothstep(0.55, 1.0, uFormation);
+  vec2 center = uCenter * vec2(uAspect, 1.0) * zoom;
+  float dd = length((screen * (1.0 - uBass * 0.021) - shift - center) * uScale);
+  col += vec3(1.0, 0.29, 0.04) * exp(-max(dd - 0.17, 0.0) * 6.5) * 0.022 * (0.55 + uBass * 0.9)
+       * smoothstep(0.08, 0.55, uFormation);
+
+  const float WHITE = 1.85;
+  float peak = max(col.r, max(col.g, col.b));
+  float mapped = peak * (1.0 + peak / (WHITE * WHITE)) / (1.0 + peak);
+  col = min(col * (mapped / max(peak, 1e-4)), vec3(1.0));
+  col = pow(max(col, 0.0), vec3(0.92));
+  col *= 1.0 - smoothstep(1.70, 3.30, dd) * 0.28;
+  float light = max(col.r, max(col.g, col.b));
+  float diskAlpha = mix(smoothstep(0.0, 0.12, light), 1.0, horizonte);
+  float alpha = mix(1.0, diskAlpha, uIsolation);
+  gl_FragColor = vec4(col / max(alpha, 0.0001), alpha);
+}
+#endif
+`;
+
+/**
+ * MODO PARTIDO (telefono). El trazado de rayos es lo caro y va con el numero
+ * de pixeles; el titular, que es lo unico que se pixela al bajar resolucion,
+ * no necesita el trazado, solo DONDE leerlo. Asi que se parte en dos:
+ *
+ *   1. `fragmentTraza`: el shader de siempre a baja resolucion, a una
+ *      textura doble (MRT, media precision): el color lineal del disco y
+ *      el cielo, y las coordenadas del titular deformado con su brillo.
+ *   2. `fragmentCompone`: a resolucion completa, reescala esas texturas, lee
+ *      el titular NITIDO en las coordenadas interpoladas y hace el tono.
+ *
+ * Medido en un Redmi Note 13 (Adreno 610, 27-09-2026): el trazado entero
+ * iba a 11 fps con la resolucion ya en 0,75.
+ */
+const fragmentTraza = `
+#define PARTIDO
+layout(location = 0) out highp vec4 gColor;
+layout(location = 1) out highp vec4 gTexto;
+layout(location = 2) out highp vec4 gCielo;
+` + fragmentShader;
+
+// Modo diferido (ver COMPONE en el shader): traza a 4 salidas y composicion
+// que sombrea el disco a resolucion completa.
+const fragmentTrazaDiferida = `
+#define DIFERIDO
+layout(location = 0) out highp vec4 gA;
+layout(location = 1) out highp vec4 gB;
+layout(location = 2) out highp vec4 gCielo;
+layout(location = 3) out highp vec4 gTexto;
+` + fragmentShader;
+const fragmentSombreaDiferido = `
+#define COMPONE
+#define SOMBREA
+layout(location = 0) out highp vec4 gDisco;
+#define gl_FragColor gDisco
+` + fragmentShader;
+const fragmentComponeDiferido = `
+#define COMPONE
+layout(location = 0) out highp vec4 pc_fragColor;
+#define gl_FragColor pc_fragColor
+` + fragmentShader;
+
+const fragmentCompone = `
+#define NITIDEZ ${(() => { const m = /[?&]nitidez=([0-9.]+)/.exec(typeof location === "undefined" ? "" : location.search); return m ? Number(m[1]).toFixed(2) : "0.40"; })()}
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D tColor, tTexto, uText, uCopy;
+// La traza ocupa solo una parte de su textura (ver pasadas en Scene):
+// uEsc es esa fraccion y uTexel el tamano de un texel de la textura entera.
+uniform vec2 uEsc, uTexel;
+uniform float uAspect, uPower, uFormation, uScale, uBass, uIsolation, uTime;
+uniform sampler2D tCielo;
+uniform vec2 uPointer, uCenter;
+
+// B-spline cubica en 4 lecturas bilineales. Con la traza a media resolucion
+// el bilineal dejaba escalones en el filo de la sombra y en los aros.
+vec4 pesos(float v) {
+  vec4 n = vec4(1.0, 2.0, 3.0, 4.0) - v;
+  vec4 s = n * n * n;
+  float x = s.x, y = s.y - 4.0 * s.x, z = s.z - 4.0 * s.y + 6.0 * s.x;
+  return vec4(x, y, z, 6.0 - x - y - z) * (1.0 / 6.0);
+}
+vec4 cubica(sampler2D t, vec2 uv) {
+  vec2 p = uv / uTexel - 0.5;
+  vec2 f = fract(p); p -= f;
+  vec4 wx = pesos(f.x), wy = pesos(f.y);
+  vec4 c = p.xxyy + vec2(-0.5, 1.5).xyxy;
+  vec4 s = vec4(wx.xz + wx.yw, wy.xz + wy.yw);
+  vec4 o = (c + vec4(wx.yw, wy.yw) / s) * uTexel.xxyy;
+  // Sin salirse de la parte pintada: lo de fuera es de otro tamano.
+  vec2 lim = uEsc - 0.5 * uTexel;
+  o = clamp(o, 0.5 * uTexel.xxyy, lim.xxyy);
+  vec4 a = texture2D(t, o.xz), b = texture2D(t, o.yz), cc = texture2D(t, o.xw), d = texture2D(t, o.yw);
+  float sx = s.x / (s.x + s.y), sy = s.z / (s.z + s.w);
+  return mix(mix(d, cc, sx), mix(b, a, sx), sy);
+}
+
+${HASH31}
+${ESTRELLAS}
+// Catmull-Rom en 9 lecturas bilineales: igual de limpia en los filos que la
+// B-spline y bastante mas nitida (la B-spline promedia y difumina los aros).
+// Tiene lobulos negativos, asi que se recorta a cero donde hace falta.
+vec4 catmull(sampler2D t, vec2 uv) {
+  vec2 p = uv / uTexel;
+  vec2 t1 = floor(p - 0.5) + 0.5;
+  vec2 f = p - t1;
+  vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f));
+  vec2 w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
+  vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
+  vec2 w3 = f * f * (-0.5 + 0.5 * f);
+  vec2 w12 = w1 + w2;
+  vec2 lo = 0.5 * uTexel, hi = uEsc - 0.5 * uTexel;
+  vec2 c0 = clamp((t1 - 1.0) * uTexel, lo, hi);
+  vec2 c12 = clamp((t1 + w2 / w12) * uTexel, lo, hi);
+  vec2 c3 = clamp((t1 + 2.0) * uTexel, lo, hi);
+  return texture2D(t, vec2(c0.x, c0.y)) * w0.x * w0.y
+       + texture2D(t, vec2(c12.x, c0.y)) * w12.x * w0.y
+       + texture2D(t, vec2(c3.x, c0.y)) * w3.x * w0.y
+       + texture2D(t, vec2(c0.x, c12.y)) * w0.x * w12.y
+       + texture2D(t, vec2(c12.x, c12.y)) * w12.x * w12.y
+       + texture2D(t, vec2(c3.x, c12.y)) * w3.x * w12.y
+       + texture2D(t, vec2(c0.x, c3.y)) * w0.x * w3.y
+       + texture2D(t, vec2(c12.x, c3.y)) * w12.x * w3.y
+       + texture2D(t, vec2(c3.x, c3.y)) * w3.x * w3.y;
+}
+
+void main() {
+  vec2 uvT = min(vUv * uEsc, uEsc - 0.5 * uTexel);
+  // Mezcla de las dos: la B-spline sola difumina los aros y la Catmull-Rom
+  // sola vuelve a ensenar la rejilla de la traza. Medido en el telefono
+  // (27-09-2026), el 40 % de la nitida es el punto en que ni una ni otra.
+  vec4 g = mix(cubica(tColor, vUv * uEsc), catmull(tColor, vUv * uEsc), NITIDEZ);
+  vec3 col = max(g.rgb, 0.0);
+  vec4 cielo = texture2D(tCielo, uvT);
+  if (cielo.w > 0.001) col += starField(normalize(cielo.xyz)) * cielo.w;
+  float bright = max(g.a, 0.0);
+  // Cuanto de este pixel es horizonte (el -1 de la traza, ya mezclado).
+  float horizonte = clamp(-g.a, 0.0, 1.0);
+  if (bright > 0.0) {
+    vec4 tc = texture2D(tTexto, uvT);
+    if (tc.x > 0.0 && tc.x < 1.0 && tc.y > 0.0 && tc.y < 1.0) {
+      vec4 glyph = texture2D(uText, tc.xy);
+      col += glyph.rgb * glyph.a * bright;
+    }
+    if (tc.z > 0.0 && tc.z < 1.0 && tc.w > 0.0 && tc.w < 1.0) {
+      vec4 glyph = texture2D(uCopy, tc.zw);
+      col += glyph.rgb * glyph.a * bright;
+    }
+  }
+  // El mismo encuadre que el trazado, solo para la vineta.
+  float zoom = clamp(1.85 / max(uAspect, 0.35), 1.0, 2.2);
+  vec2 screen = (vUv - 0.5) * 2.0 * vec2(uAspect, 1.0) * zoom;
+  vec2 shift = uPointer * vec2(0.46, 0.30) * (1.0 + uPower * 0.55) * smoothstep(0.55, 1.0, uFormation);
+  vec2 center = uCenter * vec2(uAspect, 1.0) * zoom;
+  float d = length((screen * (1.0 - uBass * 0.021) - shift - center) * uScale);
+
+  const float WHITE = 1.85;
+  float peak = max(col.r, max(col.g, col.b));
+  float mapped = peak * (1.0 + peak / (WHITE * WHITE)) / (1.0 + peak);
+  col = min(col * (mapped / max(peak, 1e-4)), vec3(1.0));
+  col = pow(max(col, 0.0), vec3(0.92));
+  col *= 1.0 - smoothstep(1.70, 3.30, d) * 0.28;
+  float light = max(col.r, max(col.g, col.b));
+  float diskAlpha = mix(smoothstep(0.0, 0.12, light), 1.0, horizonte);
   float alpha = mix(1.0, diskAlpha, uIsolation);
   gl_FragColor = vec4(col / max(alpha, 0.0001), alpha);
 }
@@ -686,7 +1051,9 @@ function paintLensText(source, box, group) {
   // Un grupo puede quedarse vacío: devuelve un lienzo en blanco para que su
   // sampler siga siendo válido en vez de quedar sin textura asignada.
   const nodes = source.querySelectorAll(`[data-lens-line][data-lens-group="${group}"]`);
-  const dpr = Math.min(devicePixelRatio || 1, 2);
+  // Hasta 3: la lente estira el titular, y en un telefono de 2,75 a densidad
+  // 2 los bordes salian blandos (Jorge, 27-09-2026: "se ve muy pixelado").
+  const dpr = Math.min(devicePixelRatio || 1, 3);
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(box.width * dpr);
   canvas.height = Math.round(box.height * dpr);
@@ -802,11 +1169,30 @@ function pintaBlanco(ctx) {
 
 const ahoraMs = () => performance.now();
 
+/**
+ * r3f COPIA los uniforms al crear su material: los de `uniforms` se quedaban
+ * en sus valores iniciales (la traza pintaba el ∞ de la intro para siempre).
+ * Los materiales del modo partido se enlazan una vez a los que r3f actualiza
+ * de verdad, antes de compilarlos o pintarlos.
+ */
+function enlazar(pasadas, propio) {
+  if (pasadas.enlazado || !propio?.uniforms) return;
+  pasadas.enlazado = true;
+  pasadas.traza.uniforms = propio.uniforms;
+  pasadas.trazaD.uniforms = propio.uniforms;
+  for (const k of Object.keys(propio.uniforms)) {
+    pasadas.compone.uniforms[k] = propio.uniforms[k];
+    pasadas.sombreaD.uniforms[k] = propio.uniforms[k];
+    pasadas.componeD.uniforms[k] = propio.uniforms[k];
+  }
+}
+
 function Scene({ interaction, reduced, formation, sample, visual, lens, journey, espejo, espejoModo, hue = 0, disk = 1, white = 0, onRoto, onPintado, onPreparado, ajusta = false }) {
   const elapsed = useRef(0);
   const rigid = useRef(0);
   const wound = useRef(0);
   const lastFormation = useRef(1);
+  const revelado = useRef({ v: 0 });
   const material = useRef(null);
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
@@ -817,7 +1203,7 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     uText: { value: null }, uCopy: { value: null }, uReveal: { value: 0 },
     // Viaje por la pagina: donde esta el agujero, cuanto se aleja y desde
     // que altura se mira. Lo escribe el scroll (ver Stage.jsx).
-    uCenter: { value: new Vector2() }, uScale: { value: 1 }, uTopDown: { value: 0 }, uIsolation: { value: 0 }, uFaceOn: { value: 0 },
+    uCenter: { value: new Vector2() }, uArco: { value: 1 }, uScale: { value: 1 }, uTopDown: { value: 0 }, uIsolation: { value: 0 }, uFaceOn: { value: 0 },
     uHue: { value: hue }, uDisk: { value: disk }, uWhite: { value: white },
     uCurva: { value: CURVA }, uGrupos: { value: GRUPOS },
   }), []);
@@ -897,8 +1283,21 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     // Ataque rápido para los golpes y caída suave entre notas. La curva
     // amplifica también pistas suaves sin generar movimiento en silencio: sin
     // música el agujero no late, solo gira, que es su movimiento de base.
+    // Reacciona a los GOLPES, no al volumen: cada banda contra su media de
+    // ~1,2 s. Con el nivel a secas una pista siempre fuerte dejaba el disco
+    // "subido" y quieto, y no se leia como musica (Jorge, 27-09-2026: "no veo
+    // notoria la reaccion a la musica"). El nivel queda de fondo, suave.
+    const lento = (visual.current.lento ??= { bass: 0, mid: 0, treble: 0 });
+    const kLento = 1 - Math.exp(-dt / 1.2);
     for (const band of ['bass','mid','treble']) {
-      const target = reduced ? 0 : Math.min(1,Math.pow(Math.max(0,audio[band]-0.010),0.9)*1.25);
+      // Los graves del agujero siguen al BOMBO (40-110 Hz), no a todo el
+      // bajo: el bajo sostenido lo dejaba latiendo a destiempo (Jorge,
+      // 27-09-2026: "que se active con el kick, no tanto con el bajo").
+      const fuente = band === 'bass' ? (audio.kick ?? audio.bass) : audio[band];
+      const a = Math.max(0, fuente - 0.010);
+      lento[band] += (a - lento[band]) * kLento;
+      const golpe = Math.max(0, a - lento[band]);
+      const target = reduced ? 0 : band === 'bass' ? Math.min(1, a * 0.12 + golpe * 7.5) : Math.min(1, a * 0.25 + golpe * 6.0);
       const response = 1-Math.exp(-dt*(target>visual.current[band] ? 32 : 10));
       visual.current[band] += (target-visual.current[band])*response;
     }
@@ -910,7 +1309,11 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     }
     lastFormation.current=live.uFormation.value;
     live.uPower.value += ((interaction.current.down ? 1 : 0)-live.uPower.value)*smooth;
-    const libre = !journey?.current || journey.current.p < 0.01;
+    // Libre mientras el hero esta en pantalla. Con el progreso de la orbita
+    // (p < 0.01) no valia en el telefono: ScrollTrigger mide con la ventana
+    // sin la barra del navegador (791 en vez de 734 px) y arriba del todo ya
+    // daba 0.035, asi que el agujero no seguia al dedo.
+    const libre = !journey?.current || ((journey.current.heroOut ?? 0) < 0.08 && journey.current.p < 0.12);
     live.uPointer.value.lerp(libre ? interaction.current.point : QUIETO, smooth);
     if (!reduced) {
       const step = dt*(1+live.uPower.value*3);
@@ -934,6 +1337,8 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     live.uAspect.value = state.size.width/Math.max(state.size.height,1);
     const trip = journey?.current;
     live.uCenter.value.set(trip?.cx ?? 0, trip?.cy ?? 0);
+    // Telefono en horizontal: sin el arco de escritorio (ver `pull`).
+    live.uArco.value = state.size.height < 500 && state.size.width >= state.size.height * 0.85 ? 0 : 1;
     live.uScale.value = trip?.scale ?? 1;
     live.uTopDown.value = trip?.topDown ?? 0;
     live.uFaceOn.value = trip?.faceOn ? 1 : 0;
@@ -943,8 +1348,14 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     live.uCopy.value = lens.current.copy;
     // El titular lenseado vive pegado al agujero. En cuanto este se despega
     // para irse abajo, el relevo vuelve al DOM (ver `--lens-fade`).
-    live.uReveal.value = (lens.current.title ? 1 : 0) * (trip?.lens ?? 1);
+    // El nombre entra fundiendose (~1,2 s, curva suave), no de golpe (Jorge,
+    // 27-09-2026). El relevo con el scroll (`trip.lens`) sigue siendo directo.
+    const aparece = revelado.current;
+    aparece.v = lens.current.title ? Math.min(1, aparece.v + dt / 1.2) : 0;
+    const suave = aparece.v * aparece.v * (3 - 2 * aparece.v);
+    live.uReveal.value = suave * (trip?.lens ?? 1);
     visual.current.time=elapsed.current;
+    if (import.meta.env.DEV && ajusta) window.__visual = visual.current;
     visual.current.x=live.uPointer.value.x;
     visual.current.y=live.uPointer.value.y;
 
@@ -982,36 +1393,119 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
    * Resolucion que se adapta en el telefono. Cada pixel lanza un rayo de
    * cientos de pasos, asi que el coste va con el area del lienzo.
    *
-   * Empieza en 1 (ver `DPR_MOVIL` abajo): por debajo, el titular, que lo
-   * pinta este shader, se veia pixelado. Cada 20 fotogramas:
-   *   - media por encima del presupuesto movil (33 ms): baja un 15 %, hasta
-   *     0,75, y ya no vuelve a subir (subir y bajar se veria como un
-   *     parpadeo de nitidez);
-   *   - media por debajo de 1/50 s y sin haber bajado nunca: sube 0,25,
-   *     hasta 1,5, para que el titular gane nitidez donde el telefono puede.
+   * Es una escalera (`NIVELES`, solo dpr) y se arranca en 1: por debajo el
+   * titular, que lo pinta este shader, se pixela, asi que se baja de 1 solo
+   * si el telefono no llega. Los pasos no se tocan (ver `NIVELES`).
+   *
+   * Cada 20 fotogramas se mira la media del intervalo entre fotogramas:
+   *   - por encima de 1/40 s: baja un escalon, y ya no vuelve a subir (subir
+   *     y bajar se veria como un parpadeo de nitidez). Con el tope de 30 fps
+   *     de abajo, un telefono que pinta a tiempo sigue dando ~16 ms de
+   *     media: los pintados que no llegan son los que la suben;
+   *   - por debajo de 1/55 s y sin haber bajado nunca: sube, para que el
+   *     titular gane nitidez donde el telefono puede.
    * Se mide desde el fotograma 10 para no contar la compilacion, y no se mide
    * lo que no se pinta (`tapado`).
    */
-  const { setDpr, viewport: { dpr: dprActual } } = useThree();
+  const { setDpr, gl: rendererPartido } = useThree();
+  /**
+   * Modo partido (ver `fragmentTraza`): solo en el telefono y si la GPU sabe
+   * pintar en texturas de media precision. Ahi la escalera ya no mueve el dpr
+   * del lienzo (el titular se queda nitido) sino la resolucion de la traza.
+   * `?entero` lo apaga, para comparar.
+   */
+  const partido = useMemo(() => ajusta && !SIN_PARTIR && rendererPartido.capabilities.isWebGL2
+    && (rendererPartido.extensions.has("EXT_color_buffer_float") || rendererPartido.extensions.has("EXT_color_buffer_half_float")), [ajusta, rendererPartido]);
+  const escalera = partido ? TRAZAS : NIVELES;
+  /**
+   * En modo partido el lienzo sube de densidad: la traza ya no va atada a
+   * ella (se mide en pixeles CSS, ver `pasadas`), y a densidad 1 el titular
+   * salia pixelado en una pantalla de 2,75 (Jorge, 27-09-2026: "se ve muy
+   * pixelado"). Lo que cuesta la subida es solo la composicion.
+   */
+  // La densidad alta la pone el <Canvas> (ver `dprLienzo`); sin modo partido
+  // (una GPU sin texturas de media precision) el trazado entero a esa
+  // densidad seria inviable, y se vuelve a la de siempre.
+  useEffect(() => {
+    if (ajusta && !partido && DPR_PARTIDO !== DPR_MOVIL) setDpr(DPR_MOVIL);
+  }, [ajusta, partido, setDpr]);
   const medida = useRef({ n: 0, t: 0, bajo: false });
-  const dprVivo = useRef(dprActual);
+  const nivel = useRef(partido ? TRAZA_INICIAL : NIVEL_INICIAL);
+  const aplicaNivel = useCallback((i) => {
+    nivel.current = i;
+    if (partido) {
+      if (HUD) HUD.dpr = `1 · traza ${TRAZAS[i]}`;
+      return;
+    }
+    setDpr(NIVELES[i]);
+    if (HUD) HUD.dpr = NIVELES[i];
+  }, [setDpr, partido]);
+  const pasadas = useMemo(() => {
+    if (!partido) return null;
+    const rt = new WebGLRenderTarget(1, 1, { count: 3, type: HalfFloatType, minFilter: LinearFilter, magFilter: LinearFilter, depthBuffer: false });
+    // Sin mezcla: la traza escribe datos (un alfa de -1 incluido), no color.
+    const traza = new ShaderMaterial({ glslVersion: GLSL3, uniforms, vertexShader, fragmentShader: fragmentTraza, blending: NoBlending, depthTest: false, depthWrite: false, toneMapped: false });
+    const compone = new ShaderMaterial({
+      uniforms: { ...uniforms, tColor: { value: rt.textures[0] }, tTexto: { value: rt.textures[1] }, tCielo: { value: rt.textures[2] }, uEsc: { value: new Vector2(1, 1) }, uTexel: { value: new Vector2(1, 1) } },
+      vertexShader, fragmentShader: fragmentCompone, transparent: true, depthTest: false, depthWrite: false, toneMapped: false,
+    });
+    // Diferido (ver COMPONE): con el agujero ya formado. La intro sigue con
+    // el color trazado, que lleva el acabado del SVG del cargador.
+    const rtD = new WebGLRenderTarget(1, 1, { count: 4, type: HalfFloatType, minFilter: LinearFilter, magFilter: LinearFilter, depthBuffer: false });
+    const trazaD = new ShaderMaterial({ glslVersion: GLSL3, uniforms, vertexShader, fragmentShader: fragmentTrazaDiferida, blending: NoBlending, depthTest: false, depthWrite: false, toneMapped: false });
+    // El plasma, a densidad 1 (ver SOMBREA), en su propia textura.
+    const rtS = new WebGLRenderTarget(1, 1, { type: HalfFloatType, minFilter: LinearFilter, magFilter: LinearFilter, depthBuffer: false });
+    const deTraza = () => ({ tA: { value: rtD.textures[0] }, tB: { value: rtD.textures[1] }, tCielo: { value: rtD.textures[2] }, tTexto: { value: rtD.textures[3] }, uEsc: { value: new Vector2(1, 1) }, uTexel: { value: new Vector2(1, 1) } });
+    const sombreaD = new ShaderMaterial({
+      glslVersion: GLSL3, uniforms: { ...uniforms, ...deTraza() },
+      vertexShader, fragmentShader: fragmentSombreaDiferido, blending: NoBlending, depthTest: false, depthWrite: false, toneMapped: false,
+    });
+    const componeD = new ShaderMaterial({
+      glslVersion: GLSL3,
+      uniforms: { ...uniforms, ...deTraza(), tDisco: { value: rtS.texture } },
+      vertexShader, fragmentShader: fragmentComponeDiferido, transparent: true, depthTest: false, depthWrite: false, toneMapped: false,
+    });
+    if (HUD) HUD.dpr = `1 · traza ${TRAZAS[TRAZA_INICIAL]}`;
+    return { rt, traza, compone, rtD, trazaD, rtS, sombreaD, componeD, tam: new Vector2() };
+  }, [partido, uniforms]);
+  useEffect(() => () => {
+    if (!pasadas) return;
+    for (const k of ["rt", "traza", "compone", "rtD", "trazaD", "rtS", "sombreaD", "componeD"]) pasadas[k].dispose();
+  }, [pasadas]);
+  const malla = useRef(null);
   useFrame((_, delta) => {
-    if (!ajusta || !listo.current || pintados.current < 10 || tapadoAhora.current) return;
+    if (!ajusta || CALIDAD_FIJA !== null || !listo.current || pintados.current < 10 || tapadoAhora.current) return;
+    // Con el modo diferido la traza fija va sobrada (el plasma se sombrea
+    // aparte) y bajarla se notaba: un scroll brusco daba unos fotogramas
+    // pesados, la escalera bajaba y no volvia a subir (Jorge, 27-09-2026:
+    // "cuando se sube de golpe el agujero negro pierde calidad").
+    if (partido && !SIN_DIFERIR) return;
     const m = medida.current;
     m.n++; m.t += Math.min(delta, 0.25);
     if (m.n < 20) return;
     const media = m.t / m.n;
-    m.n = 0; m.t = 0;
-    if (media > PRESUPUESTO.fotogramaMs.movil / 1000 && dprVivo.current > 0.75) {
+    // Con fotogramas saltados por el tope de 30 fps, una media baja no
+    // demuestra que sobre GPU: solo se sube con la ventana pintada entera.
+    const entera = !m.salto;
+    m.n = 0; m.t = 0; m.salto = false;
+    // Partido: se mide con el agujero quieto (el escalon que se ajusta es el
+    // de reposo) y basta con ~20 fps, que para un disco que gira despacio es
+    // fluido; moviendose ya va dos escalones mas abajo.
+    const lento = partido ? 1 / 20 : 1 / 40;
+    if (partido && ahoraMs() - (ultimo.current.mov ?? 0) < 1000) return;
+    if (media > lento && nivel.current < escalera.length - 1) {
       m.bajo = true;
-      dprVivo.current = Math.max(0.75, dprVivo.current * 0.85);
-      setDpr(dprVivo.current);
-    } else if (!m.bajo && media < 1 / 50 && dprVivo.current < PRESUPUESTO.dprMovilMax) {
-      dprVivo.current = Math.min(PRESUPUESTO.dprMovilMax, dprVivo.current + 0.25);
-      setDpr(dprVivo.current);
+      aplicaNivel(nivel.current + 1);
+    } else if (!m.bajo && entera && media < 1 / 55 && nivel.current > 0) {
+      aplicaNivel(nivel.current - 1);
     }
   });
+  useEffect(() => {
+    if (ajusta && CALIDAD_FIJA !== null) aplicaNivel(Math.min(CALIDAD_FIJA, escalera.length - 1));
+  }, [ajusta, aplicaNivel, escalera]);
   const tapadoAhora = useRef(false);
+  // Para el tope de 30 fps: lo ultimo que se pinto y cuando.
+  const ultimo = useRef({ t: 0, firma: "" });
 
   /**
    * Compilar sin congelar la pagina. Este shader tarda 0,5-3 s en compilar en
@@ -1027,10 +1521,31 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
   useEffect(() => {
     let vivo = true;
     const hecho = () => { if (vivo) listo.current = true; };
-    if (renderer.compileAsync) renderer.compileAsync(escena, camara).then(hecho, hecho);
-    else hecho();
+    if (!renderer.compileAsync) { hecho(); return () => { vivo = false; }; }
+    const tareas = [renderer.compileAsync(escena, camara)];
+    /**
+     * Y los materiales del modo partido, todos, ya. Se compilaban la primera
+     * vez que se usaban, y el diferido se estrena justo al terminar de
+     * formarse el agujero: un fotograma de 1,7 s congelado entre la cinta y
+     * el titular (Redmi, 27-09-2026). Cada traza se compila contra SU
+     * objetivo (three guarda el programa segun donde se pinta) y con los
+     * uniforms ya enlazados (ver `enlazar`): cambiarlos despues de compilar
+     * los dejaria sin efecto.
+     */
+    const m = malla.current;
+    if (pasadas && m) {
+      enlazar(pasadas, m.material);
+      const sola = (mat) => { const sc = new Escena3D(); const o = new Mesh(m.geometry, mat); o.frustumCulled = false; sc.add(o); return sc; };
+      const antes = renderer.getRenderTarget();
+      for (const [mat, rt] of [[pasadas.traza, pasadas.rt], [pasadas.trazaD, pasadas.rtD], [pasadas.sombreaD, pasadas.rtS], [pasadas.compone, null], [pasadas.componeD, null]]) {
+        renderer.setRenderTarget(rt);
+        tareas.push(renderer.compileAsync(sola(mat), camara));
+      }
+      renderer.setRenderTarget(antes);
+    }
+    Promise.all(tareas).then(hecho, hecho);
     return () => { vivo = false; };
-  }, [renderer, escena, camara]);
+  }, [renderer, escena, camara, pasadas]);
 
   // Con prioridad 1 r3f deja de pintar solo: pinta este callback, en todos
   // los lienzos del agujero. Ademas de esperar al shader, se salta el render
@@ -1053,8 +1568,93 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     // telefono eso eran ~230 ms de la transicion (perfilado, CPU a 4x).
     // Asi se hace con el cargador delante y cuenta en su porcentaje.
     if (tapado && pintados.current > 5) return;
+    /**
+     * Tope de 30 fps en el telefono, pero solo con el agujero QUIETO en la
+     * pagina (girando sin mas). El disco gira despacio y a 30 fps se ve igual
+     * de suave; es la mitad de rayos por segundo, y menos calor, que es lo que
+     * acaba bajando el reloj de la GPU a los pocos minutos. Mientras el scroll
+     * lo mueve (centro, escala, inclinacion) o se toca, pinta a tope: ahi es
+     * donde 30 fps se notarian como tirones contra la pagina.
+     */
+    const u = ultimo.current;
+    if (ajusta && pintados.current > 6) {
+      const v = material.current?.uniforms;
+      const firma = v ? `${v.uCenter.value.x.toFixed(3)}|${v.uCenter.value.y.toFixed(3)}|${v.uScale.value.toFixed(3)}|${v.uTopDown.value.toFixed(3)}|${v.uPower.value > 0.01}` : "";
+      const ahora = ahoraMs();
+      // El scroll de la pagina tambien es movimiento para la resolucion de
+      // la traza, aunque el agujero no cambie (el hero, fijo, mientras sube
+      // el texto): con la traza alta ahi, el scroll iba a ~21 fps.
+      const pagina = Math.round(window.scrollY);
+      if (pagina !== u.pagina) { u.pagina = pagina; u.mov = ahora; }
+      if (firma === u.firma && ahora - u.t < 30) { medida.current.salto = true; return; }
+      if (firma !== u.firma) u.mov = ahora;
+      u.firma = firma;
+      u.t = ahora;
+    }
     pintados.current++;
-    gl.render(scene, camera);
+    const m = malla.current;
+    if (pasadas && m) {
+      const { tam } = pasadas;
+      gl.getDrawingBufferSize(tam);
+      // La textura mide lo del escalon mas alto y se pinta solo una parte
+      // (su `viewport`): cambiar de escalon no reserva memoria.
+      // En la intro, el escalon mas alto: el ∞ del shader releva al del SVG
+      // del cargador y no puede verse mas blando que el (Jorge: "no debe
+      // notarse el cambio"). Dura un par de segundos.
+      const intro = (m.material.uniforms.uFormation?.value ?? 1) < 0.999;
+      // Sin bajar al moverse: el salto de resolucion al empezar y al acabar
+      // el scroll se veia como un desenfoque y un reenfoque (Jorge,
+      // 27-09-2026: "se ve como si se desenfocara").
+      const real = !intro && !SIN_DIFERIR;
+      // Calentamiento: el primer fotograma (con el cargador delante) pinta
+      // tambien el diferido entero, para que sus texturas y framebuffers de
+      // varias salidas existan ya. Si no, se creaban al terminar de formarse
+      // el agujero: un tiron de ~0,5 s aun con los shaders compilados.
+      const modos = !pasadas.calentado && !real && !SIN_DIFERIR ? [true, false] : [real];
+      pasadas.calentado = true;
+      for (const diferido of modos) {
+      const i = diferido ? nivel.current : intro ? TRAZAS.indexOf(0.75) : nivel.current;
+      const rt = diferido ? pasadas.rtD : pasadas.rt;
+      const traza = diferido ? pasadas.trazaD : pasadas.traza;
+      const compone = diferido ? pasadas.componeD : pasadas.compone;
+      const f = TRAZAS[i] ?? TRAZAS[TRAZA_INICIAL];
+      // Las fracciones de TRAZAS son de pixeles CSS, no del lienzo, que va a
+      // DPR_PARTIDO: la traza cuesta lo mismo suba o no la densidad.
+      const css = 1 / Math.max(1, gl.getPixelRatio());
+      const W = Math.max(1, Math.round(tam.x * TRAZAS[0] * css)), H = Math.max(1, Math.round(tam.y * TRAZAS[0] * css));
+      if (rt.width !== W || rt.height !== H) rt.setSize(W, H);
+      const w = Math.min(W, Math.max(1, Math.round(tam.x * f * css))), h = Math.min(H, Math.max(1, Math.round(tam.y * f * css)));
+      rt.viewport.set(0, 0, w, h);
+      compone.uniforms.uEsc.value.set(w / W, h / H);
+      compone.uniforms.uTexel.value.set(1 / W, 1 / H);
+      const propio = m.material;
+      // r3f COPIA los uniforms al crear su material: los de `uniforms` se
+      // quedaban en sus valores iniciales (la traza pintaba el ∞ de la intro
+      // para siempre). Se enlazan una vez a los que r3f actualiza de verdad,
+      // antes del primer pintado, que es cuando three los fija al programa.
+      enlazar(pasadas, propio);
+      m.material = traza;
+      gl.setRenderTarget(rt);
+      gl.render(scene, camera);
+      if (diferido) {
+        const { rtS, sombreaD } = pasadas;
+        const sw = Math.max(1, Math.round(tam.x * css)), sh = Math.max(1, Math.round(tam.y * css));
+        if (rtS.width !== sw || rtS.height !== sh) rtS.setSize(sw, sh);
+        sombreaD.uniforms.uEsc.value.copy(compone.uniforms.uEsc.value);
+        sombreaD.uniforms.uTexel.value.copy(compone.uniforms.uTexel.value);
+        m.material = sombreaD;
+        gl.setRenderTarget(rtS);
+        gl.render(scene, camera);
+      }
+      m.material = compone;
+      gl.setRenderTarget(null);
+      gl.render(scene, camera);
+      m.material = propio;
+      }
+    } else {
+      gl.render(scene, camera);
+    }
+    if (HUD && ajusta) HUD.pintados++;
     // Compilado y con dos fotogramas hechos: ya se puede ENSENAR. Lo espera
     // el cargador antes de arrancar la transformacion (`onPintado` no vale
     // para eso: con el lienzo oculto no se pasa de dos fotogramas).
@@ -1080,7 +1680,7 @@ function Scene({ interaction, reduced, formation, sample, visual, lens, journey,
     }
   }, 1);
 
-  return <mesh frustumCulled={false}><planeGeometry args={[2,2]} /><shaderMaterial
+  return <mesh ref={malla} frustumCulled={false}><planeGeometry args={[2,2]} /><shaderMaterial
     ref={material} uniforms={uniforms} vertexShader={vertexShader} fragmentShader={fragmentShader}
     transparent depthTest={false} depthWrite={false} toneMapped={false}
   /></mesh>;
@@ -1096,6 +1696,67 @@ const AMBAR = 25;
 // Densidad inicial en el telefono. A 0,75 el titular (que lo pinta este
 // shader) salia pixelado; 1 es el suelo. Sube sola si sobra (ver `ajusta`).
 const DPR_MOVIL = PRESUPUESTO.dprMovil;
+// Densidad del lienzo en modo partido (ver Scene). `?dprp=N` para medir.
+const DPR_PARTIDO = (() => {
+  const m = typeof location === "undefined" ? null : /[?&]dprp=([0-9.]+)/.exec(location.search);
+  const base = m ? Number(m[1]) : 2;
+  return Math.min(base, typeof devicePixelRatio === "number" ? Math.max(1, devicePixelRatio) : 1);
+})();
+
+/**
+ * Escalera de resolucion del telefono (dpr). Se arranca en `NIVEL_INICIAL`
+ * (1) y `ajusta` sube o baja de uno en uno.
+ *
+ * Los pasos por rayo NO se tocan. Se probo a bajarlos (100, 84) antes que la
+ * resolucion y la imagen del disco que se ve por DEBAJO de la sombra salia
+ * cortada a franjas (Jorge, 27-09-2026): esos rayos pasan por debajo del
+ * agujero y vuelven, son los mas largos de todos, y se quedaban sin pasos
+ * antes de volver a cruzar el disco.
+ */
+const NIVELES = [PRESUPUESTO.dprMovilMax, 1.25, DPR_MOVIL, 0.9, 0.8, 0.75];
+const NIVEL_INICIAL = 2;
+
+/**
+ * Escalera del modo partido: fraccion de la resolucion del lienzo a la que
+ * se traza. El titular no depende de ella (se compone a resolucion completa),
+ * asi que puede bajar mucho mas que el dpr.
+ */
+const TRAZAS = [1, 0.75, 0.6, 0.5, 0.42, 0.35];
+// 0,75 en reposo: con el disco sombreado a resolucion completa (modo
+// diferido) no se distingue de 1 y va mas fluido (Redmi Note 13: 35 frente
+// a 30 fps de pagina, 27-09-2026).
+const TRAZA_INICIAL = 1;
+
+/**
+ * `?fps` en la URL: un contador encima de la pagina con los fotogramas que
+ * pinta de verdad el agujero del hero, la resolucion y los pasos. Es para
+ * medir en el telefono, donde no hay herramientas de desarrollo a mano.
+ * `?calidad=N` fija un escalon de `NIVELES` y apaga el ajuste, para comparar.
+ */
+const busqueda = typeof location === "undefined" ? "" : location.search;
+const HUD = /[?&]fps(=|&|$)/.test(busqueda) ? { pintados: 0, dpr: NIVELES[NIVEL_INICIAL] } : null;
+const SIN_PARTIR = /[?&]entero(=|&|$)/.test(busqueda);
+// `?sin-diferir`: el modo partido con el color trazado, para comparar.
+const SIN_DIFERIR = /[?&]sin-diferir(=|&|$)/.test(busqueda);
+const CALIDAD_FIJA = (() => {
+  const m = /[?&]calidad=(\d+)/.exec(busqueda);
+  return m ? Number(m[1]) : null;
+})();
+if (HUD && typeof document !== "undefined") {
+  const caja = document.createElement("div");
+  caja.style.cssText = "position:fixed;left:8px;top:8px;z-index:9999;padding:6px 9px;border-radius:6px;background:rgba(0,0,0,.72);color:#9f9;font:600 12px/1.35 ui-monospace,monospace;pointer-events:none;white-space:pre";
+  const pintar = () => { if (!caja.isConnected) document.body.append(caja); };
+  let antes = performance.now();
+  setInterval(() => {
+    pintar();
+    const ahora = performance.now();
+    const fps = (HUD.pintados * 1000) / (ahora - antes);
+    antes = ahora;
+    HUD.pintados = 0;
+    caja.textContent = `agujero ${fps.toFixed(0)} fps
+dpr ${HUD.dpr}  pasos ${PASOS}${CALIDAD_FIJA !== null ? "  (fijo)" : ""}`;
+  }, 1000);
+}
 // La GPU de alto consumo solo donde hay de donde tirar: en un telefono pedirla
 // no da mas GPU, da mas calor y mas bateria.
 const GL_OPCIONES = { antialias: false, alpha: true, powerPreference: perfil.movil ? "default" : "high-performance" };
@@ -1150,7 +1811,7 @@ export default function BlackHole({ bare = false, className = "", formation, jou
   // `ajusta` en Scene). Son muchos pixeles por rayo en una GPU de movil, y la
   // densidad de la pantalla ya disimula la diferencia.
   const movil = perfil.movil;
-  const dprLienzo = dpr ?? (movil ? DPR_MOVIL : [1, 1.25]);
+  const dprLienzo = dpr ?? (movil && !SIN_PARTIR ? DPR_PARTIDO : movil ? DPR_MOVIL : [1, 1.25]);
   const rotoRef = useRef(false);
   rotoRef.current = roto;
   const romper = useCallback((motivo = "lienzo roto") => {
@@ -1286,17 +1947,83 @@ export default function BlackHole({ bare = false, className = "", formation, jou
   },[lensSource,lensFrame,onLensReady,lang]);
 
   const reset = () => { interaction.current.down = false; interaction.current.point.set(0,0); };
+  /**
+   * El dedo mueve el agujero del hero. Con raton lo lleva el puntero sobre el
+   * lienzo (abajo), pero en tactil el gesto vertical es del scroll: el
+   * navegador cancela el puntero en cuanto el dedo baja y el agujero no se
+   * movia (Jorge, 27-09-2026: "el agujero en celular no se puede mover"). Se
+   * escucha el dedo en toda la pagina, sin bloquear nada (pasivo): el
+   * agujero va hacia donde esta el dedo, el disco acelera mientras se toca y
+   * al soltar vuelve suave a su sitio. Solo en el hero (el Scene deja de
+   * seguir el puntero en cuanto el agujero empieza a viajar) y no desde la
+   * barra de arriba.
+   */
+  useEffect(() => {
+    if (!movil || dpr !== undefined) return undefined;
+    const fuera = (e) => e.target?.closest?.(".nav, .music-player, .offline");
+    const mover = (e) => {
+      const t = e.touches?.[0];
+      const el = root.current;
+      if (!activo || !t || !el) return;
+      // Arrastrando el agujero la pagina no se mueve (Jorge, 27-09-2026: "al
+      // mover el agujero con el dedo se activa el scroll"). Solo si el toque
+      // empezo sobre el: desde el texto o el cielo, el dedo desplaza.
+      if (e.cancelable && e.type === "touchmove") e.preventDefault();
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      const x = Math.max(-1, Math.min(1, ((t.clientX - r.left) / r.width) * 2 - 1));
+      const y = Math.max(-1, Math.min(1, 1 - ((t.clientY - r.top) / r.height) * 2));
+      interaction.current.point.set(x, y);
+    };
+    // Solo cuenta un toque que EMPIEZA sobre el agujero: entre lo alto del
+    // nombre y el texto de abajo. Tocar bajo "Scroll" tambien lo agarraba
+    // (Jorge, 27-09-2026); ahi el dedo solo desplaza.
+    let activo = false;
+    const sobreAgujero = (t) => {
+      const titulo = document.querySelector(".hero--singularity .hero__title")?.getBoundingClientRect();
+      const pie = document.querySelector(".hero--singularity .hero__meta")?.getBoundingClientRect();
+      if (!titulo || !pie) return false;
+      return t.clientY >= titulo.top - 60 && t.clientY <= pie.top;
+    };
+    const inicio = (e) => {
+      const t = e.touches?.[0];
+      activo = Boolean(t) && !fuera(e) && sobreAgujero(t);
+      if (!activo) return;
+      mover(e);
+      interaction.current.down = true;
+    };
+    const fin = () => { activo = false; interaction.current.down = false; interaction.current.point.set(0, 0); };
+    const op = { passive: true, capture: true };
+    // `passive: false` solo en el movimiento: es lo que deja cancelar el
+    // scroll mientras se arrastra el agujero.
+    const opMover = { passive: false, capture: true };
+    document.addEventListener("touchstart", inicio, op);
+    document.addEventListener("touchmove", mover, opMover);
+    document.addEventListener("touchend", fin, op);
+    document.addEventListener("touchcancel", fin, op);
+    return () => {
+      document.removeEventListener("touchstart", inicio, op);
+      document.removeEventListener("touchmove", mover, opMover);
+      document.removeEventListener("touchend", fin, op);
+      document.removeEventListener("touchcancel", fin, op);
+    };
+  }, [movil, dpr]);
   return <div ref={root} className={`blackhole ${bare ? "blackhole--bare" : ""} ${className}`}>
     {/* Decorativo: pulsarlo acelera el disco, pero no es una accion. Sin
         `role="button"` ni foco, que anunciaban un boton que no hace nada y
         metian una parada de teclado en la primera pantalla. */}
     <div className="blackhole__surface" aria-hidden="true"
       onPointerMove={(e) => {
+        // El dedo lo lleva el efecto de arriba, solo sobre el agujero; aqui
+        // cualquier toque del lienzo (que cubre la pantalla entera) lo
+        // agarraba, tambien bajo "Scroll".
+        if (e.pointerType === "touch") return;
         const r=e.currentTarget.getBoundingClientRect();
         interaction.current.point.set((e.clientX-r.left)/r.width*2-1,1-(e.clientY-r.top)/r.height*2);
       }}
-      onPointerDown={(e) => { if(e.button !== 0) return; interaction.current.down=true; e.currentTarget.setPointerCapture(e.pointerId); }}
-      onPointerUp={reset} onPointerCancel={reset} onLostPointerCapture={reset} onPointerLeave={reset}
+      onPointerDown={(e) => { if(e.button !== 0 || e.pointerType === "touch") return; interaction.current.down=true; e.currentTarget.setPointerCapture(e.pointerId); }}
+      onPointerUp={(e) => { if (e.pointerType !== "touch") reset(); }} onPointerCancel={(e) => { if (e.pointerType !== "touch") reset(); }}
+      onLostPointerCapture={(e) => { if (e.pointerType !== "touch") reset(); }} onPointerLeave={(e) => { if (e.pointerType !== "touch") reset(); }}
     >
       {/* `scroll: false` no es un detalle de rendimiento. react-use-measure
           vuelve a medir la caja TRANSFORMADA en cada desplazamiento, y
@@ -1311,7 +2038,7 @@ export default function BlackHole({ bare = false, className = "", formation, jou
         gl={GL_OPCIONES}
         onCreated={({ gl }) => { gl.setClearColor(0x000000, 0); revisarRenderer(gl.getContext()); }}
         fallback={<div className="blackhole__fallback" />}>
-        <Scene interaction={interaction} reduced={reduced} formation={formation} journey={journey} sample={sample} visual={visual} lens={lens} espejo={espejo} espejoModo={espejoModo} hue={hueOf(tint)} disk={disk} white={white} onRoto={romper} onPintado={onPintado} onPreparado={onPreparado} ajusta={movil && dpr === undefined} />
+        <Scene interaction={interaction} reduced={reduced} formation={formation} journey={journey} sample={sample} visual={visual} lens={lens} espejo={espejo} espejoModo={espejoModo} hue={hueOf(tint)} disk={disk} white={white} onRoto={romper} onPintado={onPintado} onPreparado={onPreparado} ajusta={(movil || CALIDAD_FIJA !== null) && dpr === undefined} />
       </Canvas></SceneBoundary>}
     </div>
   </div>;

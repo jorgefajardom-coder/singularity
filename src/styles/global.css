@@ -769,7 +769,18 @@ body.is-locked {
   /* El titular arranca SIEMPRE por debajo de la barra y con aire: el maximo
      garantiza el hueco minimo aunque la pantalla sea muy baja, y en pantallas
      altas manda el 19vh, que lo baja mas. */
-  padding-top: max(calc(var(--nav-h) + var(--nav-gap)), 23vh);
+  /* Con MARGEN AUN CON EL PEOR GOLPE DE MUSICA (Jorge, 27-09-2026). El nombre
+     que se ve es el de la lente, que asoma por encima de esta caja, y un golpe
+     a tope lo sube mas: con 23vh se metia bajo la barra (1536x639: -31 px).
+     Lo que asoma crece con el agujero (el alto) y mengua cuanto mayor es la
+     letra respecto a el; medido con el peor golpe en 1536x639 y 1920x1080 y
+     comprobado en 1366x768 y 1280x720: 18,06svh - 0,29 letras. Mas la barra
+     (78 + 7) y 24 px de aire. El agujero baja con el titular (heroBase lo
+     mide), asi que la lente lo deforma igual. Solo en apaisado (regla de mas
+     abajo): en vertical la camara se aleja y la cuenta no vale; ahi basta
+     25vh (768x1024: 34 px con el peor golpe; con 23vh, 14). */
+  --titulo: clamp(42px, min(7vw, 12.8svh), 112px);
+  padding-top: max(calc(var(--nav-h) + var(--nav-gap)), 25vh);
   padding-bottom: clamp(28px, 5vh, 64px);
   /* El puntero atraviesa el texto hasta el agujero: es lo que permite moverlo
      por toda la pantalla. Lo que sí se pulsa vuelve a capturarlo (regla de
@@ -779,7 +790,7 @@ body.is-locked {
 
 .hero--singularity .hero__title {
   text-align: center;
-  font-size: clamp(42px, min(7vw, 12.8svh), 112px);
+  font-size: var(--titulo);
   /* Halo cálido: el texto se funde con el disco en vez de taparlo. */
   text-shadow:
     0 0 26px rgba(8, 7, 10, 0.92),
@@ -832,7 +843,16 @@ body.is-locked {
 }
 
 @media (max-width: 720px) {
-  .hero--singularity .hero__title { font-size: clamp(42px, min(11.2vw, 13.6svh), 80px); }
+  .hero--singularity .hero__inner { --titulo: clamp(42px, min(11.2vw, 13.6svh), 80px); }
+}
+
+/* Apaisado (el mismo umbral que heroBase, 0,85): el relleno que deja margen
+   con el peor golpe (ver arriba). Un telefono en horizontal no: en 390 de alto
+   bajaba el titular 52 px y ahi ya tenia margen (47 px). */
+@media (min-aspect-ratio: 17/20) and (min-height: 500px) {
+  .hero--singularity .hero__inner {
+    padding-top: max(calc(var(--nav-h) + var(--nav-gap)), calc(var(--nav-h) + 31px + 18.06svh - 0.29 * var(--titulo)));
+  }
 }
 
 .music-player {
@@ -2837,13 +2857,13 @@ body.is-anchored .about__float {
   height: 14px;
 }
 
-/* La postal ilustrada (Colombia): la siguiente carta tapa su tercio derecho,
-   justo donde va el oso. Ampliada desde la derecha, el oso cae en la parte
-   que queda a la vista. */
+/* La postal ilustrada (Colombia), a su escala. Iba ampliada un 18 % desde
+   abajo a la derecha, para sacar al oso de debajo de la carta vecina, y eso
+   cortaba el sello "CO" por arriba y por la derecha (Jorge, 27-09-2026:
+   "la tarjeta esta mal escalada"). Con el abanico de ahora la carta asoma
+   entera y el oso cae en el centro. */
 .footer__postal img.poster__vector {
   object-fit: cover;
-  transform: scale(1.18);
-  transform-origin: 100% 78%;
 }
 
 .footer__foto canvas {
@@ -3141,6 +3161,14 @@ body.is-anchored .about__float {
   min-width: calc(var(--control) - 8px);
 }
 
+/* Dos toques seguidos (silenciar y volver) el telefono los leia como doble
+   toque para ampliar y el segundo no llegaba al boton. `manipulation` deja
+   el zoom con dos dedos y quita el de doble toque solo aqui. */
+.nav button,
+.nav a {
+  touch-action: manipulation;
+}
+
 .nav__contacto-icono { display: none; }
 
 /* ------------------------------------------------------------
@@ -3174,9 +3202,31 @@ body.is-anchored .about__float {
   }
 
   .nav__controls .music-player__track,
-  .nav__controls .music-player__mute,
+  .nav__controls .music-player button.music-player__mute,
   .nav__controls .music-player button {
     padding-inline: 8px;
+  }
+
+  /* Silenciar y pausar median 34 x 32 px, pegados: muchos toques caian en el
+     hueco o en el vecino y "no silenciaba" (Jorge, 27-09-2026). Mas anchos,
+     y la zona tactil crece por arriba y por abajo con un `::after` que no
+     mueve la maqueta (a los lados no, pisaria al vecino). */
+  .nav__controls .music-player button.music-player__mute,
+  .nav__controls .music-player__bar > button:nth-child(2) {
+    position: relative;
+  }
+  .nav__controls .music-player button.music-player__mute::after,
+  .nav__controls .music-player__bar > button:nth-child(2)::after {
+    content: "";
+    position: absolute;
+    inset: -8px 0;
+  }
+  /* A 320 px no caben 8 px mas por boton: el sobre de contacto se salia. */
+  @media (min-width: 360px) {
+    .nav__controls .music-player button.music-player__mute,
+    .nav__controls .music-player__bar > button:nth-child(2) {
+      min-width: 42px;
+    }
   }
 
   .nav__controls .music-player__icon {
@@ -4767,4 +4817,130 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .footer__firma.is-plegable > .poster { transition: none; }
+}
+
+/* ============================================================
+   Sin conexion (SinConexion.jsx)
+   ------------------------------------------------------------
+   Por encima de todo, incluido el cargador y la musica: sin red lo de
+   debajo no puede terminar de cargar. El fondo deja ver el sitio apagado
+   para que se lea como una pausa, no como otra pagina.
+   ============================================================ */
+.offline {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: rgba(8, 7, 10, 0.86);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: var(--text);
+  animation: offline-in 0.5s var(--ease) both;
+}
+
+.offline__card {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  width: min(440px, 100%);
+  text-align: center;
+}
+
+/* Un agujero apagado: el mismo aro naranja del hero, sin disco, que late
+   despacio como buscando senal. */
+.offline__hole {
+  position: relative;
+  width: 96px;
+  aspect-ratio: 1;
+  margin-bottom: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #000 52%, rgba(255, 106, 18, 0.55) 58%, rgba(219, 50, 8, 0.18) 66%, transparent 72%);
+  filter: saturate(0.6);
+}
+.offline__hole > span {
+  position: absolute;
+  inset: -18px;
+  border: 1px solid var(--accent-b);
+  border-radius: 50%;
+  opacity: 0;
+  animation: offline-ping 2.4s var(--ease) infinite;
+}
+
+.offline__eyebrow {
+  margin: 0;
+  color: var(--accent-a);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.offline__title {
+  margin: 0;
+  font-size: clamp(30px, 7vw, 44px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.offline__text {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.offline__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px 18px;
+  margin-top: 10px;
+}
+.offline .btn[disabled] { opacity: 0.6; cursor: progress; }
+.offline__skip {
+  padding: 10px 4px;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+.offline__skip:hover { color: var(--text); }
+
+.offline-toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 200;
+  margin: 0;
+  padding: 10px 18px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  translate: -50% 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s var(--ease), translate 0.4s var(--ease);
+}
+.offline-toast[data-show="true"] { opacity: 1; translate: -50% 0; }
+.offline-toast:empty { padding: 0; border: 0; }
+
+body.is-offline { overflow: hidden; }
+
+@keyframes offline-in { from { opacity: 0; } }
+@keyframes offline-ping {
+  0% { opacity: 0.8; transform: scale(0.7); }
+  100% { opacity: 0; transform: scale(1.35); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .offline { animation: none; }
+  .offline__hole > span { animation: none; opacity: 0.4; }
 }

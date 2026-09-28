@@ -160,12 +160,28 @@ function Subject({ area }) {
   }
 }
 
+/**
+ * Cielo de los lados. En el telefono la caja del arte no es cuadrada: su alto
+ * tiene tope (`.poster__arte`, `100svh - 452px`) y con la barra del navegador
+ * queda mas baja que ancha (286 x 215 en 375 x 667). El cuadrado del viewBox
+ * se encoge al centro y a los lados quedaban dos franjas lisas, sin fondo ni
+ * estrellas: el cielo "no llenaba el marco de la carta" (Jorge, 27-09-2026).
+ * Un SVG pinta tambien lo que cae fuera de su viewBox si esta dentro de su
+ * caja, asi que el fondo y estas estrellas se extienden 150 unidades a cada
+ * lado. Donde la caja es cuadrada (escritorio) no asoman.
+ */
+const LADOS = Array.from({ length: 54 }, (_, i) => {
+  const x = ((i * 73 + 13) % 150);
+  return { cx: i % 2 ? 300 + x : -150 + x, cy: (i * 47 + 19) % 300, r: i % 4 === 0 ? 1.4 : .6 };
+});
+
 export default function StackArt({ area }) {
   return <svg className="poster__vector" viewBox="0 0 300 300" fill="none" stroke={paper} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <rect width="300" height="300" fill={ink} stroke="none" />
+    <rect x="-150" width="600" height="300" fill={ink} stroke="none" />
     <circle cx="255" cy="28" r="69" fill={ember} opacity=".25" stroke="none" />
     <ellipse cx="150" cy="156" rx="143" ry="92" transform="rotate(-35 150 156)" stroke={orange} opacity=".4" />
     {Array.from({length: 54}, (_,i) => <circle key={i} cx={(i * 73 + 13) % 300} cy={(i * 47 + 19) % 300} r={i%4===0 ? 1.4 : .6} fill={paper} stroke="none" opacity=".6" />)}
+    {LADOS.map((s, i) => <circle key={`l${i}`} cx={s.cx} cy={s.cy} r={s.r} fill={paper} stroke="none" opacity=".6" />)}
     <Subject area={area} />
   </svg>;
 }

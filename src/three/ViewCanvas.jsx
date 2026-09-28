@@ -116,7 +116,7 @@ function Vigilar() {
 }
 
 export default function ViewCanvas({ eventSource }) {
-  const { visibles } = useVistas();
+  const { visibles, nitidas } = useVistas();
   const activo = visibles > 0;
   // En el telefono: densidad 1 como maximo, sin antialias (a esa densidad de
   // pantalla apenas se nota y es el doble de muestras) y la GPU por defecto,
@@ -134,7 +134,11 @@ export default function ViewCanvas({ eventSource }) {
       style={CANVAS_STYLE}
       eventSource={eventSource}
       eventPrefix="client"
-      dpr={movil ? [1, PRESUPUESTO.dprMovil] : [1, 2]}
+      // En el telefono, densidad 1 salvo con la celda en pantalla (ver
+      // `nitidas` en lib/vistas.js): se veia pixelada (Jorge, 27-09-2026). El
+      // lienzo pinta solo el hueco de cada vista, asi que el coste extra es
+      // el del visor y solo mientras se ve.
+      dpr={movil ? Math.min(window.devicePixelRatio || 1, nitidas > 0 ? PRESUPUESTO.dprMovilMax : PRESUPUESTO.dprMovil) : [1, 2]}
       frameloop="never"
       gl={opciones.current}
       camera={{ fov: 35, position: [0, 0, 6] }}

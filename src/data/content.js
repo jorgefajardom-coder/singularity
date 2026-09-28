@@ -180,6 +180,17 @@ export const ui = {
   tabsLabel: t("Qué ver", "What to show"),
   videoNote: t("Vídeo en YouTube", "Video on YouTube"),
 
+  // Pantalla de sin conexion (ver SinConexion.jsx)
+  offline: {
+    eyebrow: t("Señal perdida", "Signal lost"),
+    title: t("Sin conexión", "You're offline"),
+    text: t("Lo que ya cargó sigue aquí, pero los modelos 3D, las imágenes pendientes y el formulario necesitan Internet.", "What already loaded is still here, but the 3D models, pending images and the form need the Internet."),
+    retry: t("Reintentar", "Try again"),
+    checking: t("Comprobando…", "Checking…"),
+    dismiss: t("Seguir sin conexión", "Continue offline"),
+    back: t("Conexión recuperada", "Back online"),
+  },
+
   // Reproductor de música
   player: {
     label: t("Música", "Music"),

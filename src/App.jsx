@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // El stack 3D (three + r3f, 1,16 MB) se carga aparte. Si se importa de forma
 // estatica, el navegador tiene que parsearlo entero ANTES de poder pintar el
@@ -16,6 +16,7 @@ import Contact from "./components/Contact";
 import Footer from "./components/Footer";
 import Loader from "./components/Loader";
 import Aislado from "./components/Aislado";
+import SinConexion from "./components/SinConexion";
 import { LangProvider } from "./lib/i18n";
 import { MusicProvider } from "./lib/music";
 import { marcarIntroTerminada, useTrasIntro } from "./lib/arranque";
@@ -134,6 +135,21 @@ export default function App() {
   // la transformacion mas que por el analisis de cada fotograma.
   const musica = entered || introGone;
 
+  // Lo que no depende de la intro, memorizado: pulsar la cinta (`entered`)
+  // re-renderizaba la pagina entera en el mismo fotograma del toque, y eso es
+  // lo que se espera antes de que empiece la transformacion (Jorge,
+  // 28-09-2026). Con el idioma nuevo se re-renderiza igual (van por contexto).
+  const barra = useMemo(() => <Aislado nombre="la barra"><Nav /></Aislado>, []);
+  const secciones = useMemo(() => (
+    <>
+      <Aislado nombre="Areas"><Services /></Aislado>
+      <Aislado nombre="Proyectos"><Projects /></Aislado>
+      <Aislado nombre="Formacion"><Certifications /></Aislado>
+      <Aislado nombre="Contacto"><Contact /></Aislado>
+    </>
+  ), []);
+  const pie = useMemo(() => <Aislado nombre="el pie"><Footer /></Aislado>, []);
+
   return (
     <LangProvider>
       <MusicProvider active={musica}>
@@ -142,24 +158,22 @@ export default function App() {
       <Starfield />
 
       <div ref={root} inert={!entered}>
-        <Aislado nombre="la barra"><Nav /></Aislado>
+        {barra}
 
         <main>
           {/* Hero y orbita comparten un solo agujero negro, que viaja de uno
               a otra con el scroll. */}
           <Aislado nombre="el hero"><Stage entered={entered} revelar={revelar || introGone} warm={warm} espejo={espejo} onListo={marcarHeroListo} /></Aislado>
-          <Aislado nombre="Areas"><Services /></Aislado>
-          <Aislado nombre="Proyectos"><Projects /></Aislado>
-          <Aislado nombre="Formacion"><Certifications /></Aislado>
-          <Aislado nombre="Contacto"><Contact /></Aislado>
+          {secciones}
         </main>
 
-        <Aislado nombre="el pie"><Footer /></Aislado>
+        {pie}
       </div>
 
       {/* Canvas único para todas las vistas 3D. Va al final para que
           `root.current` ya exista cuando se monte. */}
       <Lienzo3D eventSource={root} />
+      <Aislado nombre="el aviso de conexion"><SinConexion /></Aislado>
       </MusicProvider>
     </LangProvider>
   );

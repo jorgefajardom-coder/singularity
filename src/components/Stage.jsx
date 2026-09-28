@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 
 const BlackHole = lazy(() => import("./BlackHole"));
 import Hero from "./Hero";
@@ -168,8 +168,13 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
   // (tests/e2e/viaje.spec.js): se lee, no se escribe.
   if (typeof window !== "undefined") window.__viaje = journey;
 
+  // El viaje se monta con los lienzos (`warm`), detras del cargador y dentro
+  // de su porcentaje, no al pulsar la cinta: montarlo en el toque (medidas,
+  // estilos, ScrollTrigger) era parte de la espera antes de la transformacion
+  // (Jorge, 28-09-2026). Las posiciones se rehacen al terminar la intro
+  // (`ScrollTrigger.refresh` en App.jsx).
   useEffect(() => {
-    if (!entered || !warm || reduced) return;
+    if (!warm || reduced) return;
     const anchor = stage.current.querySelector(".about__singularity");
     const about = stage.current.querySelector(".about");
     const meditation = stage.current.querySelector(".meditation");
@@ -336,8 +341,18 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
         // pegada al viewport: el marco de Meditacion fijo arriba o el Stack
         // fijado (la portada). El resto, con la mano ya en ella, va con la
         // pagina.
-        const pegada = (motion.progress < 1 && closing.progress === 0)
-          || Math.abs(frameTop) < 1 || stackSection.style.position === "fixed";
+        //
+        // Pero no todo el vuelo: la posicion es `centro * (1 - t) + mano * t`.
+        // Con el dedo el compositor adelanta el scroll un fotograma y, pegado
+        // al viewport, el agujero se queda atras `t * dScroll`; pegado a la
+        // pagina, `(1 - t) * dScroll`. Hasta ahora se soltaba solo con
+        // `motion.progress === 1`, asi que en el ultimo tramo, con el agujero
+        // ya casi en la mano (t ~ 0,9), un scroll brusco lo dejaba atras casi
+        // el scroll entero (Jorge, 27-09-2026: "se sigue moviendo de la
+        // mano"). Cambiando en la mitad el error es siempre el menor de los
+        // dos, y en la mano es cero.
+        const vuela = motion.progress < 1 && closing.progress === 0 && ease(motion.progress) < 0.5;
+        const pegada = vuela || Math.abs(frameTop) < 1 || stackSection.style.position === "fixed";
         if (pegada) alViewport();
         else {
           const arriba = antes.pagina ? holder.getBoundingClientRect().top : 0;
@@ -595,7 +610,7 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       carrier.current?.style.removeProperty("pointer-events");
       if (carrier.current) delete carrier.current.dataset.inerte;
     };
-  }, [entered, warm, reduced]);
+  }, [warm, reduced]);
 
   useEffect(() => {
     if (!entered || reduced || !stage.current) return;
@@ -655,6 +670,24 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
     return () => ctx.revert();
   }, [entered, reduced]);
 
+  // Memorizado: no depende de `entered`, `warm`, `revelar` ni `lensed`, y
+  // re-renderizarlo al pulsar la cinta (el Stack entero, sus dibujos) era
+  // trabajo en el fotograma del toque (Jorge, 28-09-2026).
+  const recorrido = useMemo(() => (
+    <>
+      <Aislado nombre="la orbita">
+        {reduced ? (
+          <Companies />
+        ) : (
+          <Orbit journey={journey} items={companies.items ?? []} note={sections.companies.note} />
+        )}
+      </Aislado>
+      <Aislado nombre="Sobre mi"><About sharedHole={!reduced} /></Aislado>
+      <Aislado nombre="Meditacion"><Meditation reduced={reduced} /></Aislado>
+      <Aislado nombre="el Stack"><Stack sequence={stackSequence} /></Aislado>
+    </>
+  ), [reduced]);
+
   return (
     <div className="stage" ref={stage}>
       {warm && (
@@ -679,16 +712,7 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
           remontarlo al empezar el morfo le quitaba fotogramas. */}
       <Hero entered={entered} revelar={revelar} copyRef={copy} lensed={lensed} />
 
-      <Aislado nombre="la orbita">
-        {reduced ? (
-          <Companies />
-        ) : (
-          <Orbit journey={journey} items={companies.items ?? []} note={sections.companies.note} />
-        )}
-      </Aislado>
-      <Aislado nombre="Sobre mi"><About sharedHole={!reduced} /></Aislado>
-      <Aislado nombre="Meditacion"><Meditation reduced={reduced} /></Aislado>
-      <Aislado nombre="el Stack"><Stack sequence={stackSequence} /></Aislado>
+      {recorrido}
     </div>
   );
 }

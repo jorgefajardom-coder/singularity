@@ -159,6 +159,9 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, onMorph, espe
     if (hitos.current[k]) return;
     hitos.current[k] = true;
     if (import.meta.env.DEV) console.info(`[carga] ${k} ${Math.round(performance.now())} ms`);
+    // Para medir en un telefono de verdad (tambien en produccion): cuando
+    // llego cada hito, en ms desde la navegacion.
+    if (typeof window !== "undefined") (window.__cargaHitos ??= {})[k] = Math.round(performance.now());
   };
 
   /**
@@ -298,7 +301,11 @@ export default function Loader({ onWarm, onEnter, onDone, onReady, onMorph, espe
       );
     }, root);
 
-    return () => ctx.revert();
+    // Al pulsar la cinta (`esperando`) solo se para: deshacerla devolvia de
+    // golpe las etiquetas a su estado inicial (~50 ms de estilos en el toque
+    // de un telefono) y el fundido de retirada de `esperando` no llegaba a
+    // verse. Ese efecto las lleva a 0 desde donde esten.
+    return () => (fase.current === "esperando" ? ctx.kill() : ctx.revert());
   }, [phase]);
 
   useLayoutEffect(() => {

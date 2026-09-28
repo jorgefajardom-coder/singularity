@@ -8,5 +8,6 @@ export function audioBands(bins, sampleRate, fftSize) {
     for (let i = first; i <= last; i++) total += bins[i];
     return total / ((last - first + 1) * 255);
   };
-  return { bass: average(30, 180), mid: average(180, 2000), treble: average(2000, 8000) };
+  // `kick`: la banda del bombo, sin el cuerpo del bajo (ver BlackHole.jsx).
+  return { bass: average(30, 180), kick: average(40, 110), mid: average(180, 2000), treble: average(2000, 8000) };
 }

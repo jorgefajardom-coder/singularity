@@ -329,7 +329,9 @@ export default function ModelViewer({ model, label, hint }) {
   const [asomado, setAsomado] = useState(yaPreparado);
   const [enPantalla, setEnPantalla] = useState(false);
   const gpuCaida = useGpuFallo();
-  useRegistrarVista(caja);
+  // La celda es un modelo de mucho detalle y en el telefono, a densidad 1, se
+  // veia pixelada: mientras esta en pantalla el lienzo sube (ver ViewCanvas).
+  useRegistrarVista(caja, { nitida: true });
 
   useEffect(() => {
     const el = caja.current;

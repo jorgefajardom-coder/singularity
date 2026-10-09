@@ -81,26 +81,6 @@ export function Placeholder({ palette = ["#ff8224", "#db3208"], seed = 0, src, a
   );
 }
 
-export function RollText({ children, className = "" }) {
-  const text = String(children ?? "");
-
-  return (
-    <span className={`roll ${className}`.trim()}>
-      {/* El texto real, no un aria-label: un span sin rol no admite nombre
-          de autor y los lectores de pantalla lo ignoran. Ver SplitText.jsx. */}
-      <span className="sr-only">{text}</span>
-      <span aria-hidden="true">
-        {[...text].map((char, i) => (
-          <span className="roll__char" key={i} style={{ "--i": i }}>
-            <span>{char === " " ? "\u00a0" : char}</span>
-            <span>{char === " " ? "\u00a0" : char}</span>
-          </span>
-        ))}
-      </span>
-    </span>
-  );
-}
-
 /**
  * Vídeo de YouTube que se ve y se reproduce SIN salir de la página, y que no
  * pide nada a Google hasta que le dan al play.

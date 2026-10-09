@@ -24,8 +24,7 @@ const SEMIANCHO = 85.35;
 // Puntos por mitad: los justos para que la cinta no se vea poligonal a
 // pantalla completa. El shader los recorre por bloques (ver `distCurva` en
 // BlackHole.jsx), asi que mas puntos cuestan poco, pero no son gratis.
-export const PUNTOS_POR_MITAD = 48;
-export const PUNTOS = PUNTOS_POR_MITAD * 2;
+const PUNTOS_POR_MITAD = 48;
 
 function cubica(p0, p1, p2, p3, t) {
   const u = 1 - t;

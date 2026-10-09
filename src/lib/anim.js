@@ -37,16 +37,6 @@ export function useReducedMotion() {
 }
 
 /**
- * Lo que tapa la barra fija por arriba. Se mide: la barra cambia de alto
- * entre escritorio y telefono, y un numero fijo dejaba el titulo de la
- * seccion debajo de ella o muy separado.
- */
-export function altoBarra() {
-  const bar = document.querySelector(".nav");
-  return bar ? Math.ceil(bar.getBoundingClientRect().height) : 0;
-}
-
-/**
  * Scroll suave (Lenis) sincronizado con el ticker de GSAP, para que
  * ScrollTrigger y el scroll inercial no peleen entre ellos.
  */

@@ -92,13 +92,11 @@ export const PRESUPUESTO = {
  * vueltos, otros no, texturas sin subir) es peor que un respaldo estable.
  */
 let fallo = false;
-let motivoFallo = null;
 const oyentes = new Set();
 
 export function marcarGpuFallo(motivo = "desconocido") {
   if (fallo) return;
   fallo = true;
-  motivoFallo = motivo;
   // Se registra: si la pagina degrada, que quede rastro de por que.
   console.warn(`[singularity] 3D desactivado en esta visita: ${motivo}`);
   if (typeof window !== "undefined") window.__gpuFallo = motivo;
@@ -106,7 +104,6 @@ export function marcarGpuFallo(motivo = "desconocido") {
 }
 
 export const gpuFallo = () => fallo;
-export const gpuMotivo = () => motivoFallo;
 
 const suscribir = (f) => { oyentes.add(f); return () => oyentes.delete(f); };
 const leer = () => fallo;

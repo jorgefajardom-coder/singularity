@@ -643,6 +643,7 @@ export const projectCategories = [
   { id: "design", label: t("Diseño de producto y packaging", "Product Design & Packaging") },
   { id: "robotics", label: t("Robótica y manufactura", "Robotics & Manufacturing") },
   { id: "ai", label: t("IA y automatización", "AI & Automation") },
+  { id: "software", label: t("Software", "Software") },
 ];
 
 export const projects = [
@@ -759,6 +760,56 @@ export const projects = [
     media: [{
       src: "/images/esp32cam-seguridad.webp",
       alt: t("Módulo ESP32-CAM AI Thinker con su cámara OV2640", "ESP32-CAM AI Thinker module with its OV2640 camera"),
+    }],
+  },
+  {
+    category: "software",
+    name: t("Spot Micro Twins", "Spot Micro Twins"),
+    year: "2026",
+    href: "https://github.com/jorgefajardom-coder/Spot-micro-twins",
+    desc: t(
+      "Robot cuadrúpedo de 12 grados de libertad impreso en 3D, con firmware en ESP32, cinemática inversa en Python y un brazo al estilo del Spot Arm. Lo pilota el cerebro completo de una mosca (conectoma FlyWire, 138.639 neuronas en la GPU) y un LiDAR de 360° reconstruye en 3D la galería con el gas y la temperatura medidos. Pensado para minería: entra antes que las personas, localiza una fuga de gas a 14 m en unos 52 s y vuelve con el mapa del túnel.",
+      "A 3D-printed quadruped robot with 12 degrees of freedom, ESP32 firmware, inverse kinematics in Python and an arm modeled on Spot Arm. It is piloted by the complete brain of a fly (FlyWire connectome, 138,639 neurons on the GPU), and a 360° LiDAR rebuilds the gallery in 3D with the measured gas and temperature. Built for mining: it goes in before people do, finds a gas leak 14 m in within about 52 s and comes back with a map of the tunnel."
+    ),
+    tags: ["Python", "C++", "ESP32", "PlatformIO", "WebSocket", t("Cinemática inversa", "Inverse Kinematics"), "MPU6050", "LiDAR", "FlyWire"],
+    // La foto del robot al lado del texto y, debajo, la mision en la cueva
+    // (del video del repositorio, recortado a 1280 px y sin audio: 4 MB) y el
+    // render de la cueva reconstruida, lado a lado.
+    mediaLado: true,
+    media: [{
+      src: "/images/spot-micro.webp",
+      alt: t("El Spot Micro impreso en 3D, amarillo y negro, sobre un escritorio", "The 3D-printed Spot Micro, yellow and black, on a desk"),
+    }],
+    clips: [
+      { src: "/videos/spot-micro-mision.mp4", poster: "/images/spot-micro-mision-poster.webp", title: t("Misión en la cueva con el cerebro de mosca", "Cave mission driven by the fly brain") },
+      // El render final del escaneo (scans/cueva_20261014_142906): la cueva crece por la
+      // ruta del robot, pasa a la capa de gas con la fuga y se cierra.
+      { src: "/videos/spot-micro-cueva.mp4", poster: "/images/spot-micro-cueva-poster.webp", title: t("La cueva reconstruida: roca, gas y cierre", "The reconstructed cave: rock, gas and closing") },
+    ],
+  },
+  {
+    category: "software",
+    name: t("Caja Negra", "Caja Negra"),
+    year: "2026",
+    // La demo va primero: es lo que se puede ver sin leer codigo.
+    href: "https://jorgefajardom-coder.github.io/Caja-Negra-Capitolio/",
+    hrefLabel: t("Ver la demo", "View the demo"),
+    links: [
+      { href: "https://github.com/jorgefajardom-coder/Ai-builders-Hackaton", label: t("Ver el repositorio", "View the repository") },
+    ],
+    desc: t(
+      "Reto del AI Builders Hackathon: reemplazar un servicio bancario sin código ni documentación por uno que responda exactamente igual, errores incluidos. Con 6.314 peticiones de experimento salieron la fórmula del dígito de control (ISO 7064, 10 de 10 predicciones), 18 validaciones y 21 códigos de error. El reemplazo en Python sobre ASGI puro, desplegado en Railway, iguala 365 de 365 casos y aguantó más de 150.000 peticiones de ataque sin un error 500.",
+      "AI Builders Hackathon challenge: replace a banking service with no source code or documentation by one that answers exactly the same, errors included. 6,314 experiment requests revealed the check-digit formula (ISO 7064, 10 out of 10 predictions), 18 validations and 21 error codes. The Python replacement on bare ASGI, deployed on Railway, matches 365 out of 365 cases and withstood more than 150,000 attack requests without a single 500 error."
+    ),
+    tags: ["Python", "ASGI", "uvicorn", "Railway", "Three.js", t("Ingeniería inversa", "Reverse Engineering"), t("Pruebas diferenciales", "Differential Testing")],
+    mediaLado: true,
+    // El capitolio armandose, en bucle y sin rotulos: lleva a la demo.
+    media: [{
+      src: "/images/caja-negra-capitolio.webp",
+      video: "/videos/caja-negra-capitolio.mp4",
+      href: "https://jorgefajardom-coder.github.io/Caja-Negra-Capitolio/",
+      cta: t("Abrir la demo interactiva", "Open the interactive demo"),
+      alt: t("El capitolio de la demo armándose pieza a pieza, con sus clientes en la plaza", "The demo's capitol assembling piece by piece, with its clients in the plaza"),
     }],
   },
 ];

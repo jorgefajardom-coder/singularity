@@ -470,7 +470,20 @@ export default function Projects() {
                           label={`${name} · ${tr(ui.model3d)} · ${tr(ui.dragToRotate)}`} />
                       </Suspense>
                     ) : null}
-                    {lado ? (
+                    {/* Con `href`, la imagen lleva a la demo; con `video`, es
+                        un bucle mudo de la demo (solo con la ficha abierta, y
+                        quieto si el visitante pide menos movimiento). */}
+                    {lado?.href ? (
+                      <a className="proj__lado proj__lado--demo" href={lado.href} target="_blank" rel="noreferrer noopener">
+                        {lado.video && isOpen && !prefersReducedMotion() ? (
+                          <video src={asset(lado.video)} poster={asset(lado.src)} autoPlay muted loop playsInline
+                            preload="auto" aria-label={lado.alt ? tr(lado.alt) : name} />
+                        ) : (
+                          <Placeholder src={lado.src} alt={lado.alt ? tr(lado.alt) : name} />
+                        )}
+                        <span className="proj__lado-cta">{tr(lado.cta)}<span aria-hidden="true"> ↗</span></span>
+                      </a>
+                    ) : lado ? (
                       <figure className="proj__lado">
                         <Placeholder src={lado.src} alt={lado.alt ? tr(lado.alt) : name} />
                       </figure>

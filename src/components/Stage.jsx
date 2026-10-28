@@ -11,6 +11,7 @@ import { companies, sections } from "../data/content";
 import { gsap, ScrollTrigger, scrollTactil, useReducedMotion } from "../lib/anim";
 import Aislado from "./Aislado";
 import { REPOSO_MEDIDO, heroBase, recalcularHeroBase } from "../lib/stagePose";
+import { N_FOTOGRAMAS, astronautaListo, cajaFotograma, pintaAstronauta, precargarAstronauta } from "../lib/astronautaVideo";
 
 /**
  * Primera pantalla y órbita comparten un solo agujero negro.
@@ -196,6 +197,22 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
     const stackRow = stage.current.querySelector(".posters");
     const stackSection = stage.current.querySelector("#stack");
     const impact = { fired: false };
+    // La transformacion en video (lib/astronautaVideo.js): un <canvas> dentro
+    // del marco de meditacion, que ya se mueve con la pagina (con el dedo no
+    // "nada"). Se precarga con Sobre mi a dos pantallas; hasta tenerla entera
+    // se usa el fundido de siempre.
+    const video = document.createElement("canvas");
+    video.className = "astronauta-video";
+    video.setAttribute("aria-hidden", "true");
+    finalFrame.append(video);
+    const pincel = video.getContext("2d");
+    let fotogramaAntes = -1;
+    const cercaSobreMi = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return;
+      cercaSobreMi.disconnect();
+      void precargarAstronauta();
+    }, { rootMargin: "200% 0px 200% 0px" });
+    cercaSobreMi.observe(about);
     // Lo que no cambia fotograma a fotograma se lee una vez (y al cambiar el
     // tamano), no en cada tick: `getComputedStyle` fuerza a recalcular estilos.
     const medidas = { figuraX: 0 };
@@ -246,7 +263,10 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       scrollTrigger: {
         trigger: meditation,
         start: "top bottom",
-        end: "top top",
+        // Un 40 % de pantalla mas, con el marco ya fijo: la transformacion en
+        // video (92 fotogramas) necesita recorrido; en una pantalla iba a
+        // ~3 px de scroll por fotograma (28-09-2026).
+        end: "top -40%",
         scrub: true,
         invalidateOnRefresh: true,
       },
@@ -389,7 +409,7 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       // mitad del fundido las dos caras estaban a 400 px una de otra y se
       // veian dos astronautas.
       const travel = ease(span([0, 0.5], closingProgress));
-      const dissolve = ease(span([0.45, 0.9], closingProgress));
+      const dissolve = ease(span([0.42, 1.0], closingProgress));
       // Meditacion es una seccion aparte: mientras el astronauta viaja hacia
       // ella, el resto de Sobre mi se retira. Como el que medita espera en su
       // sitio mientras su seccion entra (ver `lift`), sin esto el boton
@@ -429,14 +449,39 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       const poseY = (destination.top + destination.height * MEDITATION_FACE.y - faceY) * travel;
       originalPose.style.transform = `translate3d(${poseX}px, ${poseY}px, 0) scale(${poseScale})`;
       originalPose.style.opacity = 1 - dissolve;
-      // En el cruce, un destello: las dos figuras se aclaran y se desenfocan
-      // un poco y vuelven a enfocarse ya convertidas. Cero en los extremos.
-      const glow = Math.sin(Math.PI * dissolve);
-      const flare = glow > 0.001 ? ` brightness(${(1 + 0.9 * glow).toFixed(3)}) blur(${(2.5 * glow).toFixed(2)}px)` : "";
-      originalImage.style.filter = flare ? flare.trim() : "";
-      // La del que medita lleva su propio `brightness(0.75)` en el CSS.
-      finalImage.style.filter = flare ? `brightness(${(0.75 * (1 + 0.9 * glow)).toFixed(3)}) blur(${(2.5 * glow).toFixed(2)}px)` : "";
       portrait.style.opacity = dissolve;
+      // CON EL VIDEO: en vez de fundir las dos imagenes, el astronauta se
+      // transforma fotograma a fotograma segun avanza el fundido, y la caja
+      // va de encima de la imagen de Sobre mi a encima de la del que medita
+      // (ver `cajaFotograma`). El brillo, de 1 al 0,75 del que medita.
+      const conVideo = astronautaListo() && dissolve > 0 && dissolve < 1;
+      if (conVideo) {
+        const marco = finalFrame.getBoundingClientRect();
+        const c = cajaFotograma(originalImage.getBoundingClientRect(), finalImage.getBoundingClientRect(), dissolve);
+        const t = dissolve * (N_FOTOGRAMAS - 1);
+        if (Math.abs(t - fotogramaAntes) > 0.01) fotogramaAntes = pintaAstronauta(pincel, t) ? t : -1;
+        video.style.width = `${c.width}px`;
+        video.style.height = `${c.height}px`;
+        video.style.transform = `translate3d(${c.left - marco.left}px, ${c.top - marco.top}px, 0)`;
+        video.style.filter = `brightness(${(1 - 0.25 * dissolve).toFixed(3)})`;
+        video.style.opacity = "1";
+        originalPose.style.opacity = "0";
+        finalImage.style.visibility = "hidden";
+        originalImage.style.filter = "";
+        finalImage.style.filter = "";
+      } else {
+        video.style.opacity = "0";
+        finalImage.style.visibility = "";
+        // En el cruce, un destello: las dos figuras se aclaran y se desenfocan
+        // un poco y vuelven a enfocarse ya convertidas. Cero en los extremos.
+        // (Solo sin el video: con el, el cruce es la propia animacion.)
+        const glow = astronautaListo() ? 0 : Math.sin(Math.PI * dissolve);
+        const flare = glow > 0.001 ? ` brightness(${(1 + 0.9 * glow).toFixed(3)}) blur(${(2.5 * glow).toFixed(2)}px)` : "";
+        originalImage.style.filter = flare ? flare.trim() : "";
+        // La del que medita lleva su propio `brightness(0.75)` en el CSS.
+        finalImage.style.filter = flare ? `brightness(${(0.75 * (1 + 0.9 * glow)).toFixed(3)}) blur(${(2.5 * glow).toFixed(2)}px)` : "";
+        if (astronautaListo()) originalPose.style.opacity = dissolve >= 1 ? "0" : "1";
+      }
       Object.assign(journey.current, pose);
       // Dormido no pinta; en el fotograma que se duerme ya tampoco.
       journey.current.oculto = dormir;
@@ -565,6 +610,8 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       originalPose.style.opacity = "";
       originalImage.style.filter = "";
       finalImage.style.filter = "";
+      finalImage.style.visibility = "";
+      video.style.opacity = "0";
       portrait.style.transform = "";
       portrait.style.pointerEvents = "";
       portrait.style.opacity = "";
@@ -584,6 +631,9 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
     return () => {
       gsap.ticker.remove(follow);
       window.removeEventListener("resize", medir);
+      cercaSobreMi.disconnect();
+      video.remove();
+      finalImage.style.visibility = "";
       journey.current.oculto = false;
       tween.scrollTrigger.kill();
       tween.kill();

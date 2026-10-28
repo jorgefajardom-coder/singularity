@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { sections, stack } from "../data/content";
 import { useLang } from "../lib/i18n";
 import { ScrollTrigger, frenarDedo, gsap, navegacion, prefersReducedMotion, scroller, scrollRapido, scrollTactil } from "../lib/anim";
+import { perfil } from "../lib/gpu";
 import StackArt from "./StackArt";
 
 /**
@@ -160,7 +161,10 @@ export default function Stack({ sequence }) {
     const st = ScrollTrigger.create({
       trigger: seccion.current,
       start: "bottom bottom",
-      end: "+=55%",
+      // En el telefono, menos recorrido fijo: "hay que scrollear demasiado
+      // para llegar a cada zona" (Jorge, 28-10-2026). El estampado sigue
+      // acabando en p = 0.4.
+      end: perfil.movil ? "+=40%" : "+=55%",
       pin: true,
       // Sin `anticipatePin`: con Lenis el fijado ya va sincronizado con el
       // scroll, y adelantarlo segun la velocidad lo pegaba antes de tiempo

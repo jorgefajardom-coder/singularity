@@ -89,9 +89,16 @@
      · Cada seccion llevaba ~100 px de relleno arriba y abajo: 200 px de
        cielo entre una y otra. */
 @media (max-width: 600px) {
-  /* 170vh (era 200): "toca scrollear mucho" (Jorge, 28-09-2026). */
-  .orbit { height: 170vh; }
-  .section { padding-block: clamp(48px, 7vh, 72px); }
+  /* 145vh (era 200, luego 170): "toca scrollear mucho" (Jorge, 28-09-2026) y
+     "hay que scrollear demasiado para llegar a cada zona" (28-10-2026). */
+  .orbit { height: 145vh; }
+  .section { padding-block: clamp(32px, 4.5vh, 44px); }
+}
+@media (max-width: 600px) and (prefers-reduced-motion: no-preference) {
+  /* La transformacion al que medita acaba en "top -40%" (Stage.jsx): con
+     160svh quedan 20svh de pausa con las galaxias, antes eran 40. Con menos
+     movimiento se queda en 100svh (global.css). */
+  .meditation { height: 160svh; }
 }
 
 /* ---- Sin huecos negros (Jorge, 27-09-2026, capturas marcadas en rojo) -----

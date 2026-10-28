@@ -1,9 +1,14 @@
 name: Pruebas en navegador
 
-# La pagina en anchos de telefono (320-412 y horizontal) y en escritorio, con
-# WebGL por software: que se entra, que cabe, que no pasa del presupuesto de
-# contextos y que sobrevive a perder la GPU. No bloquea el despliegue (va
-# aparte y es lenta); si falla, se ve en la pestana de Actions.
+# La pagina en escritorio (1536x639), con WebGL por software: que se entra,
+# que cabe, que no pasa del presupuesto de contextos y que sobrevive a perder
+# la GPU. No bloquea el despliegue (va aparte y es lenta); si falla, se ve en
+# la pestana de Actions.
+#
+# Los telefonos (movil-320 ... movil-horizontal) NO corren aqui: se prueban en
+# el telefono de Jorge por depuracion USB (28-10-2026). En el runner, con tres
+# navegadores en cuatro nucleos, sus pruebas de tiempo fallaban por lentitud.
+# Siguen en playwright.config.js para correrlas en local con --project.
 #
 # Las capturas de referencia se generan en Windows (la maquina de Jorge), asi
 # que aqui se ignoran: en Linux las fuentes rasterizan distinto.
@@ -36,7 +41,7 @@ jobs:
 
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npx playwright test --ignore-snapshots
+      - run: npx playwright test --ignore-snapshots --project=escritorio
         env:
           CI: "true"
 

@@ -3,6 +3,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
 import { introTerminada } from "./arranque";
+import { perfil } from "./gpu";
 
 gsap.registerPlugin(ScrollTrigger);
 // Sin el refresco automatico al evento `load`: caia en plena intro, con el ∞
@@ -160,6 +161,20 @@ export function useSmoothScroll() {
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
     });
+
+    // En el telefono Lenis no pone ni quita `lenis-scrolling` en <html>. Lo
+    // hacia al empezar y al soltar cada gesto, y cambiar una clase de <html>
+    // invalida el estilo de la pagina ENTERA (4142 elementos, ~80 ms en el
+    // Redmi): eran los tics al intentar desplazar en Meditacion (traza del
+    // 29-10-2026). Del sitio solo se lee `lenis-stopped`, que se conserva.
+    if (perfil.movil) {
+      lenis.updateClassName = function () {
+        const raiz = this.rootElement;
+        raiz.classList.add("lenis");
+        raiz.classList.toggle("lenis-stopped", Boolean(this.isStopped));
+      };
+      lenis.updateClassName();
+    }
 
     lenis.on("scroll", ScrollTrigger.update);
     scroller.current = lenis;

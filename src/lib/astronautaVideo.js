@@ -29,8 +29,11 @@ import { asset } from "./asset";
  * posicion exacta del scroll: el movimiento es continuo.
  */
 export const N_FOTOGRAMAS = 92;
-const ANCHO = 648;
-const ALTO = 617;
+// El tamano del lienzo (y del fotograma). Stage.jsx lo deja fijo en CSS y lo
+// escala con `transform`: cambiar `width`/`height` en cada fotograma
+// recalculaba la maqueta (tics en el telefono, 29-10-2026).
+export const ANCHO = 648;
+export const ALTO = 617;
 const CAJA = [-254, 228, 672, 1110];
 const ENCAJE = {
   inicio: { s: 1.6748, tx: -11.22, ty: -362.78, W: 1122, H: 1402 },

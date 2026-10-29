@@ -202,3 +202,41 @@
   }
   html[data-frenado="true"] { overscroll-behavior: none; }
 }
+
+/* ---- Tics al desplazar (Redmi, 29-10-2026) ---------------------------------
+   Quieto en Meditacion, el telefono recalculaba estilos en CADA fotograma
+   (170 veces en 3 s, ~700 ms) y con cada repintado reordenaba sus ~100 capas
+   (PaintArtifactCompositor, otros ~700 ms): el hilo principal iba al 75 % y
+   el dedo encontraba parones de 150-450 ms.
+     · Las estrellas animaban `opacity: var(--star-low)`: con una variable en
+       los fotogramas clave (o en la opacidad base, si se omiten los extremos)
+       Chrome no la pasa a la GPU. Aqui el minimo es fijo, 0,32 (la media de
+       `lo` en twinkling.js, que va de 0,22 a 0,47); cada estrella conserva su
+       ritmo y su desfase, y la anima el compositor.
+     · Proyectos y el Stack seguian animando lejos de la pantalla (el brillo
+       de los "+" es box-shadow, la franja "en obra" background-position):
+       `data-fuera` lo pone App.jsx y aqui se pausa. */
+@keyframes star-twinkle-movil {
+  0%, 100% { opacity: 0.32; }
+  50% { opacity: 1; }
+}
+@media (hover: none) and (pointer: coarse) and (prefers-reduced-motion: no-preference) {
+  .starfield__star { animation-name: star-twinkle-movil; }
+  [data-fuera="true"] .acc__sign,
+  [data-fuera="true"] .acc__sign::after,
+  [data-fuera="true"] .proj__pulso,
+  [data-fuera="true"] .proj__obra,
+  [data-fuera="true"] .poster,
+  [data-fuera="true"] [class^="art-"],
+  [data-fuera="true"] [class^="art-"] * { animation-play-state: paused !important; }
+}
+/* La fila de cartas del Stack, fuera de pantalla, ni se pinta (ver App.jsx):
+   era lo que frenaba la transformacion de Meditacion, justo encima. */
+@media (hover: none) and (pointer: coarse) {
+  .posters[data-lejos="true"] { visibility: hidden; }
+  /* Las ilustraciones (SVG que se repinta en cada fotograma) esperan a que
+     las cartas esten repartidas: al asomar el Stack coincidian con el final
+     de la transformacion del astronauta y lo frenaban a la mitad. */
+  .posters:not([data-repartida="true"]) [class^="art-"],
+  .posters:not([data-repartida="true"]) .poster__destellos i { animation: none !important; }
+}

@@ -129,6 +129,37 @@ export default function App() {
     return () => { ro.disconnect(); window.clearTimeout(espera); };
   }, [introGone]);
 
+  // En el telefono, las animaciones decorativas de una seccion lejos de la
+  // pantalla se pausan (`data-fuera`, ver movil.css). El brillo de los "+" de
+  // Proyectos (box-shadow), la franja "en obra" (background-position) y las
+  // cartas del Stack seguian animando en Meditacion: estilo y repintado en
+  // cada fotograma, y con cada repintado el telefono reordenaba sus ~100
+  // capas. Eran los tics al desplazar (Redmi, 29-10-2026).
+  useEffect(() => {
+    if (!perfil.movil || typeof IntersectionObserver !== "function") return undefined;
+    const secciones = ["#stack", "#projects"].map((s) => document.querySelector(s)).filter(Boolean);
+    const obs = new IntersectionObserver((entradas) => {
+      for (const e of entradas) {
+        if (e.isIntersecting) delete e.target.dataset.fuera;
+        else e.target.dataset.fuera = "true";
+      }
+    }, { rootMargin: "50% 0px 50% 0px" });
+    secciones.forEach((s) => obs.observe(s));
+    // La fila de cartas del Stack, ademas, no se pinta hasta que va a entrar
+    // en pantalla (`data-lejos`, ver movil.css). Justo debajo de Meditacion,
+    // sin verse, el telefono la rasterizaba en cada fotograma (once cartas en
+    // capa, con su vaiven y sus ilustraciones animadas) y la transformacion
+    // del astronauta iba a 21 fps con parones de 400 ms; oculta, a 37 fps
+    // (Redmi, 29-10-2026). `visibility` no cambia la maqueta ni el anclaje.
+    const fila = document.querySelector(".posters");
+    const obsFila = fila && new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) delete fila.dataset.lejos;
+      else fila.dataset.lejos = "true";
+    }, { rootMargin: "0px 0px 15% 0px" });
+    obsFila?.observe(fila);
+    return () => { obs.disconnect(); obsFila?.disconnect(); };
+  }, []);
+
   // La pista arranca al pulsar la cinta del cargador (`entered` se enciende en
   // ese mismo clic), tambien en el telefono (Jorge, 26-09-2026). Ya viene
   // decodificada de la carga (ver `precargarPista`), asi que no compite con

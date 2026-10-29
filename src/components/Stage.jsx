@@ -11,7 +11,7 @@ import { companies, sections } from "../data/content";
 import { gsap, ScrollTrigger, scrollTactil, useReducedMotion } from "../lib/anim";
 import Aislado from "./Aislado";
 import { REPOSO_MEDIDO, heroBase, recalcularHeroBase } from "../lib/stagePose";
-import { N_FOTOGRAMAS, astronautaListo, cajaFotograma, pintaAstronauta, precargarAstronauta } from "../lib/astronautaVideo";
+import { ALTO, ANCHO, N_FOTOGRAMAS, astronautaListo, cajaFotograma, pintaAstronauta, precargarAstronauta } from "../lib/astronautaVideo";
 
 /**
  * Primera pantalla y órbita comparten un solo agujero negro.
@@ -204,7 +204,27 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
     const video = document.createElement("canvas");
     video.className = "astronauta-video";
     video.setAttribute("aria-hidden", "true");
+    // Tamano fijo: la caja de cada fotograma se consigue con `scale` (ver
+    // `follow`), que mueve la GPU sin recalcular la maqueta.
+    video.style.width = `${ANCHO}px`;
+    video.style.height = `${ALTO}px`;
     finalFrame.append(video);
+    // Lo ultimo escrito en cada elemento por `follow`: con el mismo valor no
+    // se vuelve a escribir. Reescribir lo mismo en cada fotograma (sobre todo
+    // `data-inerte`, que tiene un selector `[data-inerte="true"] *` encima de
+    // todo el lienzo 3D) recalculaba estilos y repintaba sin que nada
+    // cambiara: los tics al desplazar por Meditacion en el telefono
+    // (29-10-2026). `restaurar` y la limpieza escriben directo y la olvidan.
+    let escrito = new WeakMap();
+    const olvidar = () => { escrito = new WeakMap(); };
+    const pon = (el, prop, valor) => {
+      let m = escrito.get(el);
+      if (!m) escrito.set(el, (m = {}));
+      if (m[prop] === valor) return;
+      m[prop] = valor;
+      if (prop.startsWith("data-")) el.setAttribute(prop, valor);
+      else el.style[prop] = valor;
+    };
     const pincel = video.getContext("2d");
     let fotogramaAntes = -1;
     const cercaSobreMi = new IntersectionObserver(([e]) => {
@@ -333,6 +353,9 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
         }
         return;
       }
+      // Al salir del reposo, lo que escribio esa ruta (la mascara) no lo sabe
+      // `pon`: se olvida todo y este fotograma lo escribe entero.
+      if (antes.reposo) olvidar();
       antes.reposo = false;
       antes.borde = undefined;
       // Al dormirse se hace un fotograma completo (el primero), para dejar
@@ -416,8 +439,8 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       // "Trabajemos juntos" seguia asomando arriba con las galaxias ya fuera.
       const aboutFade = ease(span([0.2, 0.55], closingProgress));
       for (const el of aboutParts) {
-        el.style.opacity = aboutFade > 0 ? String(1 - aboutFade) : "";
-        el.style.pointerEvents = aboutFade > 0.5 ? "none" : "";
+        pon(el, "opacity", aboutFade > 0 ? String(1 - aboutFade) : "");
+        pon(el, "pointerEvents", aboutFade > 0.5 ? "none" : "");
       }
       // El que medita espera ya en su sitio de reposo mientras su seccion
       // entra: se le resta lo que al marco (sticky) le falta para llegar
@@ -427,12 +450,12 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       // retrato, aun invisible, no puede quedarse interceptando clics encima
       // de Sobre mi.
       const lift = Math.max(0, frameTop);
-      portrait.style.transform = lift > 0 ? `translateY(var(--retrato-y)) translateY(${-lift}px)` : "";
-      portrait.style.pointerEvents = lift > 0 ? "none" : "";
+      pon(portrait, "transform", lift > 0 ? `translateY(var(--retrato-y)) translateY(${-lift}px)` : "");
+      pon(portrait, "pointerEvents", lift > 0 ? "none" : "");
       // Los contadores salen con el astronauta (ver Meditation.jsx): esperan
       // con el en su sitio, o saldrian por debajo del borde de la pantalla.
-      if (finalStats) finalStats.style.transform = lift > 0 ? `translateY(${-lift}px)` : "";
-      finalFrame.style.overflow = lift > 0 ? "visible" : "";
+      if (finalStats) pon(finalStats, "transform", lift > 0 ? `translateY(${-lift}px)` : "");
+      pon(finalFrame, "overflow", lift > 0 ? "visible" : "");
       const destination = portrait.getBoundingClientRect();
       // Lleva la cara del astronauta de Sobre mi hasta la del que medita,
       // con su tamano, y ahi los funde: se lee como que uno se convierte en el
@@ -447,9 +470,8 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       const figuraX = medidas.figuraX;
       const poseX = (destination.left + destination.width * MEDITATION_FACE.x + figuraX - faceX) * travel;
       const poseY = (destination.top + destination.height * MEDITATION_FACE.y - faceY) * travel;
-      originalPose.style.transform = `translate3d(${poseX}px, ${poseY}px, 0) scale(${poseScale})`;
-      originalPose.style.opacity = 1 - dissolve;
-      portrait.style.opacity = dissolve;
+      pon(originalPose, "transform", `translate3d(${poseX}px, ${poseY}px, 0) scale(${poseScale})`);
+      pon(portrait, "opacity", String(dissolve));
       // CON EL VIDEO: en vez de fundir las dos imagenes, el astronauta se
       // transforma fotograma a fotograma segun avanza el fundido, y la caja
       // va de encima de la imagen de Sobre mi a encima de la del que medita
@@ -460,27 +482,29 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
         const c = cajaFotograma(originalImage.getBoundingClientRect(), finalImage.getBoundingClientRect(), dissolve);
         const t = dissolve * (N_FOTOGRAMAS - 1);
         if (Math.abs(t - fotogramaAntes) > 0.01) fotogramaAntes = pintaAstronauta(pincel, t) ? t : -1;
-        video.style.width = `${c.width}px`;
-        video.style.height = `${c.height}px`;
-        video.style.transform = `translate3d(${c.left - marco.left}px, ${c.top - marco.top}px, 0)`;
-        video.style.filter = `brightness(${(1 - 0.25 * dissolve).toFixed(3)})`;
-        video.style.opacity = "1";
-        originalPose.style.opacity = "0";
-        finalImage.style.visibility = "hidden";
-        originalImage.style.filter = "";
-        finalImage.style.filter = "";
+        pon(video, "transform", `translate3d(${c.left - marco.left}px, ${c.top - marco.top}px, 0) scale(${c.width / ANCHO}, ${c.height / ALTO})`);
+        // En pasos de 0,02 (unos 13 en toda la transformacion): cambiar el
+        // filtro repinta, y en cada fotograma era repintar sin que se notara.
+        pon(video, "filter", `brightness(${(Math.round((1 - 0.25 * dissolve) * 50) / 50).toFixed(2)})`);
+        pon(video, "opacity", "1");
+        pon(originalPose, "opacity", "0");
+        pon(finalImage, "visibility", "hidden");
+        pon(originalImage, "filter", "");
+        pon(finalImage, "filter", "");
       } else {
-        video.style.opacity = "0";
-        finalImage.style.visibility = "";
+        pon(video, "opacity", "0");
+        pon(finalImage, "visibility", "");
         // En el cruce, un destello: las dos figuras se aclaran y se desenfocan
         // un poco y vuelven a enfocarse ya convertidas. Cero en los extremos.
         // (Solo sin el video: con el, el cruce es la propia animacion.)
         const glow = astronautaListo() ? 0 : Math.sin(Math.PI * dissolve);
         const flare = glow > 0.001 ? ` brightness(${(1 + 0.9 * glow).toFixed(3)}) blur(${(2.5 * glow).toFixed(2)}px)` : "";
-        originalImage.style.filter = flare ? flare.trim() : "";
+        pon(originalImage, "filter", flare ? flare.trim() : "");
         // La del que medita lleva su propio `brightness(0.75)` en el CSS.
-        finalImage.style.filter = flare ? `brightness(${(0.75 * (1 + 0.9 * glow)).toFixed(3)}) blur(${(2.5 * glow).toFixed(2)}px)` : "";
-        if (astronautaListo()) originalPose.style.opacity = dissolve >= 1 ? "0" : "1";
+        pon(finalImage, "filter", flare ? `brightness(${(0.75 * (1 + 0.9 * glow)).toFixed(3)}) blur(${(2.5 * glow).toFixed(2)}px)` : "");
+        // Una sola escritura de la opacidad por fotograma (antes se escribia
+        // `1 - dissolve` y, con el video, `0` justo despues).
+        pon(originalPose, "opacity", astronautaListo() ? (dissolve >= 1 ? "0" : "1") : String(1 - dissolve));
       }
       Object.assign(journey.current, pose);
       // Dormido no pinta; en el fotograma que se duerme ya tampoco.
@@ -539,7 +563,7 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
         const cx = target.left + target.width / 2;
         const visibility = Math.min(1, Math.max(0, (cx - row.left) / target.width), Math.max(0, (row.right - cx) / target.width));
         const opacidad = (1 - coverMix + coverMix * visibility) * (1 - stamp);
-        layer.style.opacity = String(opacidad);
+        pon(layer, "opacity", String(opacidad));
         // Invisible (ya estampado, o la portada fuera de la fila): no se
         // pinta. Esperar a DORMIDO dejaba el shader trazando la pantalla
         // entera sin verse justo durante el reparto de la baraja, que se
@@ -549,7 +573,7 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
           antes.quieto = `${window.scrollY}|${innerWidth}x${innerHeight}|${sequence}|${motion.progress}|${closing.progress}`;
         }
       } else {
-        layer.style.opacity = "";
+        pon(layer, "opacity", "");
       }
       // Con altura cero no hay logaritmo que valga: log(0) es -Infinito y, en
       // el arranque (t = 0), -Infinito * 0 da NaN. Un `scale(NaN)` no es que
@@ -566,7 +590,7 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       // Una medida rota se salta el fotograma entero: el lienzo se queda en
       // el ultimo sitio bueno en vez de irse de la pantalla.
       if (!seguro) return;
-      layer.style.transform = `translate3d(${seguro.x}px, ${seguro.y}px, 0) scale(${seguro.s}) scaleY(${seguro.sy})`;
+      pon(layer, "transform", `translate3d(${seguro.x}px, ${seguro.y}px, 0) scale(${seguro.s}) scaleY(${seguro.sy})`);
       // Vacia el shader mientras el lienzo todavia cubre el viewport, antes de
       // que ninguna traslacion ni escala ensenen sus bordes.
       journey.current.isolation = t > 0 ? 1 : ease(span([0.92, 1], pose.p));
@@ -575,15 +599,15 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
       // para que ni un fotograma viejo y opaco pueda ensenar esquinas.
       const edgeAlpha = t > 0 ? 0 : 1 - ease(span([0.86, 0.96], pose.p));
       const mask = `radial-gradient(ellipse 50% 50% at 50% 50%, #000 35%, rgba(0,0,0,${edgeAlpha}) 100%)`;
-      layer.style.maskImage = mask;
-      layer.style.webkitMaskImage = mask;
-      holder.style.zIndex = coverMix > 0 ? "20" : t > 0 ? "2" : "0";
-      holder.style.pointerEvents = t > 0 ? "none" : "auto";
+      pon(layer, "maskImage", mask);
+      pon(layer, "webkitMaskImage", mask);
+      pon(holder, "zIndex", coverMix > 0 ? "20" : t > 0 ? "2" : "0");
+      pon(holder, "pointerEvents", t > 0 ? "none" : "auto");
       // Y lo de dentro tambien. r3f escribe `pointer-events: auto` EN LINEA en
       // su div, que gana a lo heredado: el lienzo, ya invisible sobre el Stack,
       // seguia quedandose el dedo (con `touch-action: pan-y`) y la fila de
       // cartas no se podia deslizar en el telefono (video de Jorge, 26-09-2026).
-      holder.dataset.inerte = t > 0 ? "true" : "false";
+      pon(holder, "data-inerte", t > 0 ? "true" : "false");
       journey.current.cy = clamp(pose.cy * (1 - t), -1.5, 1.5);
       // `uScale` multiplica las coordenadas del shader, asi que un valor MENOR
       // agranda el agujero (ver stagePose.js). Al aterrizar no se queda en 1
@@ -605,6 +629,7 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
     // REPOSO ya no lo reescribe en cada fotograma). Es lo que `follow`
     // escribiria con el viaje a cero.
     function restaurar() {
+      olvidar();
       alViewport();
       originalPose.style.transform = "";
       originalPose.style.opacity = "";
@@ -630,6 +655,7 @@ export default function Stage({ entered, revelar = entered, warm, espejo, onList
     gsap.ticker.add(follow);
     return () => {
       gsap.ticker.remove(follow);
+      olvidar();
       window.removeEventListener("resize", medir);
       cercaSobreMi.disconnect();
       video.remove();

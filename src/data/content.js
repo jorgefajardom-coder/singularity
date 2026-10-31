@@ -937,6 +937,7 @@ export const socials = [
   },
   { label: "GitHub", href: "https://github.com/jorgefajardom-coder" },
   { label: "YouTube", href: "https://www.youtube.com/@JorgeAndr%C3%A9sFajardoMora" },
+  { label: "X (Twitter)", href: "https://x.com/Glory_ordeath" },
 ];
 
 /* ============================================================
